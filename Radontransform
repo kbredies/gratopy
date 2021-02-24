@@ -1,0 +1,78 @@
+	
+
+__kernel void radon(__global float *sino, __global float *img,
+					__constant float4 *ofs, const int X,
+					const int Y)
+{
+   size_t I = get_global_size(0);
+   size_t J = get_global_size(1); 
+
+  size_t i = get_global_id(0);
+  size_t j = get_global_id(1);
+  size_t thirddim = get_global_id(2);
+  int ii=i;
+  float4 o = ofs[j];
+  float acc = 0.0f;
+  img+=X*Y*thirddim;
+  for(int y = 0; y < Y; y++) {
+	int x_low, x_high;
+	float d = y*o.y + o.z;
+
+	// compute bounds
+	if (o.x == 0) {
+	  if ((d > ii-1) && (d < ii+1)) {
+		x_low = 0; x_high = X-1;
+	  } else {
+		img += X; continue;
+	  }
+	} else if (o.x > 0) {
+	  x_low = (int)((ii-1 - d)*o.w);
+	  x_high = (int)((ii+1 - d)*o.w);
+	} else {
+	  x_low = (int)((ii+1 - d)*o.w);
+	  x_high = (int)((ii-1 - d)*o.w);
+	}
+	x_low = max(x_low, 0);
+	x_high = min(x_high, X-1);
+
+	// integrate
+	for(int x = x_low; x <= x_high; x++) {
+	  float weight = 1.0 - fabs(x*o.x + d - ii);
+	  if (weight > 0.0f) acc += weight*img[x];
+	}
+	img += X;
+  }
+  sino[j*I + i+I*J*thirddim] = acc;
+}
+
+__kernel void radon_ad(__global float *img, __global float *sino,
+					   __constant float4 *ofs, const int I,
+					   const int J)
+{
+  size_t X = get_global_size(0);
+	size_t Y = get_global_size(1);
+  
+  size_t x = get_global_id(0);
+  size_t y = get_global_id(1);
+   size_t thirddim = get_global_id(2);
+
+  float4 c = (float4)(x,y,1,0);
+  float acc = 0.0f;
+  sino += I*J*thirddim;
+  
+  for (int j=0; j < J; j++) {
+	float i = dot(c, ofs[j]);
+	if ((i > -1) && (i < I)) {
+	  float i_floor;
+	  float p = fract(i, &i_floor);
+	  if (i_floor >= 0)	  acc += (1.0f - p)*sino[(int)i_floor];
+	  if (i_floor <= I-2) acc += p*sino[(int)(i_floor+1)];
+	}
+	sino += I;
+  }
+  img[y*X + x+X*Y*thirddim] = acc;
+}
+
+
+
+"""
