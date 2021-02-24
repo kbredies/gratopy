@@ -33,7 +33,6 @@ float acc=0;
 //jump to relevant z dimension
 img+=thirddim*Nx*Ny;
 
-
 // compute direction vector from source to detector pixels above dp (i+1) and below dm (i-1).
 float dpx=dx0+xd*(-midpoint_det+i+1)-qx;
 float dpy=dy0+yd*(-midpoint_det+i+1)-qy;
@@ -104,9 +103,17 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
 		for (int x=xlowint;x<=xhighint;x++)
 		{
 			// xi is equal the projected detector position (with exact positions as integers)
-			float xi=s/t;
+			 
+			 float xi=s/t;
 			//Weight corresponds to distance of projected detector position divided by the distance from the source
 			float Weight=(1-fabs(i-xi-midpoint_det))/t;
+			
+			//cut of ray when hits detector (in case detector inside imaging object)
+			if(t>1)
+			{
+			Weight=0;
+			}
+			
 			acc+=Weight*img[x];
 			
 			//update t and s via obvious formulas
@@ -165,6 +172,14 @@ else
 			
 			//Weight corresponds to distance of projected detector position divided by the distance from the source
 			float Weight=(1-fabs(i-xi-midpoint_det))/t;
+			
+			//cut of ray when hits detector (in case detector inside imaging object)
+			if(t>1)
+			{
+			Weight=0;
+			}
+
+			
 			acc+=Weight*img[x+Nx*y];
 			
 			//update s and t via obvious formulas
@@ -224,27 +239,27 @@ for (int j=0;j< Nj;j++)
 	yd/=(norm*norm);
 	
 	//determine orthogonal distances a and b (in detector direction and dx direction)
-	float a=dx*(x-qx)+dy*(y-qy);
-	float b=xd*(x-qx)+yd*(y-qy);
+	float t=dx*(x-qx)+dy*(y-qy);
+	float s=xd*(x-qx)+yd*(y-qy);
 	
 	//compute s projected position on detector
-	float s=b/a+midpoint_det;
+	float xi=s/t+midpoint_det;
 	
 	//compute adjacent detector positions 
-	int sm=floor(s);
-	int sp=sm+1;
+	int xim=floor(xi);
+	int xip=xim+1;
 	// compute corresponding weights
-	float Weightp=1-(sm+1-s);
-	float Weightm=1-(s-sm);
+	float Weightp=1-(xim+1-xi);
+	float Weightm=1-(xi-xim);
 	
 	//set weight to zero in case adjacent detector position is outside the detector range
-	if (sm <0 || sm>Ni-1)
-		{Weightm=0.; sm=0;}
-	if (sp <0 || sp>Ni-1)
-		{Weightp=0.; sp=0;}
+	if (xim <0 || xim>Ni-1)
+		{Weightm=0.; xim=0;}
+	if (xip <0 || xip>Ni-1)
+		{Weightp=0.; xip=0;}
 	
 	//accumulate weigthed sum
-	acc+=Weightm*sino[sm]+Weightp*sino[sp];
+	acc+=Weightm*sino[xim]+Weightp*sino[xip];
 	
 	//jump in sinogram to the next projection
 	sino+=Ni;

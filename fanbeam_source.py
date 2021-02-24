@@ -27,7 +27,7 @@ prg = Program(ctx, open("fanbeam").read())
 
 def fanbeam_richy_gpu(sino, img, f_struct, wait_for=None):
     shape,sinogram_shape,ofs_buf,Geometryinfo = f_struct 
-    return prg.fanbeam_richy(sino.queue, sinogram_shape, None,
+    return prg.fanbeam_richy(sino.queue, sino.shape, None,
                        sino.data, img.data, ofs_buf,
                        float32(Geometryinfo[0]), float32(Geometryinfo[1]), float32(Geometryinfo[7]),
                        wait_for=wait_for)
@@ -35,7 +35,7 @@ def fanbeam_richy_gpu(sino, img, f_struct, wait_for=None):
 
 def fanbeam_richy_gpu_add( img,sino, f_struct, wait_for=None):
     shape,sinogram_shape,ofs_buf,Geometryinfo = f_struct 
-    return prg.fanbeam_richy_add(img.queue, shape, None,
+    return prg.fanbeam_richy_add(img.queue, img.shape, None,
                        img.data,sino.data, ofs_buf,
                        float32(Geometryinfo[7]),int32(Geometryinfo[2]),int32(sinogram_shape[1]),
                        wait_for=wait_for)
@@ -46,18 +46,27 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
                    n_detectors=None, detector_shift = 0.0,image_width=None):
 	
+	detector_width=float(detector_width)
+	source_detector_dist=float(source_detector_dist)
+	source_origin_dist=float(source_origin_dist)
+	
+	
+	
+	
 	# choose equidistant angles in (0,2pi] if no specific angles are given.
 	if isscalar(angles):
 		angles = linspace(0,2*pi,angles+1)[:-1] + pi
 
 	
 	
-	image_pixels = min(shape)
+	image_pixels = max(shape[0],shape[1])
 	#set number of pixels same as image_resolution if not specified
 	if n_detectors is None:
 		nd = image_pixels
 	else:
 		nd = n_detectors
+
+	assert isinstance(nd, int), "Number of detectors must be integer"
 
 	#compute  midpoints vor orientation
 	midpoint_domain = array([shape[0]-1, shape[1]-1])/2.0
@@ -65,7 +74,7 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 
 	
 	#Ensure that indeed detector on the opposite side of the source
-	assert source_detector_dist>source_origin_dist, 'Origin not between detector and source'
+	#assert source_detector_dist>source_origin_dist, 'Origin not between detector and source'
 	
 	#Save relevant geometric inforrmation
 	sinogram_shape = (nd, len(angles))
@@ -84,11 +93,13 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	if image_width==None:
 		dd=(0.5*detector_width-abs(detector_shift))/source_detector_dist
 		image_width = sqrt(2)*dd*source_origin_dist/sqrt(1+dd**2) # Projection to compute distance via projectionvector (1,dd) after normalization
+	
+	assert image_width<source_origin_dist , " the image is encloses the source"
 		
 	# adjust distances to pixel units, i.e. 1 unit corresponds to the length of one image pixel
-	source_detector_dist *= image_pixels/image_width
-	source_origin_dist *= image_pixels/image_width
-	detector_width *= image_pixels/image_width
+	source_detector_dist *= image_pixels/float(image_width)
+	source_origin_dist *= image_pixels/float(image_width)
+	detector_width *= image_pixels/float(image_width)
 
 	#import pdb; pdb.set_trace()
 	# offset function parameters
@@ -118,7 +129,6 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	#write to Buffer
 	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(ofs.data))
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
-	
 	return (shape,sinogram_shape,ofs_buf,Geometryinfo)
 
 
