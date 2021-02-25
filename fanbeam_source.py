@@ -26,17 +26,17 @@ prg = Program(ctx, open("fanbeam").read())
 
 
 def fanbeam_richy_gpu(sino, img, f_struct, wait_for=None):
-    shape,sinogram_shape,ofs_buf,Geometryinfo = f_struct 
+    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo = f_struct 
     return prg.fanbeam_richy(sino.queue, sino.shape, None,
-                       sino.data, img.data, ofs_buf,
+                       sino.data, img.data, ofs_buf,sdpd_buf,
                        float32(Geometryinfo[0]), float32(Geometryinfo[1]), float32(Geometryinfo[7]),
                        wait_for=wait_for)
                        
 
 def fanbeam_richy_gpu_add( img,sino, f_struct, wait_for=None):
-    shape,sinogram_shape,ofs_buf,Geometryinfo = f_struct 
+    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo = f_struct 
     return prg.fanbeam_richy_add(img.queue, img.shape, None,
-                       img.data,sino.data, ofs_buf,
+                       img.data,sino.data, ofs_buf,sdpd_buf,
                        float32(Geometryinfo[7]),int32(Geometryinfo[2]),int32(sinogram_shape[1]),
                        wait_for=wait_for)
                        
@@ -71,7 +71,7 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	#compute  midpoints vor orientation
 	midpoint_domain = array([shape[0]-1, shape[1]-1])/2.0
 	midpoint_detectors = (nd-1.0)/2.0
-
+	midpoint_detectors = midpoint_detectors+detector_shift*nd/detector_width
 	
 	#Ensure that indeed detector on the opposite side of the source
 	#assert source_detector_dist>source_origin_dist, 'Origin not between detector and source'
@@ -87,7 +87,7 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	Geometryinfo[5]=source_origin_dist
 	
 	#to include detector shift, the midpoint changes accordingly (with detectorshift=detectorwidth/2 would correspond to the closest point to the source is the end of the detector
-	Geometryinfo[7]=midpoint_detectors+detector_shift*nd/detector_width
+	Geometryinfo[7]=midpoint_detectors
 
 	#In case no image_width is predetermined, image_width is chosen in a way that the (square) image is always contained inside the fan between source and detector
 	if image_width==None:
@@ -106,6 +106,8 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	thetaX = -cos(angles)
 	thetaY = sin(angles)
 	
+	
+	
 	#Direction vector of detector direction normed to the length of a single detector pixel
 	XD=thetaX*detector_width/nd
 	YD=thetaY*detector_width/nd
@@ -118,6 +120,16 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	Dx0= thetaY*(source_detector_dist-source_origin_dist)
 	Dy0= -thetaX*(source_detector_dist-source_origin_dist)
 
+
+	xi=(np.arange(0,nd)- midpoint_detectors)*detector_width/nd
+	
+	source_detectorpixel_distance= sqrt((xi)**2+source_detector_dist**2)
+	source_detectorpixel_distance=np.array(source_detectorpixel_distance,dtype=float32,order='F')
+	sdpd = zeros(( 1,len(source_detectorpixel_distance)), dtype=float32, order='F')
+	sdpd[0,:]=source_detectorpixel_distance[:]
+	sdpd_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(sdpd.data))
+	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
+
 	Geometryinfo[6]=image_width			
 	
 	#Save relevant information
@@ -129,18 +141,19 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	#write to Buffer
 	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(ofs.data))
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
-	return (shape,sinogram_shape,ofs_buf,Geometryinfo)
+	import pdb;pdb.set_trace()
+	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo)
 
 
 def show_geometry(angle,f_struct):
 	
 	#Extract relevant geometric information
-	sino_size=f_struct[3][2]
-	detector_width=f_struct[3][3]
-	source_detector_dist=f_struct[3][4]
-	source_origin_dist=f_struct[3][5]
-	image_width=f_struct[3][6]
-	midpoint_det=f_struct[3][7]
+	sino_size=f_struct[4][2]
+	detector_width=f_struct[4][3]
+	source_detector_dist=f_struct[4][4]
+	source_origin_dist=f_struct[4][5]
+	image_width=f_struct[4][6]
+	midpoint_det=f_struct[4][7]
 	figure(0)
 	#Plot all relevant sizes
 	plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0 ,0],"c")
@@ -157,6 +170,30 @@ def show_geometry(angle,f_struct):
 	
 	gcf().gca().add_artist(draw_circle)	
 	draw()
+	
+	
+
+def Fanbeam_normest(queue, r_struct):
+	
+	img = clarray.to_device(queue, require((random.randn(*r_struct[0])), float32, 'F'))
+	
+	sino = clarray.zeros(queue, r_struct[1], dtype=float32, order='F')
+
+	V=(fanbeam_richy_gpu(sino, img, r_struct, wait_for=img.events))
+
+	for i in range(50):
+		#normsqr = float(sum(img.get()**2)**0.5)
+		normsqr = float(clarray.sum(img).get())
+		img /= normsqr
+		#import pdb; pdb.set_trace()
+		sino.events.append( fanbeam_richy_gpu (sino, img, r_struct, wait_for=img.events))
+		img.events.append(fanbeam_richy_gpu_add(img, sino, r_struct, wait_for=sino.events))
+		
+		if i%10==0:
+			print 'normest',i, normsqr
+	return sqrt(normsqr)
+
+
 
 def Landweberiteration(sinogram,r_struct,number_iterations=100):
 	sino2=clarray.to_device(queue, require(sinogram.get(), float32, 'F'))
@@ -164,10 +201,10 @@ def Landweberiteration(sinogram,r_struct,number_iterations=100):
 	U=clarray.zeros(queue,r_struct[0],dtype=float32, order='F')
 	Unew=clarray.zeros(queue,r_struct[0],dtype=float32, order='F')
 	
-	norm=radon_normest(queue,r_struct)
-	#norm=10000
+	norm=Fanbeam_normest(queue,r_struct)
+	norm=1000
 	w=float32(0.5/norm**2)
-	
+	print("norm",norm)
 	for i in range(number_iterations):
 	
 		#import pdb; pdb.set_trace()

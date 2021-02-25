@@ -9,7 +9,7 @@
 // Output:
 //			values inside sino are altered to represent the computed fanbeam transform
 __kernel void fanbeam_richy(__global float *sino, __global float *img,
-                      __constant float8 *ofs,
+                      __constant float8 *ofs, __constant float *sdpd ,
                        const float midpoint_x, const float midpoint_y, const float midpoint_det)
 {
 size_t I = get_global_size(0);
@@ -45,18 +45,17 @@ float dx=dx0-qx;
 float dy=dy0-qy;
 
 //Normalization
-float norm=hypot(dx,dy);// norm=R (rescaled)
-dx/=(norm*norm);
-dy/=(norm*norm);
+float R=hypot(dx,dy);// norm=R (rescaled to the size of one image_pixel=1)
+dx/=(R*R);
+dy/=(R*R);
 
 //Normalization
-norm=hypot(xd,yd); //norm=delta_xi (rescaled)
-xd/=(norm*norm);
-yd/=(norm*norm);
+float delta_xi=hypot(xd,yd); //norm=delta_xi (rescaled to the size of one image_pixel=1)
+xd/=(delta_xi*delta_xi);
+yd/=(delta_xi*delta_xi);
 
 // Distance from source to origin devided by R
 float RE=-(dx*qx+dy*qy);
-
 
 
 //Seperate lines rather vertical than horicontal
@@ -106,7 +105,9 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
 			 
 			 float xi=s/t;
 			//Weight corresponds to distance of projected detector position divided by the distance from the source
-			float Weight=(1-fabs(i-xi-midpoint_det))/t;
+			float Weight=(1-fabs(i-xi-midpoint_det))/(R*t);
+			
+			
 			
 			//cut of ray when hits detector (in case detector inside imaging object)
 			if(t>1)
@@ -171,15 +172,13 @@ else
 			float xi=s/t;
 			
 			//Weight corresponds to distance of projected detector position divided by the distance from the source
-			float Weight=(1-fabs(i-xi-midpoint_det))/t;
+			float Weight=(1-fabs(i-xi-midpoint_det))/(R*t);
 			
 			//cut of ray when hits detector (in case detector inside imaging object)
 			if(t>1)
 			{
 			Weight=0;
-			}
-
-			
+			}			
 			acc+=Weight*img[x+Nx*y];
 			
 			//update s and t via obvious formulas
@@ -190,14 +189,14 @@ else
 	
 	}      
 //update relevant sinogram value	                 
-sino[i+I*j+thirddim*I*J]=acc;
+sino[i+I*j+thirddim*I*J]=acc*sdpd[i]/delta_xi;
 }               
 
 
  
 
 __kernel void fanbeam_richy_add(__global float *img, __global float *sino,
-                      __constant float8 *ofs, const float midpoint_det,
+                      __constant float8 *ofs, __constant float *sdpd,  const float midpoint_det,
                        const int Ni, const int Nj)
 {
 size_t Nx = get_global_size(0);
@@ -230,13 +229,13 @@ for (int j=0;j< Nj;j++)
 	float dy=dy0-qy;
 	
 	//normalization of dx (vector from source to detecector center).
-	float norm=hypot(dx,dy);
-	dx/=(norm*norm);
-	dy/=(norm*norm);
+	float R=hypot(dx,dy);
+	dx/=(R*R);
+	dy/=(R*R);
 	
-	norm=hypot(xd,yd);
-	xd/=(norm*norm);
-	yd/=(norm*norm);
+	float delta_xi=hypot(xd,yd);
+	xd/=(delta_xi*delta_xi);
+	yd/=(delta_xi*delta_xi);
 	
 	//determine orthogonal distances a and b (in detector direction and dx direction)
 	float t=dx*(x-qx)+dy*(y-qy);
@@ -255,11 +254,15 @@ for (int j=0;j< Nj;j++)
 	//set weight to zero in case adjacent detector position is outside the detector range
 	if (xim <0 || xim>Ni-1)
 		{Weightm=0.; xim=0;}
+	else
+		{Weightm*=sdpd[xim];}
 	if (xip <0 || xip>Ni-1)
 		{Weightp=0.; xip=0;}
-	
+	else
+		{Weightp*=sdpd[xip];}
+
 	//accumulate weigthed sum
-	acc+=Weightm*sino[xim]+Weightp*sino[xip];
+	acc+=(Weightm*sino[xim]+Weightp*sino[xip])/(R*t);
 	
 	//jump in sinogram to the next projection
 	sino+=Ni;
