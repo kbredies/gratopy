@@ -32,7 +32,22 @@ if __name__ == '__main__':
 	#from scipy import misc;misc.imshow(img)
 	angles=360
 		
+	
 	f_struct_gpu = fanbeam_struct_richy_gpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
+	
+	
+	f_struct_cpu = fanbeam_struct_richy_cpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
+	img2=img[:,:,0]
+	#sino_cpu=fanbeam_cpu_individual(img2, f_struct_cpu,250,10)
+	#import pdb;pdb.set_trace()
+	
+	
+	
+	
+	
+	
+	
+	
 		
 	img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
 	sino_gpu = clarray.zeros(queue, (f_struct_gpu[1][0],f_struct_gpu[1][1],2), dtype=float32, order='F')
