@@ -28,16 +28,16 @@ if __name__ == '__main__':
 	#misc.imshow(img[:,:,1])
 	
 	img=np.array(img,dtype=float)
-	number_detectors = 512
+	number_detectors = 600
 	#from scipy import misc;misc.imshow(img)
-	angles=360
+	angles=220
 		
 	
-	f_struct_gpu = fanbeam_struct_richy_gpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
+	f_struct_gpu = fanbeam_struct_richy_gpu(img.shape, angles,  400, 752, 200, number_detectors,0,None)
 	
 	
-	f_struct_cpu = fanbeam_struct_richy_cpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
-	img2=img[:,:,0]
+	#f_struct_cpu = fanbeam_struct_richy_cpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
+	#img2=img[:,:,0]
 	#sino_cpu=fanbeam_cpu_individual(img2, f_struct_cpu,250,10)
 	#import pdb;pdb.set_trace()
 	
@@ -149,33 +149,8 @@ if __name__ == '__main__':
 	show()
 	import pdb;pdb.set_trace()
 
-	Coefficienttest=True
-	if Coefficienttest==True:
-		Fehler=[]
-		count=0
-		for i in range(100):
-			
-			img1_gpu = clarray.to_device(queue, require(np.random.random(f_struct_gpu[0]), float32, 'F'))
-			sino1_gpu = clarray.to_device(queue, require(np.random.random(f_struct_gpu[1]), float32, 'F'))
-			img2_gpu = clarray.zeros(queue, f_struct_gpu[0], dtype=float32, order='F')
-			sino2_gpu = clarray.zeros(queue, f_struct_gpu[1], dtype=float32, order='F')
-			fanbeam_richy_gpu(sino2_gpu,img1_gpu,f_struct_gpu)
-						
-			fanbeam_richy_gpu_add(img2_gpu,sino1_gpu,f_struct_gpu)
-			sino1=sino1_gpu.get().reshape(sino1_gpu.size)
-			sino2=sino2_gpu.get().reshape(sino2_gpu.size)
-			img1=img1_gpu.get().reshape(img1_gpu.size)
-			img2=img2_gpu.get().reshape(img2_gpu.size)
-			
-			
-			a=np.dot(img1,img2)
-			b=np.dot(sino1,sino2)
-			#import pdb; pdb.set_trace()
-			if abs(a-b)/min(abs(a),abs(b))>0.001:
-				print a,b
-				count+=1
-				Fehler.append((a,b))
-		print 'Number of Errors: ',count,' Errors were ',Fehler
+
+
 						
 		
 					

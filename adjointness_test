@@ -1,0 +1,40 @@
+from numpy import *
+from matplotlib.pyplot import *
+import pyopencl as cl
+import pyopencl.array as clarray
+import scipy.misc
+import time
+from fanbeam_source import *
+	
+	
+Coefficienttest=True
+if Coefficienttest==True:
+	angles=10
+	number_detectors=230
+	img=np.zeros([400,400])
+	angles=90
+	f_struct_gpu = fanbeam_struct_richy_gpu(img.shape, angles,  83, 900, 300, number_detectors,0,None)
+	Fehler=[]
+	count=0
+	for i in range(100):
+		
+		img1_gpu = clarray.to_device(queue, require(np.random.random(f_struct_gpu[0]), float32, 'F'))
+		sino1_gpu = clarray.to_device(queue, require(np.random.random(f_struct_gpu[1]), float32, 'F'))
+		img2_gpu = clarray.zeros(queue, f_struct_gpu[0], dtype=float32, order='F')
+		sino2_gpu = clarray.zeros(queue, f_struct_gpu[1], dtype=float32, order='F')
+		fanbeam_richy_gpu(sino2_gpu,img1_gpu,f_struct_gpu)
+					
+		fanbeam_richy_gpu_add(img2_gpu,sino1_gpu,f_struct_gpu)
+		sino1=sino1_gpu.get().reshape(sino1_gpu.size)
+		sino2=sino2_gpu.get().reshape(sino2_gpu.size)
+		img1=img1_gpu.get().reshape(img1_gpu.size)
+		img2=img2_gpu.get().reshape(img2_gpu.size)
+		
+		
+		a=np.dot(img1,img2)
+		b=np.dot(sino1,sino2)*(2*np.pi)/angles
+		if abs(a-b)/min(abs(a),abs(b))>0.00001:
+			print a,b,a/b
+		#	count+=1
+		#	Fehler.append((a,b))
+	#print 'Number of Errors: ',count,' Errors were ',Fehler

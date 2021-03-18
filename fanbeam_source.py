@@ -26,25 +26,24 @@ prg = Program(ctx, open("fanbeam").read())
 
 
 def fanbeam_richy_gpu(sino, img, f_struct, wait_for=None):
-    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo = f_struct 
+    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled = f_struct 
     return prg.fanbeam_richy(sino.queue, sino.shape, None,
                        sino.data, img.data, ofs_buf,sdpd_buf,
-                       float32(Geometryinfo[0]), float32(Geometryinfo[1]), float32(Geometryinfo[7]),
+                       Geometry_rescaled.data,
                        wait_for=wait_for)
                        
 
 def fanbeam_richy_gpu_add( img,sino, f_struct, wait_for=None):
-    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo = f_struct 
+    shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled = f_struct 
     return prg.fanbeam_richy_add(img.queue, img.shape, None,
-                       img.data,sino.data, ofs_buf,sdpd_buf,
-                       float32(Geometryinfo[7]),int32(Geometryinfo[2]),int32(sinogram_shape[1]),
+                       img.data,sino.data, ofs_buf,sdpd_buf,Geometry_rescaled.data,
                        wait_for=wait_for)
                        
 
 
 def fanbeam_struct_richy_gpu( shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
-                   n_detectors=None, detector_shift = 0.0,image_width=None):
+                   n_detectors=None, detector_shift = 0.0,image_width=None,midpointshift=[0,0], fullangle=True):
 	
 	detector_width=float(detector_width)
 	source_detector_dist=float(source_detector_dist)
@@ -95,6 +94,10 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 		image_width = sqrt(2)*dd*source_origin_dist/sqrt(1+dd**2) # Projection to compute distance via projectionvector (1,dd) after normalization
 	
 	assert image_width<source_origin_dist , " the image is encloses the source"
+	
+	midpoint_x=midpointshift[0]*image_pixels/float(image_width)+(shape[0]-1)/2.
+	midpoint_y=midpointshift[1]*image_pixels/float(image_width)+(shape[0]-1)/2.
+
 		
 	# adjust distances to pixel units, i.e. 1 unit corresponds to the length of one image pixel
 	source_detector_dist *= image_pixels/float(image_width)
@@ -105,8 +108,6 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	# offset function parameters
 	thetaX = -cos(angles)
 	thetaY = sin(angles)
-	
-	
 	
 	#Direction vector of detector direction normed to the length of a single detector pixel
 	XD=thetaX*detector_width/nd
@@ -132,18 +133,36 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 
 	Geometryinfo[6]=image_width			
 	
+	
+	#Angular weights
+	
+	angles_index = np.argsort(angles%(2*np.pi)) 
+	angles_sorted=angles[angles_index]	%(2*np.pi)
+	
+	if fullangle==True:
+		angles_sorted=np.array(hstack([-2*np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+2*np.pi]))
+	else:
+		angles_sorted=np.array(hstack([2*angles_sorted[0]-angles_sorted[1],angles_sorted,2*angles_sorted[len(angles)-1]-angles_sorted[len(angles)-2]]))
+	angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
+	angles_diff=angles_diff[angles_index]
+	#import pdb;pdb.set_trace()
+	
 	#Save relevant information
 	ofs = zeros((8, len(angles)), dtype=float32, order='F')
 	ofs[0,:] = XD; ofs[1,:] = YD
 	ofs[2,:]=Qx; ofs[3,:]=Qy
 	ofs[4,:]=Dx0; ofs[5]=Dy0
-	
+	ofs[6]=angles_diff
 	#write to Buffer
 	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(ofs.data))
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
-	import pdb;pdb.set_trace()
-	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo)
 
+
+	Geometry_rescaled=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1]])
+	Geometry_rescaled=	clarray.to_device(queue, require(Geometry_rescaled, float32, 'F'))
+	import pdb;pdb.set_trace()
+
+	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled)
 
 def show_geometry(angle,f_struct):
 	
@@ -215,4 +234,12 @@ def Landweberiteration(sinogram,r_struct,number_iterations=100):
 		Unew=Unew-w*U	
 		print (i,np.max(Unew.get()), np.linalg.norm(sino2.get()))
 	return Unew
+
+
+
+
+
+
+
+
 
