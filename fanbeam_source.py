@@ -91,7 +91,7 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	#In case no image_width is predetermined, image_width is chosen in a way that the (square) image is always contained inside the fan between source and detector
 	if image_width==None:
 		dd=(0.5*detector_width-abs(detector_shift))/source_detector_dist
-		image_width = sqrt(2)*dd*source_origin_dist/sqrt(1+dd**2) # Projection to compute distance via projectionvector (1,dd) after normalization
+		image_width = sqrt(2)*dd*source_origin_dist/sqrt(1+dd**2) # Projection to compute distance via projectionvector (1,dd) after normalization, is equal to delta_x*N_x
 	
 	assert image_width<source_origin_dist , " the image is encloses the source"
 	
@@ -123,13 +123,12 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 
 
 	xi=(np.arange(0,nd)- midpoint_detectors)*detector_width/nd
-	
 	source_detectorpixel_distance= sqrt((xi)**2+source_detector_dist**2)
 	source_detectorpixel_distance=np.array(source_detectorpixel_distance,dtype=float32,order='F')
 	sdpd = zeros(( 1,len(source_detectorpixel_distance)), dtype=float32, order='F')
 	sdpd[0,:]=source_detectorpixel_distance[:]
 	sdpd_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(sdpd.data))
-	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
+	
 
 	Geometryinfo[6]=image_width			
 	
@@ -155,12 +154,14 @@ def fanbeam_struct_richy_gpu( shape, angles, detector_width,
 	ofs[6]=angles_diff
 	#write to Buffer
 	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(ofs.data))
+	
+	
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
-
-
-	Geometry_rescaled=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1]])
+	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
+	
+	Geometry_rescaled=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1],image_width/float(max(shape))])
 	Geometry_rescaled=	clarray.to_device(queue, require(Geometry_rescaled, float32, 'F'))
-	import pdb;pdb.set_trace()
+	#import pdb;pdb.set_trace()
 
 	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled)
 
@@ -188,7 +189,7 @@ def show_geometry(angle,f_struct):
 	draw_circle=matplotlib.patches.Circle((0, 0), image_width/sqrt(2), color='r')
 	
 	gcf().gca().add_artist(draw_circle)	
-	draw()
+	show()
 	
 	
 
@@ -209,7 +210,7 @@ def Fanbeam_normest(queue, r_struct):
 		img.events.append(fanbeam_richy_gpu_add(img, sino, r_struct, wait_for=sino.events))
 		
 		if i%10==0:
-			print 'normest',i, normsqr
+			print('normest',i, normsqr)
 	return sqrt(normsqr)
 
 

@@ -1,0 +1,44 @@
+from numpy import *
+from matplotlib.pyplot import *
+import pyopencl as cl
+import pyopencl.array as clarray
+import scipy.misc
+import time
+from fanbeam_source import *
+
+for number_detectors in [50,100,200,400,800,1600]:
+	Nx=400
+	img=np.ones([Nx,Nx])
+	angles=720
+
+	rescaling=1/40.*sqrt(2)
+	detector_width=400*rescaling
+	R=1200*rescaling
+	RE=200*rescaling
+	image_width=40*rescaling
+
+	f_struct_gpu = fanbeam_struct_richy_gpu(img.shape, angles,  detector_width, R, RE, number_detectors,0,image_width)
+	delta_xi=f_struct_gpu[5][2]
+	image_width=f_struct_gpu[4][6]
+	delta_x=image_width/max(img.shape)
+
+	img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
+
+	sino_gpu = clarray.zeros(queue, (f_struct_gpu[1][0],f_struct_gpu[1][1]), dtype=float32, order='F')
+
+	fanbeam_richy_gpu(sino_gpu,img_gpu,f_struct_gpu)
+
+
+	print(np.max(sino_gpu.get()))
+	print(np.min(sino_gpu.get()))
+	print(np.sum(sino_gpu.get())*delta_xi/angles)
+
+	a=np.sum(img_gpu.get())*delta_x**2
+	b=np.sum(sino_gpu.get())*(delta_xi*delta_x)/angles
+	print(a,b,b/a)
+	#imshow(sino_gpu.get())
+	#show()
+#from scipy import misc
+#misc.imshow(sino_gpu.get())
+
+
