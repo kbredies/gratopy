@@ -18,7 +18,7 @@ if Coefficienttest==True:
 	PS=projection_settings(img.shape, angles, n_detectors=number_detectors, geometry="fan",
 					detector_width=83,detector_shift = 0.0, midpointshift=[0,0],
 					R=900, RE=300,
-					image_width=None, fullangle=True,data_type=float)
+					image_width=None, fullangle=True,data_type=float32)
 	
 	delta_x=PS.delta_x
 	delta_xi_ratio=PS.delta_ratio

@@ -33,21 +33,13 @@ if __name__ == '__main__':
 	angles=220
 		
 	
-	PS = projection_settings(img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type=float,geometry="fan")
+	PS = projection_settings(img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type=float32,geometry="fan")
 	
 	
 	#f_struct_cpu = fanbeam_struct_richy_cpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
 	#img2=img[:,:,0]
 	#sino_cpu=fanbeam_cpu_individual(img2, f_struct_cpu,250,10)
 	#import pdb;pdb.set_trace()
-	
-	
-	
-	
-	
-	
-	
-	
 		
 	img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
 	sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.N_angles,2), dtype=float32, order='F')
@@ -102,7 +94,7 @@ if __name__ == '__main__':
 	#f_struct = fanbeam_struct_richy_cpu(img.shape, angles, 114.8, 700, 350, number_detectors)
 	#fanbeam_add_new(sino,f_struct)
 	
-	PS = projection_settings(img_shape=img.shape, angles= angles,  detector_width=114.8,R= 700, RE=350, n_detectors=number_detectors,geometry="fan", data_type=float)
+	PS = projection_settings(img_shape=img.shape, angles= angles,  detector_width=114.8,R= 700, RE=350, n_detectors=number_detectors,geometry="fan", data_type=float32)
 	PS.show_geometry(np.pi/4)
 	
 	#sinonew=fanbeam_new(img,f_struct)
@@ -146,7 +138,6 @@ if __name__ == '__main__':
 	imshow(img_gpu.get(), cmap=cm.gray)
 	title('Backprojected image')
 	show()
-	import pdb;pdb.set_trace()
 
 
 

@@ -159,7 +159,7 @@ def fanbeam_struct_gpu( shape, angles, detector_width,
 	source_detectorpixel_distance=np.array(source_detectorpixel_distance,dtype=data_type,order='F')
 	sdpd = zeros(( 1,len(source_detectorpixel_distance)), dtype=data_type, order='F')
 	sdpd[0,:]=source_detectorpixel_distance[:]
-	sdpd_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(sdpd.data))
+	sdpd_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, sdpd.nbytes)
 	
 
 	Geometryinfo[6]=image_width			
@@ -185,15 +185,15 @@ def fanbeam_struct_gpu( shape, angles, detector_width,
 	ofs[4,:]=Dx0; ofs[5]=Dy0
 	ofs[6]=angles_diff
 	#write to Buffer
-	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, len(ofs.data))
+	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
 	
-	
+	#import pdb;pdb.set_trace()
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
 	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
 	
 	Geometry_rescaled=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1],image_width/float(max(shape))])
 	Geometry_rescaled=	clarray.to_device(queue, require(Geometry_rescaled, data_type, 'F'))
-	import pdb;pdb.set_trace()
+	#import pdb;pdb.set_trace()
 	
 	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled)
 

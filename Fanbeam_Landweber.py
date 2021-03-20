@@ -22,7 +22,7 @@ FDD=300
 numberofangles=120
 geometry=[Detectorwidth,FDD,FOD,number_detectors]
 #misc.imshow(Wallnut)
-PS = projection_settings(img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,geometry="fan")
+PS = projection_settings(img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,geometry="fan",data_type=float32)
 sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
 
 fanbeam_richy_gpu(sino2_gpu,Wallnut_gpu,PS)	
@@ -69,7 +69,7 @@ FDD=300
 numberofangles=120
 geometry=[Detectorwidth,FDD,FOD,number_detectors]
 #misc.imshow(Wallnut)
-PS = projection_settings(img_shape=(600,600), angles=numberofangles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=float,geometry="fan")
+PS = projection_settings(img_shape=(600,600), angles=numberofangles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=float32,geometry="fan")
 
 Wallnut_gpu2new=clarray.to_device(queue,require(sinonew,float32,'F'))
 ULW=Landweberiteration(Wallnut_gpu2new,PS,20)
