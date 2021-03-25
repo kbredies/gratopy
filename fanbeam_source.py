@@ -41,9 +41,9 @@ def forwardprojection(sino, img, projection_settings, wait_for=None):
 def backprojection(img, sino, projection_settings, wait_for=None):
 	
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		return fanbeam_richy_gpu_add(sino, img, projection_settings, wait_for=None)
+		return fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=None)
 	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		return radon_ad(sino, img, projection_settings, wait_for=None)
+		return radon_ad(img, sino, projection_settings, wait_for=None)
 
 
 
@@ -124,7 +124,7 @@ Output:
 """
 def radon_struct(queue, shape, angles, n_detectors=None,
 			 detector_width=1.0, image_width=2,detector_shift=0.0,data_type=float32,fullangle=True):
-	if isscalar(angles):
+	if isscalar(angles):	
 		angles = linspace(0,pi,angles+1)[:-1]
 	if n_detectors is None:
 		nd = int(ceil(hypot(shape[0],shape[1])))
@@ -148,11 +148,11 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 
 
 	#Angular weights
-	angles_index = np.argsort(angles%(2*np.pi)) 
-	angles_sorted=angles[angles_index]	%(2*np.pi)
+	angles_index = np.argsort(angles%(np.pi)) 
+	angles_sorted=angles[angles_index]	%(np.pi)
 	
 	if fullangle==True:
-		angles_sorted=np.array(hstack([-2*np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+2*np.pi]))
+		angles_sorted=np.array(hstack([-np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+np.pi]))
 	else:
 		angles_sorted=np.array(hstack([2*angles_sorted[0]-angles_sorted[1],angles_sorted,2*angles_sorted[len(angles)-1]-angles_sorted[len(angles)-2]]))
 	angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
@@ -171,15 +171,15 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	[Nx,Ny]=shape
 	[Ni,Nj]= [nd,len(angles)]
 	delta_x=image_width/float(max(Nx,Ny))
-	delta_xi=2*detector_width/float(Ni)
+	
+	delta_xi=detector_width*delta_x
 	Geometry_rescaled = np.array([delta_x,delta_xi,Nx,Ny,Ni,Nj])
 	Geometry_rescaled =	clarray.to_device(queue, require(Geometry_rescaled, data_type, 'F'))
 
-
+	import pdb;pdb.set_trace()
 	sinogram_shape = (nd, len(angles))
-
 	return (ofs_buf, shape, sinogram_shape, Geometry_rescaled)
-
+ 
 
 """Starts the GPU Radon transform code 
 input	sino ... A pyopencl.array in which result will be saved.
@@ -403,13 +403,13 @@ def show_geometry(angle,f_struct):
 	
 	
 
-def Fanbeam_normest(queue, projection_settings):
+def normest(queue, projection_settings):
 	
 	img = clarray.to_device(queue, require((random.randn(*projection_settings.shape)), projection_settings.dtype, 'F'))
 	
 	sino = clarray.zeros(queue, projection_settings.sinogram_shape, dtype=projection_settings.dtype, order='F')
 
-	V=(fanbeam_richy_gpu(sino, img, projection_settings, wait_for=img.events))
+	V=(forwardprojection(sino, img, projection_settings, wait_for=img.events))
 	
 	for i in range(50):
 		#normsqr = float(sum(img.get()**2)**0.5)
@@ -417,8 +417,8 @@ def Fanbeam_normest(queue, projection_settings):
 	
 		img /= normsqr
 		#import pdb; pdb.set_trace()
-		sino.events.append( fanbeam_richy_gpu (sino, img, projection_settings, wait_for=img.events))
-		img.events.append(fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=sino.events))
+		sino.events.append( forwardprojection (sino, img, projection_settings, wait_for=img.events))
+		img.events.append(backprojection(img, sino, projection_settings, wait_for=sino.events))
 		
 		if i%10==0:
 			print('normest',i, normsqr)
@@ -429,14 +429,20 @@ class projection_settings():
 	def __init__(self, queue,geometry, img_shape, angles, n_detectors=None, 
 					detector_width=1,detector_shift = 0.0, midpointshift=[0,0],
 					R=None, RE=None,
-					image_width=None, fullangle=True,data_type=float):
+					image_width=None, fullangle=True,data_type="SINGLE"):
+		
+		self.geometry=geometry.upper()
+
 		
 		if isscalar(img_shape):
 			img_shape=[img_shape,img_shape]
 		self.shape=tuple(img_shape)
 		
 		if isscalar(angles):
-			angles = linspace(0,2*pi,angles+1)[:-1] + pi		
+			if self.geometry in ["FAN","FANBEAM"]:
+				angles = linspace(0,2*pi,angles+1)[:-1] + pi
+			elif self.geometry in ["RADON","PARALLEL"]:
+				angles = linspace(0,pi,angles+1)[:-1] 
 		self.angles=angles
 		
 		if n_detectors is None:
@@ -481,7 +487,6 @@ class projection_settings():
 			
 	
 
-		self.geometry=geometry.upper()
 		if self.geometry not in ["RADON","PARALLEL","FAN","FANBEAM"]:
 			raise("unknown projection_type, projection_type must be 'parallel' or 'fan'")
 		if self.geometry in ["FAN","FANBEAM"]:
@@ -492,8 +497,8 @@ class projection_settings():
 				 
 			
 			self.struct=fanbeam_struct_gpu(self.queue,self.shape, self.angles, 
-				self.detector_width, R, self.RE,self.n_detectors, self.detector_shift,
-                   image_width,self.midpointshift, self.fullangle, self.dtype)
+					self.detector_width, R, self.RE,self.n_detectors, self.detector_shift,
+					image_width,self.midpointshift, self.fullangle, self.dtype)
 		
 			self.image_width=self.struct[4][6]
 			self.sdpd_buf=self.struct[3]
@@ -514,7 +519,7 @@ class projection_settings():
 			
 			if image_width==None:
 				image_width=2
-			
+			import pdb;pdb.set_trace()
 			self.struct=radon_struct(self.queue,self.shape, self.angles, 
 				n_detectors=self.n_detectors, detector_width=self.detector_width*max(img_shape)/n_detectors, image_width= image_width,detector_shift=self.detector_shift,
 				fullangle=self.fullangle, data_type=self.dtype)
@@ -565,7 +570,7 @@ def Landweberiteration(sinogram,projection_settings,number_iterations=100,w=1):
 	U=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
 	Unew=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
 	
-	norm=Fanbeam_normest(queue,projection_settings)
+	norm=normest(queue,projection_settings)
 	#norm=1000
 	
 	w=float32(w/norm**2)
@@ -574,10 +579,10 @@ def Landweberiteration(sinogram,projection_settings,number_iterations=100,w=1):
 	for i in range(number_iterations):
 	
 		#import pdb; pdb.set_trace()
-		sino2.events.append(fanbeam_richy_gpu(sino2,Unew,projection_settings,wait_for=U.events+Unew.events))
+		sino2.events.append(forwardprojection(sino2,Unew,projection_settings,wait_for=U.events+Unew.events))
 		sino2=sino2-sinogram
 		cl.enqueue_barrier(queue)
-		U.events.append(fanbeam_richy_gpu_add(U,sino2,projection_settings,wait_for=sino2.events))
+		U.events.append(backprojection(U,sino2,projection_settings,wait_for=sino2.events))
 		Unew=Unew-w*U	
 		print (i,np.max(Unew.get()), np.linalg.norm(sino2.get()))
 	return Unew

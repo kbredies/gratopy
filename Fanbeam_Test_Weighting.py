@@ -17,7 +17,7 @@ for number_detectors in [50,100,200,400,800,1600]:
 	RE=200*rescaling
 	image_width=40*rescaling
 
-	PS = projection_settings("fan",img_shape=img.shape, angles= angles,  detector_width=detector_width, R=R,RE= RE, n_detectors=number_detectors,image_width=image_width,data_type='single')
+	PS = projection_settings(queue,"fan",img_shape=img.shape, angles= angles,  detector_width=detector_width, R=R,RE= RE, n_detectors=number_detectors,image_width=image_width,data_type='single')
 	delta_x=PS.delta_x
 	delta_xi_ratio=PS.delta_ratio
 	

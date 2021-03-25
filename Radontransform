@@ -78,9 +78,9 @@ __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global
 	my_variable_type i = dot(c, ofs[j].s0123);
 	if ((i > -1) && (i < I)) {
 	  my_variable_type i_floor;
-	  my_variable_type p = fract(i, &i_floor)*Delta_phi;
-	  if (i_floor >= 0)	  acc += (1.0f - p)*sino[(int)i_floor];
-	  if (i_floor <= I-2) acc += p*sino[(int)(i_floor+1)];
+	  my_variable_type p = fract(i, &i_floor);
+	  if (i_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[(int)i_floor];
+	  if (i_floor <= I-2) acc += Delta_phi*p*sino[(int)(i_floor+1)];
 	}
  	sino += I;
   }

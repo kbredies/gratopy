@@ -33,7 +33,7 @@ if __name__ == '__main__':
 	angles=220
 		
 	
-	PS = projection_settings("fan",img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type='single')
+	PS = projection_settings(queue,"fan",img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type='single')
 	
 	
 	#f_struct_cpu = fanbeam_struct_richy_cpu(img.shape, angles,  114.8, 700, 350, number_detectors,0,None)
@@ -94,7 +94,7 @@ if __name__ == '__main__':
 	#f_struct = fanbeam_struct_richy_cpu(img.shape, angles, 114.8, 700, 350, number_detectors)
 	#fanbeam_add_new(sino,f_struct)
 	
-	PS = projection_settings(img_shape=img.shape, angles= angles,  detector_width=114.8,R= 700, RE=350, n_detectors=number_detectors,geometry="fan", data_type='single')
+	PS = projection_settings(queue,"fan",img_shape=img.shape, angles= angles,  detector_width=114.8,R= 700, RE=350, n_detectors=number_detectors, data_type='single')
 	PS.show_geometry(np.pi/4)
 	
 	#sinonew=fanbeam_new(img,f_struct)

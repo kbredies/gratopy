@@ -45,10 +45,13 @@ if __name__ == '__main__':
 
 	p=1
 	
-	Ns=int(2*img.shape[0])
+	Ns=int(0.5*img.shape[0])
 
-	r_struct = radon_struct(queue,img.shape, angles,Ns,1/float(p),detector_shift=400,fullangle=True)
+	#r_struct = radon_struct(queue,img.shape, angles,Ns,1/float(p),detector_shift=400,fullangle=True)
+	
+	
 	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=0,fullangle=True,data_type=my_dtype)
+	
 	#(self, geometry, img_shape, angles, n_detectors=None, 
 	#				detector_width=1,detector_shift = 0.0, fullangle=True,data_type=float)
 	
@@ -79,6 +82,5 @@ if __name__ == '__main__':
 	show()			
 		
 		
-	A=np.sum(img_gpu.get())*PS.delta_x**2
-	B=np.sum(sino_gpu.get()[:,20])*PS.delta_xi*(2*np.pi)/PS.N_angles
-	print(A,B)
+	
+	

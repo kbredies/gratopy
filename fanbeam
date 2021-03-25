@@ -294,7 +294,7 @@ for (int j=0;j< Nj;j++)
 		{Weightp*=sdpd[xip];}
 
 	//accumulate weigthed sum
-	acc+=(Weightm*sino[xim]+Weightp*sino[xip])/(R*t)*anglesize;
+	acc+=anglesize*(Weightm*sino[xim]+Weightp*sino[xip])/(R*t);
 	
 	//jump in sinogram to the next projection
 	sino+=Ni;
