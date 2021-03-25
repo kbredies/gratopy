@@ -24,6 +24,9 @@ data_type=float
 #	Wallnut=np.ones(Wallnut.shape)
 Wallnut_gpu=clarray.to_device(queue,require(Wallnut,data_type,'F'))
 
+ctx = cl.create_some_context()
+queue = cl.CommandQueue(ctx)
+
 PS = projection_settings("fan",img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=data_type)
 sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=data_type, order='F')
 

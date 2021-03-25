@@ -17,7 +17,6 @@ dtype=float
 
 
 #	Wallnut=np.ones(Wallnut.shape)
-Wallnut_gpu=clarray.to_device(queue,require(Wallnut,dtype,'F'))
 number_detectors=328
 Detectorwidth=114.8
 FOD=110
@@ -26,22 +25,28 @@ numberofangles=120
 
 geometry=[Detectorwidth,FDD,FOD,number_detectors]
 #misc.imshow(Wallnut)
-PS = projection_settings(queue,"fan",img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=dtype)
-sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=dtype, order='F')
 
-forwardprojection(sino2_gpu,Wallnut_gpu,PS)	
+ctx = cl.create_some_context()
+queue = cl.CommandQueue(ctx)
+
+PS = projection_settings(queue,"fan",img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=dtype)
+
+Wallnut_gpu=clarray.to_device(queue,require(Wallnut,dtype,'F'))
+#sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=dtype, order='F')
+
+sino=forwardprojection(None,Wallnut_gpu,PS)	
 #misc.imshow(sino2_gpu.get())
-Wallnut_gpu2=clarray.to_device(queue,require(Wallnut,dtype,'F'))
-backprojection(Wallnut_gpu2,sino2_gpu,PS)
+#Wallnut_gpu2=clarray.to_device(queue,require(Wallnut,dtype,'F'))
+Wallnutbp=backprojection(None,sino,PS)
 
 figure(1)
 imshow(Wallnut, cmap=cm.gray)
 title('original Wallnut')
 figure(2)
-imshow(sino2_gpu.get(), cmap=cm.gray)
+imshow(sino.get(), cmap=cm.gray)
 title('Fanbeam transformed image')
 figure(3)
-imshow(Wallnut_gpu2.get(), cmap=cm.gray)
+imshow(Wallnutbp.get(), cmap=cm.gray)
 title('Backprojected image')
 show()
 #misc.imshow(Wallnut_gpu2.get())

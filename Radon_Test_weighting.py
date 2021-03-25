@@ -31,7 +31,9 @@ if __name__ == '__main__':
 	Ns=500
 	#r_struct = radon_struct(queue,img.shape, angles,Ns,1/float(p),detector_shift=400,fullangle=True)
 	
-	
+	ctx = cl.create_some_context()
+	queue = cl.CommandQueue(ctx)
+
 	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p)
 	
 	#(self, geometry, img_shape, angles, n_detectors=None, 
@@ -41,7 +43,7 @@ if __name__ == '__main__':
 	img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
 	sino_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=my_dtype, order='F')
 
-	sino_gpu.events.append(radon(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events))
+	radon(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)
 
 
 		
@@ -51,4 +53,4 @@ if __name__ == '__main__':
 	B=np.sum(sino_gpu.get())*PS.delta_xi/PS.N_angles
 	C=np.sum(sino_gpu.get()[:,10])*PS.delta_xi
 
-	print(A,B,abs(1-A/B))
+	print("The mass inside the image is "+str(A)+" was carried over in the mass inside an projection is "+str(B)+" i.e. the relative error is "+ str(abs(1-A/B)))

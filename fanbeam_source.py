@@ -18,34 +18,40 @@ class Program(object):
         for kernel in self._cl_kernels:
                 self.__dict__[kernel.function_name] = kernel
 
-ctx = cl.create_some_context()
-queue = cl.CommandQueue(ctx)
 
-raw_fanbeam_code=open("fanbeam").read()
-raw_radon_code=open("Radontransform").read()
-adjusted_code=raw_fanbeam_code.replace("my_variable_type","float")\
-	+raw_fanbeam_code.replace("my_variable_type","double")\
-	+raw_radon_code.replace("my_variable_type","float")\
-	+raw_radon_code.replace("my_variable_type","double")
 
-prg = Program(ctx,adjusted_code)
 
 
 def forwardprojection(sino, img, projection_settings, wait_for=None):
 	
+	if sino is None:
+		z_dimension=tuple()
+		if len(img.shape)>2:
+			z_dimension=[img.shape[2]]
+		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
+	
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		return fanbeam_richy_gpu(sino, img, projection_settings, wait_for=None)
+		myevent=fanbeam_richy_gpu(sino, img, projection_settings, wait_for=None)
 	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		return radon(sino, img, projection_settings, wait_for=None)
+		myevent=radon(sino, img, projection_settings, wait_for=None)
+	return sino
 	
 def backprojection(img, sino, projection_settings, wait_for=None):
 	
+	
+	if img is None:
+		z_dimension=tuple()
+		if len(sino.shape)>2:
+			z_dimension=[sino.shape[2]]
+
+		img = clarray.zeros(projection_settings.queue, projection_settings.shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
+
+	
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		return fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=None)
+		myevent=fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=None)
 	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		return radon_ad(img, sino, projection_settings, wait_for=None)
-
-
+		myevent=radon_ad(img, sino, projection_settings, wait_for=None)
+	return img
 
 
 						
@@ -66,17 +72,18 @@ def radon(sino, img, projection_settings, wait_for=None):
 	
 	if projection_settings.data_type=="SINGLE":
 
-		return prg.radon_float(sino.queue, sino.shape, None,
+		myevent=projection_settings.prg.radon_float(sino.queue, sino.shape, None,
 					sino.data, img.data, ofs_buf,Geometryinformation.data,
-					wait_for=wait_for)
+					wait_for=wait_for) 
 	if projection_settings.data_type=="DOUBLE":
 
-		return prg.radon_double(sino.queue, sino.shape, None,
+		myevent=projection_settings.prg.radon_double(sino.queue, sino.shape, None,
 					sino.data, img.data, ofs_buf,
 					Geometryinformation.data,
 					wait_for=wait_for)
 
-
+	sino.events.append(myevent)
+	return myevent
 """Starts the GPU backprojection code 
 input	sino ... A pyopencl.array in which the sinogram for transformation will be saved.
 		img ...	 A pyopencl.array in which the result for the adjoint radontransform is contained
@@ -98,15 +105,16 @@ def radon_ad(img, sino, projection_settings, wait_for=None):
 
 	
 	if projection_settings.data_type=="SINGLE":
-		return prg.radon_ad_float(img.queue, img.shape, None,
+		myevent=projection_settings.prg.radon_ad_float(img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
 						Geometryinformation.data,wait_for=wait_for)
 
 	if projection_settings.data_type=="DOUBLE":
-		return prg.radon_ad_double(img.queue, img.shape, None,
+		myevent=projection_settings.prg.radon_ad_double(img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
 						Geometryinformation.data,wait_for=wait_for)
-
+	img.events.append(myevent)
+	return myevent
 
 
 """Creates the structure of radon geometry required for radontransform and its adjoint
@@ -123,7 +131,7 @@ Output:
 		sinogram_shape ... The sinogram_shape is a list with first the number of detectors, then number of angles.
 """
 def radon_struct(queue, shape, angles, n_detectors=None,
-			 detector_width=1.0, image_width=2,detector_shift=0.0,data_type=float32,fullangle=True):
+			 detector_width=1.0, image_width=2.0,detector_shift=0.0,data_type=float32,fullangle=True):
 	if isscalar(angles):	
 		angles = linspace(0,pi,angles+1)[:-1]
 	if n_detectors is None:
@@ -144,7 +152,7 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	Xinv[mask] = 0
 
 	offset = midpoint_detectors - X*midpoint_domain[0] \
-			- Y*midpoint_domain[1] + detector_shift/detector_width
+			- Y*midpoint_domain[1] + detector_shift/detector_width*n_detectors
 
 
 	#Angular weights
@@ -167,7 +175,6 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
 	
 	
-	
 	[Nx,Ny]=shape
 	[Ni,Nj]= [nd,len(angles)]
 	delta_x=image_width/float(max(Nx,Ny))
@@ -176,7 +183,6 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	Geometry_rescaled = np.array([delta_x,delta_xi,Nx,Ny,Ni,Nj])
 	Geometry_rescaled =	clarray.to_device(queue, require(Geometry_rescaled, data_type, 'F'))
 
-	import pdb;pdb.set_trace()
 	sinogram_shape = (nd, len(angles))
 	return (ofs_buf, shape, sinogram_shape, Geometry_rescaled)
  
@@ -207,16 +213,17 @@ def fanbeam_richy_gpu(sino, img, projection_settings, wait_for=None):
 
 	
 	if projection_settings.data_type=='SINGLE':
-		return prg.fanbeam_float(sino.queue, sino.shape, None,
+		myevent=projection_settings.prg.fanbeam_float(sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
 						Geometry_rescaled.data,
 						wait_for=wait_for)
 	if projection_settings.data_type=='DOUBLE':
-		return prg.fanbeam_double(sino.queue, sino.shape, None,
+		myevent=projection_settings.prg.fanbeam_double(sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
 						Geometry_rescaled.data,
 						wait_for=wait_for)
-
+	sino.events.append(myevent)
+	return myevent
 
 def fanbeam_richy_gpu_add( img,sino, projection_settings, wait_for=None):
 	
@@ -236,15 +243,17 @@ def fanbeam_richy_gpu_add( img,sino, projection_settings, wait_for=None):
 			 initialization of the parameter_settings" )
 
 	if projection_settings.data_type=='SINGLE':
-		return prg.fanbeam_add_float(img.queue, img.shape, None,
+		myevent = projection_settings.prg.fanbeam_add_float(img.queue, img.shape, None,
 					   img.data,sino.data, ofs_buf,sdpd_buf,Geometry_rescaled.data,
 					   wait_for=wait_for)
 
 	if projection_settings.data_type=='DOUBLE':
-		return prg.fanbeam_add_double(img.queue, img.shape, None,
+		myevent = projection_settings.prg.fanbeam_add_double(img.queue, img.shape, None,
 					   img.data,sino.data, ofs_buf,sdpd_buf,Geometry_rescaled.data,
 					   wait_for=wait_for)
-
+					   
+	img.events.append(myevent)
+	return myevent
 
 
 
@@ -315,7 +324,7 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 	source_origin_dist *= image_pixels/float(image_width)
 	detector_width *= image_pixels/float(image_width)
 
-	#import pdb; pdb.set_trace()
+	
 	# offset function parameters
 	thetaX = -cos(angles)
 	thetaY = sin(angles)
@@ -354,7 +363,7 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 		angles_sorted=np.array(hstack([2*angles_sorted[0]-angles_sorted[1],angles_sorted,2*angles_sorted[len(angles)-1]-angles_sorted[len(angles)-2]]))
 	angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
 	angles_diff=angles_diff[angles_index]
-	#import pdb;pdb.set_trace()
+	
 	
 	#Save relevant information
 	ofs = zeros((8, len(angles)), dtype=data_type, order='F')
@@ -365,60 +374,35 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 	#write to Buffer
 	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
 	
-	#import pdb;pdb.set_trace()
 	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
 	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
 	
 	Geometry_rescaled=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1],image_width/float(max(shape))])
 	Geometry_rescaled=	clarray.to_device(queue, require(Geometry_rescaled, data_type, 'F'))
-	#import pdb;pdb.set_trace()
 	
 	return (shape,sinogram_shape,ofs_buf,sdpd_buf,Geometryinfo,Geometry_rescaled)
 
-def show_geometry(angle,f_struct):
-	
-	#Extract relevant geometric information
-	sino_size=f_struct[4][2]
-	detector_width=f_struct[4][3]
-	source_detector_dist=f_struct[4][4]
-	source_origin_dist=f_struct[4][5]
-	image_width=f_struct[4][6]
-	midpoint_det=f_struct[4][7]
-	figure(0)
-	#Plot all relevant sizes
-	plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0 ,0],"c")
-	plot([source_detector_dist-source_origin_dist, source_detector_dist-source_origin_dist], [detector_width*midpoint_det/sino_size , detector_width*(midpoint_det/sino_size-1)],"k")
-	
-	plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,detector_width*midpoint_det/sino_size],"g")
-	plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,detector_width*(midpoint_det/sino_size-1)],"g")
-
-	x1=(cos(angle)+sin(angle))*image_width*0.5; x2=(cos(angle)-sin(angle))*image_width*0.5;
-	
-	plot([x1,x2,-x1,-x2,x1],[x2,-x1,-x2,x1,x2],"b")
-	
-	draw_circle=matplotlib.patches.Circle((0, 0), image_width/sqrt(2), color='r')
-	
-	gcf().gca().add_artist(draw_circle)	
-	show()
 	
 	
 
-def normest(queue, projection_settings):
+def normest( projection_settings):
+	
+	queue=projection_settings.queue
 	
 	img = clarray.to_device(queue, require((random.randn(*projection_settings.shape)), projection_settings.dtype, 'F'))
 	
-	sino = clarray.zeros(queue, projection_settings.sinogram_shape, dtype=projection_settings.dtype, order='F')
+	#sino = clarray.zeros(queue, projection_settings.sinogram_shape, dtype=projection_settings.dtype, order='F')
 
-	V=(forwardprojection(sino, img, projection_settings, wait_for=img.events))
+	sino=forwardprojection(None, img, projection_settings, wait_for=img.events)
 	
 	for i in range(50):
 		#normsqr = float(sum(img.get()**2)**0.5)
 		normsqr = float(clarray.sum(img).get())
 	
 		img /= normsqr
-		#import pdb; pdb.set_trace()
-		sino.events.append( forwardprojection (sino, img, projection_settings, wait_for=img.events))
-		img.events.append(backprojection(img, sino, projection_settings, wait_for=sino.events))
+		
+		forwardprojection (sino, img, projection_settings, wait_for=img.events)
+		backprojection(img, sino, projection_settings, wait_for=sino.events)
 		
 		if i%10==0:
 			print('normest',i, normsqr)
@@ -427,16 +411,31 @@ def normest(queue, projection_settings):
 
 class projection_settings():
 	def __init__(self, queue,geometry, img_shape, angles, n_detectors=None, 
-					detector_width=1,detector_shift = 0.0, midpointshift=[0,0],
+					detector_width=2.0,detector_shift = 0.0, midpointshift=[0,0],
 					R=None, RE=None,
 					image_width=None, fullangle=True,data_type="SINGLE"):
 		
 		self.geometry=geometry.upper()
+		self.queue=queue
+		
+		
+		raw_fanbeam_code=open("fanbeam").read()
+		raw_radon_code=open("Radontransform").read()
+		adjusted_code=raw_fanbeam_code.replace("my_variable_type","float")\
+			+raw_fanbeam_code.replace("my_variable_type","double")\
+			+raw_radon_code.replace("my_variable_type","float")\
+			+raw_radon_code.replace("my_variable_type","double")
 
+		self.prg = Program(queue.context,adjusted_code)
+		
 		
 		if isscalar(img_shape):
 			img_shape=[img_shape,img_shape]
+		
+		if len(img_shape)>2:
+			img_shape=[img_shape[0],img_shape[1]]
 		self.shape=tuple(img_shape)
+		
 		
 		if isscalar(angles):
 			if self.geometry in ["FAN","FANBEAM"]:
@@ -465,7 +464,7 @@ class projection_settings():
 		self.RE=RE
 				
 		
-		self.queue=queue
+
 		
 		
 		if data_type==float32:
@@ -518,10 +517,10 @@ class projection_settings():
 		if self.geometry in ["RADON","PARALLEL"]:
 			
 			if image_width==None:
-				image_width=2
-			import pdb;pdb.set_trace()
+				self.image_width=2
+			
 			self.struct=radon_struct(self.queue,self.shape, self.angles, 
-				n_detectors=self.n_detectors, detector_width=self.detector_width*max(img_shape)/n_detectors, image_width= image_width,detector_shift=self.detector_shift,
+				n_detectors=self.n_detectors, detector_width=self.detector_width/2.*max(self.shape)/n_detectors, image_width= self.image_width,detector_shift=self.detector_shift,
 				fullangle=self.fullangle, data_type=self.dtype)
                 
 			self.ofs_buf=self.struct[0]
@@ -534,43 +533,74 @@ class projection_settings():
 		
 	def show_geometry(self,angle):
 		#Extract relevant geometric information
-		n_detectors=self.n_detectors
-		detector_width=self.detector_width
-		source_detector_dist=self.R
-		source_origin_dist=self.RE
-		image_width=self.image_width
-		midpoint_det=self.struct[4][7]
 		figure(0)
-		#Plot all relevant sizes
-		plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0 ,0],"c")
-		plot([source_detector_dist-source_origin_dist, source_detector_dist-source_origin_dist], [detector_width*midpoint_det/n_detectors , detector_width*(midpoint_det/n_detectors-1)],"k")
-		
-		plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,detector_width*midpoint_det/n_detectors],"g")
-		plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,detector_width*(midpoint_det/n_detectors-1)],"g")
 
-		x1=(cos(angle)+sin(angle))*image_width*0.5; x2=(cos(angle)-sin(angle))*image_width*0.5;
-		
-		plot([x1,x2,-x1,-x2,x1],[x2,-x1,-x2,x1,x2],"b")
-		
-		draw_circle=matplotlib.patches.Circle((0, 0), image_width/sqrt(2), color='r')
-		
-		gcf().gca().add_artist(draw_circle)	
-		draw_circle=matplotlib.patches.Circle((0, 0), image_width/2, color='g')
-		
-		gcf().gca().add_artist(draw_circle)	
+		if self.geometry in ["FAN","FANBEAM"]:
+			detector_width=self.detector_width
+			source_detector_dist=self.R
+			source_origin_dist=self.RE
+			image_width=self.image_width
+			
+			figure(0)
+			#Plot all relevant sizes
+			
+			plot([source_detector_dist-source_origin_dist, source_detector_dist-source_origin_dist], [detector_width*0.5+self.detector_shift , -detector_width*0.5+self.detector_shift],"k")
+			
+			plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,detector_width*0.5+self.detector_shift],"g")
+			plot([-source_origin_dist, source_detector_dist-source_origin_dist],[0,-detector_width*0.5+self.detector_shift],"g")
 
+			x1=(cos(angle)+sin(angle))*image_width*0.5; x2=(cos(angle)-sin(angle))*image_width*0.5;
+			
+			plot([x1,x2,-x1,-x2,x1],[x2,-x1,-x2,x1,x2],"b")
+			
+			draw_circle=matplotlib.patches.Circle((0, 0), image_width/sqrt(2), color='r')
+			
+			gcf().gca().add_artist(draw_circle)	
+			draw_circle=matplotlib.patches.Circle((0, 0), image_width/2, color='g')
+			
+			gcf().gca().add_artist(draw_circle)	
+			
+		if self.geometry in ["RADON","PARALLEL"]:
+			
+			detector_width=self.detector_width
+			image_width=self.image_width
+			
+			x1=(cos(angle)+sin(angle))*image_width*0.5; x2=(cos(angle)-sin(angle))*image_width*0.5;
+			
+			plot([-image_width, image_width],[self.detector_shift ,self.detector_shift],"c")
+			
+			plot([x1,x2,-x1,-x2,x1],[x2,-x1,-x2,x1,x2],"b")
+		#	plot([image_width,image_width], [0.5*self.detector_shift+self.detector_shift , -0.5*self.detector_shift+self.detector_shift],"k")
+			
+			draw_circle=matplotlib.patches.Circle((0, 0), image_width/sqrt(2), color='r')
+			
+			gcf().gca().add_artist(draw_circle)	
+			draw_circle=matplotlib.patches.Circle((0, 0), image_width/2, color='g')
+			
+			gcf().gca().add_artist(draw_circle)	
+
+			plot([-image_width, image_width],[0.5*detector_width+self.detector_shift,0.5*detector_width+self.detector_shift],"c")
+			plot([-image_width,image_width],[-0.5*detector_width+self.detector_shift,-0.5*detector_width+self.detector_shift],"c")
+			
+		
+			draw_rectangle=matplotlib.patches.Rectangle((image_width,  -0.5*detector_width+self.detector_shift), 0.3, detector_width, linewidth=1, facecolor='grey')
+
+			gcf().gca().add_artist(draw_rectangle)					
+		
 		show()
 
 
 
 
+
 def Landweberiteration(sinogram,projection_settings,number_iterations=100,w=1):
+	queue=projection_settings.queue
 	sino2=clarray.to_device(queue, require(sinogram.get(), projection_settings.dtype, 'F'))
 	
 	U=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
 	Unew=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
 	
-	norm=normest(queue,projection_settings)
+	norm=normest(projection_settings)
 	#norm=1000
 	
 	w=float32(w/norm**2)
@@ -578,11 +608,10 @@ def Landweberiteration(sinogram,projection_settings,number_iterations=100,w=1):
 	print("norm",norm)
 	for i in range(number_iterations):
 	
-		#import pdb; pdb.set_trace()
-		sino2.events.append(forwardprojection(sino2,Unew,projection_settings,wait_for=U.events+Unew.events))
+		forwardprojection(sino2,Unew,projection_settings,wait_for=U.events+Unew.events)
 		sino2=sino2-sinogram
 		cl.enqueue_barrier(queue)
-		U.events.append(backprojection(U,sino2,projection_settings,wait_for=sino2.events))
+		backprojection(U,sino2,projection_settings,wait_for=sino2.events)
 		Unew=Unew-w*U	
 		print (i,np.max(Unew.get()), np.linalg.norm(sino2.get()))
 	return Unew

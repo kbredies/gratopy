@@ -15,6 +15,10 @@ if Coefficienttest==True:
 	angles=360
 	#f_struct_gpu = fanbeam_struct_gpu(img.shape, angles,  83, 900, 300, number_detectors,0,None)
 	
+	
+	ctx = cl.create_some_context()
+	queue = cl.CommandQueue(ctx)
+
 	PS=projection_settings(queue,"parallel",img.shape, angles, n_detectors=number_detectors, 
 					fullangle=True,data_type='single')
 	
@@ -23,6 +27,7 @@ if Coefficienttest==True:
 
 	Fehler=[]
 	count=0
+	eps=0.00001
 	for i in range(100):
 		
 		img1_gpu = clarray.to_device(queue, require(np.random.random(PS.shape), float32, 'F'))
@@ -41,9 +46,10 @@ if Coefficienttest==True:
 		a=np.dot(img1,img2)*delta_x**2
 		#import pdb;pdb.set_trace()
 		b=np.dot(sino1,sino2)*(np.pi)/angles *(delta_xi_ratio*delta_x)
-		if abs(a-b)/min(abs(a),abs(b))>0.00001:
+		if abs(a-b)/min(abs(a),abs(b))>eps:
 			print (a,b,a/b)
-		#	count+=1
-		#	Fehler.append((a,b))
-	#print 'Number of Errors: ',count,' Errors were ',Fehler
+			count+=1
+			Fehler.append((a,b))
+	print("Adjointness:")
+	print ('Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
 

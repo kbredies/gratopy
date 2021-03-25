@@ -32,6 +32,9 @@ if __name__ == '__main__':
 	#from scipy import misc;misc.imshow(img)
 	angles=220
 		
+	ctx = cl.create_some_context()
+	queue = cl.CommandQueue(ctx)
+
 	
 	PS = projection_settings(queue,"fan",img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type='single')
 	
@@ -46,7 +49,7 @@ if __name__ == '__main__':
 	
 	a=time.clock()
 	for i in range(100):
-		sino_gpu.events.append(fanbeam_richy_gpu(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events))
+		forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)
 		
 	print ('Time Required Forward',(time.clock()-a)/100)
 	#from scipy import misc;misc.imshow(sino_gpu.get())
@@ -63,7 +66,7 @@ if __name__ == '__main__':
 	#misc.imshow(sino_gpu.get())
 	a=time.clock()
 	for i in range(100):
-		img_gpu.events.append(fanbeam_richy_gpu_add(img_gpu,sino_gpu,PS,wait_for=img_gpu.events))
+		backprojection(img_gpu,sino_gpu,PS,wait_for=img_gpu.events)
 	print ('Time Required Backprojection',(time.clock()-a)/100)
 	#misc.imshow(img_gpu.get())
 	figure(1)
@@ -107,7 +110,7 @@ if __name__ == '__main__':
 	
 	a=time.clock()
 	for i in range(100):
-		sino_gpu.events.append(fanbeam_richy_gpu(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events))
+		forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)
 		
 	print ('Time Required Forward',(time.clock()-a)/100)
 	#from scipy import misc;misc.imshow(sino_gpu.get())
@@ -124,7 +127,7 @@ if __name__ == '__main__':
 	#misc.imshow(sino_gpu.get())
 	a=time.clock()
 	for i in range(100):
-		img_gpu.events.append(fanbeam_richy_gpu_add(img_gpu,sino_gpu,PS,wait_for=img_gpu.events))
+		backprojection(img_gpu,sino_gpu,PS,wait_for=img_gpu.events)
 	print ('Time Required Backprojection',(time.clock()-a)/100)
 #	import pdb;pdb.set_trace()
 	#misc.imshow(img_gpu.get())
