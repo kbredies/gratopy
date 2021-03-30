@@ -35,60 +35,59 @@ my_variable_type delta_x = Geometryinformation[10];// True delta_x, i.e. not res
 
 
 my_variable_type8 o=ofs[j];
+//(xd,yd) ... vector along the detector with length delta_xi.
 my_variable_type xd=o.s0;
 my_variable_type yd=o.s1;
+//(qx,qy) ... vector from source to origin (with length RE).
 my_variable_type qx=o.s2;
 my_variable_type qy=o.s3;
+//(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line.(with length R-RE)
 my_variable_type dx0=o.s4;
 my_variable_type dy0=o.s5;
 
+//accumulation variable
 my_variable_type acc=0;
 
 //jump to relevant z dimension
 img+=thirddim*Nx*Ny;
 
-// compute direction vector from source to detector pixels above dp (i+1) and below dm (i-1).
+// compute direction vector from source to detector pixels above dp (for i+1) and below dm (for i-1).
 my_variable_type dpx=dx0+xd*(-midpoint_det+i+1)-qx;
 my_variable_type dpy=dy0+yd*(-midpoint_det+i+1)-qy;
 my_variable_type dmx=dx0+xd*(-midpoint_det+i-1)-qx;
 my_variable_type dmy=dy0+yd*(-midpoint_det+i-1)-qy;
 
 
-//direction vector from origin to detector center
+//direction vector from origin to detector center (orthogonal projection of origin on detector-line)
 my_variable_type dx=dx0-qx;
 my_variable_type dy=dy0-qy;
 
 //Normalization
-//float R=hypot(dx,dy);// norm=R (rescaled to the size of one image_pixel=1)
 dx/=(R*R);
 dy/=(R*R);
 
 //Normalization
-//float delta_xi=hypot(xd,yd); //norm=delta_xi (rescaled to the size of one image_pixel=1)
 xd/=(delta_xi*delta_xi);
 yd/=(delta_xi*delta_xi);
 
-
-
-
 // Distance from source to origin devided by R
-//float RE=-(dx*qx+dy*qy);
 RE=RE/R;
 
-//Seperate lines rather vertical than horicontal
-if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
+//Seperate lines which are rather vertical than horicontal
+if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
 	{
 	//Move in y direction stepwise, rescale dp/dm such that increase in y direction
 	dpx=dpx/dpy;
 	dmx=dmx/dmy;
 		
-	//compute bounds for suitable x values (for fixed y=0) (qy+midpoint_y distance from source to y=0) according to equation x=qx+dmx*(y-qy) mit y =-midpoint_y
+	//compute bounds for suitable x values (for fixed y=0) 
+	//(qy+midpoint_y distance from source to y=0) according to equation
+	// x=qx+dmx*(y-qy) with y =-midpoint_y
 	my_variable_type xlow=qx-dmx*(qy+midpoint_y);
 	my_variable_type xhigh=qx-dpx*(qy+midpoint_y);
 	
-
-	//switch roles of dm and dp if necessary
-	if (xlow>xhigh)
+	//switch roles of dm and dp if necessary (to switch xlow and xhigh)
+	if ((qy)*(dmx-dpx)<0)
 	{
 		my_variable_type trade=xhigh;
 		xhigh=xlow;
@@ -121,9 +120,9 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
 		// loop through all adjacent x values inside the bounds			
 		for (int x=xlowint;x<=xhighint;x++)
 		{
-			// xi is equal the projected detector position (with exact positions as integers)
-			 
+			// xi is equal the projected detector position (with exact positions as integers) 
 			 my_variable_type xi=s/t;
+			 
 			//Weight corresponds to distance of projected detector position divided by the distance from the source
 			my_variable_type Weight=(1-fabs(i-xi-midpoint_det))/(R*t);
 			
@@ -135,8 +134,9 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
 			//Weight=0;
 			//}
 			
+			//accumulation
 			acc+=Weight*img[x];
-			
+					
 			//update t and s via obvious formulas
 			t+=dx;
 			s+=xd;
@@ -156,8 +156,8 @@ else
 	my_variable_type ylow=qy-dmy*(qx+midpoint_x);
 	my_variable_type yhigh=qy-dpy*(qx+midpoint_x);
 
-	//switch roles of dm and dp if necessary
-	if (ylow>yhigh)
+	//switch roles of dm and dp if necessary (to swithch ylow and yhigh)
+	if ((qx)*(dmy-dpy)<0)
 	{
 		my_variable_type trade=yhigh;
 		yhigh=ylow;
@@ -167,6 +167,14 @@ else
 		dpy=dmy;
 		dmy=trade; 
 	}
+	
+//	if (fabs(ylow-yhigh)<1)
+//	{
+	 //printf("wie kann das sein %f, %f\n",ylow,yhigh);
+	 //printf("dmx %f, dpy %f, position %f, difference %f \n",dmy,dpy,qx+midpoint_x,yhigh-ylow);
+	// acc=-1;
+//	}
+
 	
 	//For loop going through all x values
 	for (int x=0;x<Nx;x++)
@@ -195,10 +203,12 @@ else
 			my_variable_type Weight=(1-fabs(i-xi-midpoint_det))/(R*t);
 			
 			//cut of ray when hits detector (in case detector inside imaging object)
-			if(t>1)
-			{
-			Weight=0;
-			}			
+			//if(t>1)
+			//{
+			//Weight=0;
+			//}			
+			
+			//accumulation
 			acc+=Weight*img[x+Nx*y];
 			
 			//update s and t via obvious formulas
@@ -208,7 +218,9 @@ else
 	}	
 	
 	}      
-//update relevant sinogram value	                 
+//update relevant sinogram value (weighted with spdp=sqrt(xi^2+R^2) 
+//(one delta_x is hidden in the R*t term)
+//(one delta_xi is hidden in weight with values [0,1] instead of [0,\delta_x])	                 
 sino[i+I*j+thirddim*I*J]=acc*sdpd[i]/delta_xi*delta_x;
 }               
 
@@ -237,6 +249,7 @@ int Ni=Geometryinformation[8];
 int Nj=Geometryinformation[9];
 
 
+my_variable_type delta_xi=Geometryinformation[2];
 my_variable_type R= Geometryinformation[0];
 
 
@@ -250,22 +263,26 @@ for (int j=0;j< Nj;j++)
 {	
 	//Geometric information associated with j.th angle
 	my_variable_type8 o=ofs[j];
+	//(xd,yd) ... vector along the detector with length delta_xi.
 	my_variable_type xd=o.s0;
 	my_variable_type yd=o.s1;
+	//(qx,qy) ... vector from source to origin (with length RE).
 	my_variable_type qx=o.s2;
 	my_variable_type qy=o.s3;
+	//(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line (With length R-RE).
 	my_variable_type dx0=o.s4;
 	my_variable_type dy0=o.s5;
+	
+	//vector from source to detector center (orthogonally project detector-line) with length R
 	my_variable_type dx=dx0-qx;
 	my_variable_type dy=dy0-qy;
 	
-	my_variable_type anglesize=o.s6;
+	my_variable_type Delta_Phi=o.s6;
 	//normalization of dx (vector from source to detecector center).
-	//float R=hypot(dx,dy);
 	dx/=(R*R);
 	dy/=(R*R);
 	
-	my_variable_type delta_xi=hypot(xd,yd);
+	//my_variable_type delta_xi=hypot(xd,yd);
 	xd/=(delta_xi*delta_xi);
 	yd/=(delta_xi*delta_xi);
 	
@@ -284,6 +301,7 @@ for (int j=0;j< Nj;j++)
 	my_variable_type Weightm=1-(xi-xim);
 	
 	//set weight to zero in case adjacent detector position is outside the detector range
+	//and weight with corresponding sdpd=sqrt(xi^2+R^2)
 	if (xim <0 || xim>Ni-1)
 		{Weightm=0.; xim=0;}
 	else
@@ -293,8 +311,8 @@ for (int j=0;j< Nj;j++)
 	else
 		{Weightp*=sdpd[xip];}
 
-	//accumulate weigthed sum
-	acc+=anglesize*(Weightm*sino[xim]+Weightp*sino[xip])/(R*t);
+	//accumulate weigthed sum (Delta_Phi weight due to angular resolution)
+	acc+=Delta_Phi*(Weightm*sino[xim]+Weightp*sino[xip])/(R*t);
 	
 	//jump in sinogram to the next projection
 	sino+=Ni;

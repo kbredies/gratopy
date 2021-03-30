@@ -99,8 +99,7 @@ if __name__ == '__main__':
 ########		
 
 
-#	angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
-	angles=180
+	angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
 	R=5
 	RE=2
 	Detector_width=6
@@ -108,7 +107,7 @@ if __name__ == '__main__':
 	PScorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=False,data_type=my_dtype)
 	PSincorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=True,data_type=my_dtype)
 	
-	PScorrect.show_geometry(0)
+	PScorrect.show_geometry(np.pi/4)
 	img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
 
 	sino_gpu_correct=forwardprojection(None,img_gpu,PScorrect)
