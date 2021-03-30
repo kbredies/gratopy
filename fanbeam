@@ -130,10 +130,10 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))
 			
 			
 			//cut of ray when hits detector (in case detector inside imaging object)
-			if(t>1)
-			{
-			Weight=0;
-			}
+			//if(t>1)
+			//{
+			//Weight=0;
+			//}
 			
 			acc+=Weight*img[x];
 			

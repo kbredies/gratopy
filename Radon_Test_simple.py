@@ -62,7 +62,7 @@ if __name__ == '__main__':
 	
 	ctx = cl.create_some_context()
 	queue = cl.CommandQueue(ctx)
-	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=1,fullangle=True,data_type=my_dtype)
+	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=0,fullangle=True,data_type=my_dtype)
 	
 	PS.show_geometry(0)
 	PS.show_geometry(np.pi/8)

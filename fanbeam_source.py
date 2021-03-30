@@ -31,9 +31,9 @@ def forwardprojection(sino, img, projection_settings, wait_for=None):
 		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
 	
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		myevent=fanbeam_richy_gpu(sino, img, projection_settings, wait_for=None)
+		myevent=fanbeam_richy_gpu(sino, img, projection_settings, wait_for=wait_for)
 	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		myevent=radon(sino, img, projection_settings, wait_for=None)
+		myevent=radon(sino, img, projection_settings, wait_for=wait_for)
 	return sino
 	
 def backprojection(img, sino, projection_settings, wait_for=None):
@@ -48,9 +48,9 @@ def backprojection(img, sino, projection_settings, wait_for=None):
 
 	
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		myevent=fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=None)
+		myevent=fanbeam_richy_gpu_add(img, sino, projection_settings, wait_for=wait_for)
 	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		myevent=radon_ad(img, sino, projection_settings, wait_for=None)
+		myevent=radon_ad(img, sino, projection_settings, wait_for=wait_for)
 	return img
 
 
@@ -140,6 +140,8 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 		nd = n_detectors
 	midpoint_domain = array([shape[0]-1, shape[1]-1])/2.0
 	midpoint_detectors = (nd-1.0)/2.0
+	
+
 
 	X = cos(angles)/detector_width
 	Y = sin(angles)/detector_width
@@ -313,7 +315,7 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 		dd=(0.5*detector_width-abs(detector_shift))/source_detector_dist
 		image_width = 2*dd*source_origin_dist/sqrt(1+dd**2) # Projection to compute distance via projectionvector (1,dd) after normalization, is equal to delta_x*N_x
 	
-	assert image_width<source_origin_dist , " the image is encloses the source"
+	assert image_width*sqrt(1/2)<source_origin_dist , " the image is encloses the source"
 	
 	midpoint_x=midpointshift[0]*image_pixels/float(image_width)+(shape[0]-1)/2.
 	midpoint_y=midpointshift[1]*image_pixels/float(image_width)+(shape[0]-1)/2.

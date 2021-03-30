@@ -6,6 +6,7 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino, __global m
 					//const int Y
 					)
 {
+	//Geometric and discretization information
    size_t I = get_global_size(0);
    size_t J = get_global_size(1); 
 
@@ -15,43 +16,60 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino, __global m
   
   const int X= Geometryinformation[2];
   const int Y= Geometryinformation[3];
-  
   const float delta_x= Geometryinformation[0];
   const float delta_xi= Geometryinformation[1];
   int ii=i;
+  
+  //jump to correct z dimension
+  img+=X*Y*thirddim;  
+  
+  
+  //o = (cos,sin,offset,1/cos)
   my_variable_type4 o = ofs[j].s0123;
+  
+  //accumulation variable
   my_variable_type acc = 0.0f;
-  img+=X*Y*thirddim;
+
+  //for through the entire y dimension
   for(int y = 0; y < Y; y++) {
+  
 	int x_low, x_high;
 	my_variable_type d = y*o.y + o.z;
 
 	// compute bounds
-	if (o.x == 0) {
+	if (o.x == 0) { //case ray is horizontal there are only two detectors hit
 	  if ((d > ii-1) && (d < ii+1)) {
 		x_low = 0; x_high = X-1;
-	  } else {
+	  } else { // horizontal ray, but detector in question is not hit, jump to next y
 		img += X; continue;
 	  }
-	} else if (o.x > 0) {
+	} else if (o.x > 0) {//ray increases in x dimension
 	  x_low = (int)((ii-1 - d)*o.w);
 	  x_high = (int)((ii+1 - d)*o.w);
-	} else {
+	} else {//ray decreasing in x dimension
 	  x_low = (int)((ii+1 - d)*o.w);
 	  x_high = (int)((ii-1 - d)*o.w);
 	}
+	
+	//make sure x inside image dimensions
 	x_low = max(x_low, 0);
 	x_high = min(x_high, X-1);
 
-	// integrate
+	// integration in x dimension for fixed y
 	for(int x = x_low; x <= x_high; x++) {
+	  //anterpolation weight via normal distance
 	  my_variable_type weight = 1.0 - fabs(x*o.x + d - ii);
-	  if (weight > 0.0f) acc += weight*img[x];
+	  if (weight > 0.0f) 
+		acc += weight*img[x];
 	}
+	//Jump to next y 
 	img += X;
   }
+  //assign value to sinogram
   sino[j*I + i+I*J*thirddim] = acc*delta_x*delta_x/delta_xi;
 }
+
+
 
 __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global my_variable_type *sino,
 					   __constant my_variable_type8 *ofs, 
@@ -59,8 +77,9 @@ __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global
 					   //const int I,const int J
 					   )
 {
+  //Geometric and discretization information
   size_t X = get_global_size(0);
-	size_t Y = get_global_size(1);
+  size_t Y = get_global_size(1);
   
   size_t x = get_global_id(0);
   size_t y = get_global_id(1);
@@ -69,21 +88,35 @@ __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global
   const int I = Geometryinformation[4];
   const int J = Geometryinformation[5];
 
-  my_variable_type4 c = (my_variable_type4)(x,y,1,0);
+
+  //accumulation variable
   my_variable_type acc = 0.0f;
+
+
+  my_variable_type4 c = (my_variable_type4)(x,y,1,0);
+
+  //jump to relevant z position
   sino += I*J*thirddim;
   
+  //integrate with respect to angular dimension
   for (int j=0; j < J; j++) {
-    my_variable_type Delta_phi=ofs[j].s4;
+    
+    my_variable_type Delta_phi=ofs[j].s4; //angle_width asociated to the angle
+	
+	//compute detector position associated to (x,y) and phi=j
 	my_variable_type i = dot(c, ofs[j].s0123);
+	
+	//make sure detector position is inside range
 	if ((i > -1) && (i < I)) {
 	  my_variable_type i_floor;
 	  my_variable_type p = fract(i, &i_floor);
 	  if (i_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[(int)i_floor];
 	  if (i_floor <= I-2) acc += Delta_phi*p*sino[(int)(i_floor+1)];
 	}
+	//jump to next projection
  	sino += I;
   }
+  //assign value to sinogram
   img[y*X + x+X*Y*thirddim] = acc;
 }
 
