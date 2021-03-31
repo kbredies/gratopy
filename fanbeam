@@ -1,18 +1,22 @@
 //Fanbeam Transform
 // Input:
-//			sino: pointer to float array representing sinogram (to be computed) with detector-dimension times angle-dimension (todo times z dimension)
-// 			img:  pointer to float array representing image to be transformed of dimens Nx times Ny (img_shape)
-//			ofs:  buffer containing geometric informations
-//			midpoint_x:	  central pixel of the image in x dimension
-//			midpoint_y:	  central pixel of image in y dimension
-//			midpoint_det: central pixel in detector dimension
+//			sino: pointer to array representing sinogram (to be computed) with detector-dimension times angle-dimension times z dimension
+// 			img:  pointer to array representing image to be transformed of dimens Nx times Ny times Nz (img_shape=Nx times Ny)
+//			ofs:  buffer containing geometric informations concerning the projection-directions (angular information)
+//				  the first two entries are xd,yd in detetectordirection with length delta_xi
+//				  third and fourth (qx,qy) from source to origin with length RE
+//				  fith and sixth (dx0,dy0) from origin to center of detector-line
+//			sdpd: buffer containing the values associated to sqrt(xi^2+R^2) as weighting
+//			Geometry_information:  contains various geometric 
+//					0. R 1. RE 2. delta_xi, 3.x_mid,4. y_mid, 5 xi_midpoint, 6. Nx,7.Ny,8.Nxi,9.Nphi,10.delta_x 
 // Output:
 //			values inside sino are altered to represent the computed fanbeam transform
 __kernel void fanbeam_my_variable_type(__global my_variable_type *sino, __global my_variable_type *img,
                       __constant my_variable_type8 *ofs, __constant my_variable_type *sdpd ,
                       __global my_variable_type* Geometryinformation)
-                     //  const float midpoint_x, const float midpoint_y, const float midpoint_det)
 {
+	
+//Geometric information
 size_t I = get_global_size(0);
 size_t J = get_global_size(1);
 
@@ -33,7 +37,7 @@ int Ny=Geometryinformation[7];
 
 my_variable_type delta_x = Geometryinformation[10];// True delta_x, i.e. not rescaled like delta_xi
 
-
+//Geometric information associated with j.th angle
 my_variable_type8 o=ofs[j];
 //(xd,yd) ... vector along the detector with length delta_xi.
 my_variable_type xd=o.s0;
@@ -62,11 +66,11 @@ my_variable_type dmy=dy0+yd*(-midpoint_det+i-1)-qy;
 my_variable_type dx=dx0-qx;
 my_variable_type dy=dy0-qy;
 
-//Normalization
+//Normalization (the norm of (dx,dy) is 1/R after normalization)
 dx/=(R*R);
 dy/=(R*R);
 
-//Normalization
+//Normalization (the norm of (xd,yd) is 1/delta_xi after normalization)
 xd/=(delta_xi*delta_xi);
 yd/=(delta_xi*delta_xi);
 
@@ -76,7 +80,7 @@ RE=RE/R;
 //Seperate lines which are rather vertical than horicontal
 if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
 	{
-	//Move in y direction stepwise, rescale dp/dm such that increase in y direction
+	//Move in y direction stepwise, rescale dp/dm such that represents increase in y direction
 	dpx=dpx/dpy;
 	dmx=dmx/dmy;
 		
@@ -101,20 +105,18 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
 	//For loop going through all y values
 	for (int y=0;y<Ny;y++)
 	{	
-		// cut bounds of to suitable values
-		int xhighint=floor (min(Ny-1-midpoint_x,xhigh)+midpoint_x);
+		// cut bounds within image_range
+		int xhighint=floor (min(Nx-1-midpoint_x,xhigh)+midpoint_x);
 		int xlowint=ceil(max(-midpoint_x,xlow)+midpoint_x);
 	
-		//changing y by one updates xlow and xhigh exactly by the slopes dp and dm as given in formular above by increasing y by 1
+		//changing y by one updates xlow and xhigh exactly by the slopes dp and dm
+		// as given in formular above by increasing y by 1 
 		xhigh+=dpx;
 		xlow+=dmx;
 		
-		// for (xlowint,y)  compute t and s orthogonal distances from source (t values in (0,1)) 
-		// or projected detectorposition (divided by delta_xi ) 
+		// for (x,ylowint) compute t and s orthogonal distances from source (t values in (0,1)) 
+		// or projected detectorposition (divided by delta_xi ) 		
 		my_variable_type t=dx*(xlowint-midpoint_x)+dy*(y-midpoint_y)+RE;
-		if (y==0){
-		//printf("t %f t*R %f Re%f \n",t,t*R,RE);
-				}
 		my_variable_type s=xd*(xlowint-midpoint_x)+yd*(y-midpoint_y);
 		
 		// loop through all adjacent x values inside the bounds			
@@ -123,11 +125,10 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
 			// xi is equal the projected detector position (with exact positions as integers) 
 			 my_variable_type xi=s/t;
 			 
-			//Weight corresponds to distance of projected detector position divided by the distance from the source
+			//Weight corresponds to distance of projected detector position 
+			//divided by the distance from the source
 			my_variable_type Weight=(1-fabs(i-xi-midpoint_det))/(R*t);
-			
-			
-			
+					
 			//cut of ray when hits detector (in case detector inside imaging object)
 			//if(t>1)
 			//{
@@ -137,18 +138,17 @@ if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
 			//accumulation
 			acc+=Weight*img[x];
 					
-			//update t and s via obvious formulas
+			//update t and s via obvious formulas (for fixed y) and x increased by 1
 			t+=dx;
 			s+=xd;
 		}
 		//jump to next line in the image 
-		img+=Ny;
+		img+=Nx;
 	}
 }
-//Case  lines are mostly vertical
-else
+else //Case  lines are mostly vertical
 	{
-	//rescaling with increase per x position
+	//Move in x direction stepwise, rescale dp/dm such that represents increase in y direction
 	dpy=dpy/dpx;
 	dmy=dmy/dmx;
 	
@@ -156,7 +156,7 @@ else
 	my_variable_type ylow=qy-dmy*(qx+midpoint_x);
 	my_variable_type yhigh=qy-dpy*(qx+midpoint_x);
 
-	//switch roles of dm and dp if necessary (to swithch ylow and yhigh)
+	//switch roles of dm and dp if necessary (to switch ylow and yhigh)
 	if ((qx)*(dmy-dpy)<0)
 	{
 		my_variable_type trade=yhigh;
@@ -167,14 +167,6 @@ else
 		dpy=dmy;
 		dmy=trade; 
 	}
-	
-//	if (fabs(ylow-yhigh)<1)
-//	{
-	 //printf("wie kann das sein %f, %f\n",ylow,yhigh);
-	 //printf("dmx %f, dpy %f, position %f, difference %f \n",dmy,dpy,qx+midpoint_x,yhigh-ylow);
-	// acc=-1;
-//	}
-
 	
 	//For loop going through all x values
 	for (int x=0;x<Nx;x++)
@@ -226,20 +218,30 @@ sino[i+I*j+thirddim*I*J]=acc*sdpd[i]/delta_xi*delta_x;
 
 
  
-
+ 
+//Fanbeam Backprojection
+// Input:
+//			img:  pointer to array representing image (to be computed) of dimensions Nx times Ny times Nz (img_shape=Nx times Ny)
+// 			sino: pointer to array representing sinogram (to be transformed) with detector-dimension times angle-dimension times z dimension
+//			ofs:  buffer containing geometric informations concerning the projection-directions (angular information)
+//				  the first two entries are xd,yd in detetectordirection with length delta_xi
+//				  third and fourth (qx,qy) from source to origin with length RE
+//				  fith and sixth (dx0,dy0) from origin to center of detector-line
+//			sdpd: buffer containing the values associated to sqrt(xi^2+R^2) as weighting
+//			Geometry_information:  contains various geometric 
+//					0. R 1. RE 2. delta_xi, 3.x_mid,4. y_mid, 5 xi_midpoint, 6. Nx,7.Ny,8.Nxi,9.Nphi,10.delta_x 
+// Output:
+//			values inside img are altered to represent the computed fanbeam backprojection 
 __kernel void fanbeam_add_my_variable_type(__global my_variable_type *img, __global my_variable_type *sino,
                       __constant my_variable_type8 *ofs, __constant my_variable_type *sdpd,  
                       __global my_variable_type* Geometryinformation)
-                      //const float midpoint_det, const int Ni, const int Nj)
 {
+//geometric information
 size_t Nx = get_global_size(0);
 size_t Ny = get_global_size(1);
 size_t xx = get_global_id(0);
 size_t yy = get_global_id(1);
 size_t thirddim = get_global_id(2);
-my_variable_type acc=0;
-
-	
 
 my_variable_type midpoint_x=Geometryinformation[3];
 my_variable_type midpoint_y=Geometryinformation[4];
@@ -252,12 +254,15 @@ int Nj=Geometryinformation[9];
 my_variable_type delta_xi=Geometryinformation[2];
 my_variable_type R= Geometryinformation[0];
 
-
-
-
 my_variable_type x=xx-midpoint_x;
 my_variable_type y=yy-midpoint_y;
+
+//accumulation variable
+my_variable_type acc=0;
+
+//jump to z coordinate in question
 sino+=Ni*Nj*thirddim;
+
 // for loop through all angles
 for (int j=0;j< Nj;j++)
 {	
@@ -277,16 +282,19 @@ for (int j=0;j< Nj;j++)
 	my_variable_type dx=dx0-qx;
 	my_variable_type dy=dy0-qy;
 	
+	//Delta_Phi angular resolution
 	my_variable_type Delta_Phi=o.s6;
-	//normalization of dx (vector from source to detecector center).
+
+	//normalization (afterwards (dx,dy) has norm 1/R).
 	dx/=(R*R);
 	dy/=(R*R);
 	
-	//my_variable_type delta_xi=hypot(xd,yd);
+	//normalization (afterwards (xd,yd) has norm 1/delta_xi).
 	xd/=(delta_xi*delta_xi);
 	yd/=(delta_xi*delta_xi);
-	
-	//determine orthogonal distances a and b (in detector direction and dx direction)
+		
+	//compute t and s orthogonal distances from source (t values in (0,1)) 
+	// or projected detectorposition (divided by delta_xi ) 	
 	my_variable_type t=dx*(x-qx)+dy*(y-qy);
 	my_variable_type s=xd*(x-qx)+yd*(y-qy);
 	
@@ -296,12 +304,13 @@ for (int j=0;j< Nj;j++)
 	//compute adjacent detector positions 
 	int xim=floor(xi);
 	int xip=xim+1;
+	
 	// compute corresponding weights
 	my_variable_type Weightp=1-(xim+1-xi);
 	my_variable_type Weightm=1-(xi-xim);
 	
-	//set weight to zero in case adjacent detector position is outside the detector range
-	//and weight with corresponding sdpd=sqrt(xi^2+R^2)
+	//set weight to zero in case adjacent detector position is outside 
+	//the detector range and weight with corresponding sdpd=sqrt(xi^2+R^2)
 	if (xim <0 || xim>Ni-1)
 		{Weightm=0.; xim=0;}
 	else

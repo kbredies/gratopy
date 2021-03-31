@@ -1,10 +1,20 @@
-	
+//Radon Transform
+// Input:
+//			sino: pointer to array representing sinogram (to be computed) 
+//				  with detector-dimension times angle-dimension times z dimension
+// 			img:  pointer to array representing image to be transformed of
+//				  dimens Nx times Ny times Nz (img_shape=Nx times Ny)
+//			ofs:  buffer containing geometric informations concerning the 
+//					projection-directions (angular information)
+//				  Entries are cos, sin, ofset and 1/cos
+//			Geometry_information:  contains various geometric information 
+//					[delta_x,delta_xi,Nx,Ny,Ni,Nj] 
+// Output:
+//			values inside sino are altered to represent the computed Radon transform	
 
-__kernel void radon_my_variable_type(__global my_variable_type *sino, __global my_variable_type *img,
-					__constant my_variable_type8 *ofs, __global my_variable_type* Geometryinformation
-					//const int X,
-					//const int Y
-					)
+__kernel void radon_my_variable_type(__global my_variable_type *sino,
+					__global my_variable_type *img,__constant my_variable_type8 *ofs,
+					 __global my_variable_type* Geometryinformation)
 {
 	//Geometric and discretization information
    size_t I = get_global_size(0);
@@ -18,11 +28,12 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino, __global m
   const int Y= Geometryinformation[3];
   const float delta_x= Geometryinformation[0];
   const float delta_xi= Geometryinformation[1];
+  
+  //hack (since otherwise i is unsigned which leads to overflow problems)
   int ii=i;
   
   //jump to correct z dimension
   img+=X*Y*thirddim;  
-  
   
   //o = (cos,sin,offset,1/cos)
   my_variable_type4 o = ofs[j].s0123;
@@ -34,6 +45,8 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino, __global m
   for(int y = 0; y < Y; y++) {
   
 	int x_low, x_high;
+	
+	//project (0,y) onto detector
 	my_variable_type d = y*o.y + o.z;
 
 	// compute bounds
@@ -70,11 +83,20 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino, __global m
 }
 
 
-
+//Fanbeam Backprojection
+// Input:
+//			img:  pointer to array representing image (to be computed) of dimensions Nx times Ny times Nz (img_shape=Nx times Ny)
+// 			sino: pointer to array representing sinogram (to be transformed) with detector-dimension times angle-dimension times z dimension
+//			ofs:  buffer containing geometric informations concerning the 
+//				  projection-directions (angular information)
+//				  Entries are cos, sin, ofset and 1/cos
+//	//			Geometry_information:  contains various geometric information 
+//					[delta_x,delta_xi,Nx,Ny,Ni,Nj] 
+// Output:
+//			values inside img are altered to represent the computed Radon backprojection 
 __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global my_variable_type *sino,
 					   __constant my_variable_type8 *ofs, 
 					   __global my_variable_type* Geometryinformation
-					   //const int I,const int J
 					   )
 {
   //Geometric and discretization information
