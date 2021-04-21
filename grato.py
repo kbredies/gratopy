@@ -214,7 +214,7 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 
 	#X*x+Y*y=detectorposition, ofs is error in midpoint of the image (in shifted detector setting)
 	offset = midpoint_detectors - X*midpoint_domain[0] \
-			- Y*midpoint_domain[1] + detector_shift/relative_detector_pixel_width*n_detectors
+			- Y*midpoint_domain[1] + detector_shift/detector_width*nd
 
 
 	#Angular weights
@@ -731,31 +731,54 @@ Input:		sinogram 	... pyopencl.array of sinogram for which to compute the invers
 			number_iterations... int number of iterations to execute
 			w ...	float representing the relaxation parameter (w<1 garanties convergence)
 """
-def Landweberiteration(sinogram,projection_settings,number_iterations=100,w=1):
-	queue=projection_settings.queue
-	sino2=clarray.to_device(queue, require(sinogram.get(), projection_settings.dtype, 'F'))
+def Landweberiteration(sinogram,PS,number_iterations=100,w=1):
+	sinonew=clarray.to_device(PS.queue, require(sinogram.get(), PS.dtype, 'F'))	
+	U=clarray.zeros(PS.queue,PS.shape,dtype=PS.dtype, order='F')
+	Unew=clarray.zeros(PS.queue,PS.shape,dtype=PS.dtype, order='F')
 	
-	U=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
-	Unew=clarray.zeros(queue,projection_settings.shape,dtype=projection_settings.dtype, order='F')
-	
-	norm=normest(projection_settings)
-	w=float32(w/norm**2)
-	
+	norm_estimate=normest(PS)
+	w=PS.dtype(w/norm_estimate**2)	
 	for i in range(number_iterations):
-	
-		forwardprojection(sino2,Unew,projection_settings,wait_for=U.events+Unew.events)
-		sino2=sino2-sinogram
-		cl.enqueue_barrier(queue)
-		backprojection(U,sino2,projection_settings,wait_for=sino2.events)
-		Unew=Unew-w*U	
-		#print (i,np.max(Unew.get()), np.linalg.norm(sino2.get()))
+		sinonew=forwardprojection(sinonew,Unew,PS,wait_for=Unew.events)-sinogram
+		Unew=Unew-w*backprojection(U,sinonew,PS,wait_for=sinonew.events)	
 	return Unew
 
 
 
 
 
+def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
+	x=x0
+	d=sinogram-forwardprojection(None,x,PS,wait_for=x.events)
+	p=backprojection(None,d,PS,wait_for=d.events)
+	q=clarray.empty_like(d,PS.queue)
+	snew=p+0
 
-
-
+	for k in range(0,number_iterations):
+		residual=np.sum(clarray.vdot(snew,snew).get())**0.5
+	#	print(str(k)+"-th iteration with risidual",residual, "relative orthogonality of the residuals",clarray.vdot(snew,sold)/(clarray.vdot(snew,snew)**0.5*clarray.vdot(sold,sold)**0.5))
+		if  residual<epsilon:
+			break
+		
+		sold=snew+0.	
+		forwardprojection(q,p,PS,wait_for=p.events)
+		alpha=PS.dtype( PS.delta_x**2/(PS.delta_xi*(2*np.pi)/PS.n_angles)*(clarray.vdot(sold,sold)/clarray.vdot(q,q)).get())
+		#import pdb;pdb.set_trace()
+		#alpha=(PS.delta_x**2/(PS.delta_xi*(2*np.pi)/PS.n_angles)*np.sum(alpha.get()))
+		#alpha2=float32(PS.delta_x**2*np.sum(sold.get()**2)/(PS.delta_xi*(2*np.pi)/PS.n_angles*np.sum(q.get()**2)))
+		x=x+alpha*p;		d=d-alpha*q;
+		backprojection(snew,d,PS ,wait_for=d.events)
+		beta=clarray.vdot(snew,snew)/clarray.vdot(sold,sold)
+		beta=PS.dtype(np.sum(beta.get()))
+		#beta=float32(np.sum(snew.get()**2)/np.sum(sold.get()**2))
+		p=snew+beta*p		
+		
+		if beta>1 and relaunch==True:
+			print("relaunch at", k)
+			d=forwardprojection(None,x,PS,wait_for=x.events)
+			d=sinogram-d
+			p=backprojection(None,d,PS,wait_for=d.events)
+			q=clarray.empty_like(d,PS.queue)			
+			snew=p+0.		
+	return x
 

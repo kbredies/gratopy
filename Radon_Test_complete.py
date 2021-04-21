@@ -1,12 +1,7 @@
 from numpy import *
 from matplotlib.pyplot import *
 import pyopencl as cl
-import pyopencl.array as clarray
-import scipy.misc
-import time
 from grato import *
-from scipy import misc
-from PIL import Image
 import matplotlib.image as mpimg
 
 
@@ -58,7 +53,7 @@ if __name__ == '__main__':
 	PS.show_geometry(np.pi/4)
 	PS.show_geometry(np.pi*3/8.)
 		
-	img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
+	img_gpu = cl.array.to_device(queue, require(img, my_dtype, 'F'))
 
 	sino_gpu=forwardprojection(None,img_gpu,PS)
 
@@ -91,8 +86,8 @@ if __name__ == '__main__':
 
 	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=detector_width,image_width=image_width)
 		
-	img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
-	sino_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=my_dtype, order='F')
+	img_gpu = cl.array.to_device(queue, require(img, my_dtype, 'F'))
+	sino_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=my_dtype, order='F')
 
 	forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)	
 			
@@ -122,10 +117,10 @@ if __name__ == '__main__':
 	eps=0.00001
 	for i in range(100):
 		
-		img1_gpu = clarray.to_device(queue, require(np.random.random(PS.shape), float32, 'F'))
-		sino1_gpu = clarray.to_device(queue, require(np.random.random(PS.sinogram_shape), float32, 'F'))
-		img2_gpu = clarray.zeros(queue, PS.shape, dtype=float32, order='F')
-		sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
+		img1_gpu = cl.array.to_device(queue, require(np.random.random(PS.shape), float32, 'F'))
+		sino1_gpu = cl.array.to_device(queue, require(np.random.random(PS.sinogram_shape), float32, 'F'))
+		img2_gpu = cl.array.zeros(queue, PS.shape, dtype=float32, order='F')
+		sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
 		forwardprojection(sino2_gpu,img1_gpu,PS)
 					
 		backprojection(img2_gpu,sino1_gpu,PS)
