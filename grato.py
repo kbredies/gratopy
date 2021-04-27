@@ -732,12 +732,13 @@ Input:		sinogram 	... pyopencl.array of sinogram for which to compute the invers
 			w ...	float representing the relaxation parameter (w<1 garanties convergence)
 """
 def Landweberiteration(sinogram,PS,number_iterations=100,w=1):
-	sinonew=clarray.to_device(PS.queue, require(sinogram.get(), PS.dtype, 'F'))	
-	U=clarray.zeros(PS.queue,PS.shape,dtype=PS.dtype, order='F')
-	Unew=clarray.zeros(PS.queue,PS.shape,dtype=PS.dtype, order='F')
-	
 	norm_estimate=normest(PS)
 	w=PS.dtype(w/norm_estimate**2)	
+
+	sinonew=clarray.to_device(PS.queue, require(sinogram.get(), PS.dtype, 'F'))	
+	U=w*backprojection(None,sinonew,PS)
+	Unew=clarray.zeros(PS.queue,U.shape,dtype=PS.dtype, order='F')
+	
 	for i in range(number_iterations):
 		sinonew=forwardprojection(sinonew,Unew,PS,wait_for=Unew.events)-sinogram
 		Unew=Unew-w*backprojection(U,sinonew,PS,wait_for=sinonew.events)	
@@ -763,20 +764,14 @@ def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
 		sold=snew+0.	
 		forwardprojection(q,p,PS,wait_for=p.events)
 		alpha=PS.dtype( PS.delta_x**2/(PS.delta_xi*(2*np.pi)/PS.n_angles)*(clarray.vdot(sold,sold)/clarray.vdot(q,q)).get())
-		#import pdb;pdb.set_trace()
-		#alpha=(PS.delta_x**2/(PS.delta_xi*(2*np.pi)/PS.n_angles)*np.sum(alpha.get()))
-		#alpha2=float32(PS.delta_x**2*np.sum(sold.get()**2)/(PS.delta_xi*(2*np.pi)/PS.n_angles*np.sum(q.get()**2)))
 		x=x+alpha*p;		d=d-alpha*q;
 		backprojection(snew,d,PS ,wait_for=d.events)
-		beta=clarray.vdot(snew,snew)/clarray.vdot(sold,sold)
-		beta=PS.dtype(np.sum(beta.get()))
-		#beta=float32(np.sum(snew.get()**2)/np.sum(sold.get()**2))
+		beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
 		p=snew+beta*p		
 		
 		if beta>1 and relaunch==True:
 			print("relaunch at", k)
-			d=forwardprojection(None,x,PS,wait_for=x.events)
-			d=sinogram-d
+			d=sinogram-forwardprojection(None,x,PS,wait_for=x.events)
 			p=backprojection(None,d,PS,wait_for=d.events)
 			q=clarray.empty_like(d,PS.queue)			
 			snew=p+0.		
