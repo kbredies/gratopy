@@ -46,7 +46,7 @@ if __name__ == '__main__':
 	
 	ctx = cl.create_some_context()
 	queue = cl.CommandQueue(ctx)
-	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,image_width=image_width,detector_width=detector_width,detector_shift=0,fullangle=True,data_type=my_dtype)
+	PS=projection_settings(queue,"parallel",img.shape,angles,Ns,image_width=image_width,detector_width=detector_width,detector_shift=0,fullangle=True)
 	
 	PS.show_geometry(0)
 	PS.show_geometry(np.pi/8)
@@ -92,8 +92,8 @@ if __name__ == '__main__':
 	forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)	
 			
 	A=np.sum(img)*PS.delta_x**2
-	B=np.sum(sino_gpu.get())*PS.delta_xi/PS.n_angles
-	C=np.sum(sino_gpu.get()[:,10])*PS.delta_xi
+	B=np.sum(sino_gpu.get())*PS.delta_s/PS.n_angles
+	C=np.sum(sino_gpu.get()[:,10])*PS.delta_s
 
 	print("The mass inside the image is "+str(A)+" was carried over in the mass inside an projection is "+str(B)+" i.e. the relative error is "+ str(abs(1-A/B)))
 	
@@ -107,10 +107,10 @@ if __name__ == '__main__':
 	angles=360
 	
 	PS=projection_settings(queue,"parallel",img.shape, angles, n_detectors=number_detectors, 
-					fullangle=True,data_type='single')
+					fullangle=True)
 	
 	delta_x=PS.delta_x
-	delta_xi_ratio=PS.delta_ratio
+	delta_s_ratio=PS.delta_ratio
 
 	Fehler=[]
 	count=0
@@ -131,7 +131,7 @@ if __name__ == '__main__':
 		
 		
 		a=np.dot(img1,img2)*delta_x**2
-		b=np.dot(sino1,sino2)*(np.pi)/angles *(delta_xi_ratio*delta_x)
+		b=np.dot(sino1,sino2)*(np.pi)/angles *(delta_s_ratio*delta_x)
 		if abs(a-b)/min(abs(a),abs(b))>eps:
 			print (a,b,a/b)
 			count+=1

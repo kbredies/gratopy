@@ -79,7 +79,7 @@ if True:
 	
 	PS = grato.projection_settings(queue,"fan",img_shape=Wallnut.shape  
 				,angles = numberofangles,detector_width=Detectorwidth, R=FDD 
-				,RE=FOD, n_detectors=number_detectors,data_type=dtype)
+				,RE=FOD, n_detectors=number_detectors)
 
 	Wallnut_gpu=cl.array.to_device(queue,require(Wallnut,dtype,'F'))
 	Wallnut_sino=grato.forwardprojection(None,Wallnut_gpu,PS)	
@@ -165,7 +165,7 @@ if True:
 	Wallnut_sino=mpimg.imread('Wallnut/Sinogram.png')
 	Wallnut_sino_gpu=cl.array.to_device(queue,require(Wallnut_sino,dtype,'F'))
 	
-	PS = grato.projection_settings(queue,"fan",img_shape=(Nx,Nx), angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=dtype)
+	PS = grato.projection_settings(queue,"fan",img_shape=(Nx,Nx), angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors)
 	ULW=grato.Landweberiteration(Wallnut_sino_gpu,PS,50)
 	UCG=grato.CG_iteration(Wallnut_sino_gpu,PS,epsilon=0.0,x0=x0,number_iterations=10,relaunch=True)
 	figure(10)

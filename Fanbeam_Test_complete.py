@@ -27,7 +27,7 @@ ctx = cl.create_some_context()
 queue = cl.CommandQueue(ctx)
 
 
-PS = projection_settings(queue,"fan",img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors,data_type='single')
+PS = projection_settings(queue,"fan",img_shape=img.shape,angles= angles,  detector_width=400, R=752, RE=200, n_detectors=number_detectors)
 
 img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
 sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.n_angles,2), dtype=float32, order='F')
@@ -76,9 +76,9 @@ for number_detectors in [50,100,200,400,800,1600]:
 	RE=200*rescaling
 	image_width=40*rescaling
 
-	PS = projection_settings(queue,"fan",img_shape=img.shape, angles= angles,  detector_width=detector_width, R=R,RE= RE, n_detectors=number_detectors,image_width=image_width,data_type='single')
+	PS = projection_settings(queue,"fan",img_shape=img.shape, angles= angles,  detector_width=detector_width, R=R,RE= RE, n_detectors=number_detectors,image_width=image_width)
 	delta_x=PS.delta_x
-	delta_xi_ratio=PS.delta_ratio
+	delta_s_ratio=PS.delta_ratio
 	
 
 	img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
@@ -86,7 +86,7 @@ for number_detectors in [50,100,200,400,800,1600]:
 	forwardprojection(sino_gpu,img_gpu,PS)
 
 	a=np.sum(img_gpu.get())*delta_x**2
-	b=np.sum(sino_gpu.get())*(delta_xi_ratio*delta_x)/angles
+	b=np.sum(sino_gpu.get())*(delta_s_ratio*delta_x)/angles
 	print("Mass in original image",a, "mass in projection",b,"Ratio",b/a,"Ratio should be 6")
 
 
@@ -101,10 +101,10 @@ midpoint_shift=[100,100]
 PS=projection_settings(queue,"fan",img.shape, angles, n_detectors=number_detectors, 
 				detector_width=83,detector_shift = 0.0, midpoint_shift=[0,0],
 				R=900, RE=300,
-				image_width=None, fullangle=True,data_type='single')
+				image_width=None, fullangle=True)
 
 delta_x=PS.delta_x
-delta_xi_ratio=PS.delta_ratio
+delta_s_ratio=PS.delta_ratio
 
 print("")
 print("Adjointness:")
@@ -127,7 +127,7 @@ for i in range(100):
 	img2=img2_gpu.get().reshape(img2_gpu.size)
 	
 	a=np.dot(img1,img2)*delta_x**2
-	b=np.dot(sino1,sino2)*(2*np.pi)/angles *(delta_xi_ratio*delta_x)
+	b=np.dot(sino1,sino2)*(2*np.pi)/angles *(delta_s_ratio*delta_x)
 	if abs(a-b)/min(abs(a),abs(b))>eps:
 		print (a,b,a/b)
 		count+=1
@@ -173,8 +173,8 @@ p=2
 Ns=int(0.3*img.shape[0])
 shift=0
 
-PScorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=False,data_type=my_dtype)
-PSincorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=True,data_type=my_dtype)
+PScorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=False)
+PSincorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=True)
 
 img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
 
@@ -200,8 +200,8 @@ R=5
 RE=2
 Detector_width=6
 image_width=2
-PScorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=False,data_type=my_dtype)
-PSincorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=True,data_type=my_dtype)
+PScorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=False)
+PSincorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=True)
 
 PScorrect.show_geometry(np.pi/4)
 img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
@@ -256,7 +256,7 @@ midpoint_shif=[0,0.5]
 
 Ns=int(0.5*img.shape[0])
 
-PS=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,midpoint_shift=midpoint_shif,fullangle=True,data_type=my_dtype)
+PS=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,midpoint_shift=midpoint_shif,fullangle=True)
 
 for k in range(0,16):
 	PS.show_geometry(k*np.pi/8)
@@ -298,7 +298,7 @@ numberofangles=120
 
 geometry=[Detectorwidth,FDD,FOD,number_detectors]
 
-PS = projection_settings(queue,"fan",img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=dtype)
+PS = projection_settings(queue,"fan",img_shape=Wallnut.shape, angles = numberofangles,detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors)
 
 Wallnut_gpu=clarray.to_device(queue,require(Wallnut,dtype,'F'))
 
@@ -328,7 +328,7 @@ FOD=110
 FDD=300
 numberofangles=120
 geometry=[Detectorwidth,FDD,FOD,number_detectors]
-PS = projection_settings(queue,"fan",img_shape=(600,600), angles=numberofangles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors,data_type=dtype)
+PS = projection_settings(queue,"fan",img_shape=(600,600), angles=numberofangles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors)
 
 Wallnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'F'))
 ULW=Landweberiteration(Wallnut_gpu2new,PS,20)
@@ -371,7 +371,7 @@ midpoint_shif=[0,0.]
 my_dtype=float32
 Ns=int(0.5*img.shape[0])
 
-PS=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,midpoint_shift=midpoint_shif,fullangle=True,data_type=my_dtype)
+PS=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,midpoint_shift=midpoint_shif,fullangle=True)
 
 img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
 
@@ -392,7 +392,7 @@ title("backprojection for non-square image")
 imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]), cmap=cm.gray)
 show()			
 
-PS=projection_settings(queue,"parallel",img.shape,angles,Ns,data_type=my_dtype)
+PS=projection_settings(queue,"parallel",img.shape,angles,Ns)
 img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
 sino_gpu=forwardprojection(None,img_gpu,PS)
 backprojected=backprojection(None,sino_gpu,PS)

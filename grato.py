@@ -34,6 +34,7 @@ output	sino ... An pyopencl.array representing the transformation (i.e. the sino
 """
 def forwardprojection(sino,img, projection_settings, wait_for=None):
 	
+	my_function={0:radon,1:fanbeam}
 	
 	if img.flags.c_contiguous:
 		img=img.T
@@ -43,12 +44,10 @@ def forwardprojection(sino,img, projection_settings, wait_for=None):
 		z_dimension=tuple()
 		if len(img.shape)>2:
 			z_dimension=[img.shape[2]]
-		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
+		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=img.dtype, order='F')	
+
 	#execute corresponding Projection operation
-	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		myevent=fanbeam(sino, img, projection_settings, wait_for=wait_for)
-	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		myevent=radon(sino, img, projection_settings, wait_for=wait_for)
+	myevent=my_function[projection_settings.is_fan](sino, img, projection_settings, wait_for=wait_for)
 	return sino
 
 
@@ -68,22 +67,21 @@ output	img ... An pyopencl.array representing the backprojection
 """	
 def backprojection(img, sino, projection_settings, wait_for=None):
 	
+	my_function={0:radon_ad,1:fanbeam_add}
+	
+	
 	if sino.flags.c_contiguous:
 		sino=sino.T
-
 	
 	#Initialize new img (to save backprojection in) if none is yet given
 	if img is None:
 		z_dimension=tuple()
 		if len(sino.shape)>2:
 			z_dimension=[sino.shape[2]]
-		img = clarray.zeros(projection_settings.queue, projection_settings.shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
+		img = clarray.zeros(projection_settings.queue, projection_settings.shape+tuple(z_dimension), dtype=sino.dtype, order='F')	
 
 	#execute corresponding backprojection operation
-	if projection_settings.geometry in ["FAN","FANBEAM"]:
-		myevent=fanbeam_add(img, sino, projection_settings, wait_for=wait_for)
-	if projection_settings.geometry in ["RADON","PARALLEL"]:
-		myevent=radon_ad(img, sino, projection_settings, wait_for=wait_for)
+	myevent=my_function[projection_settings.is_fan](img, sino, projection_settings, wait_for=wait_for)
 	return img
 
 
@@ -102,20 +100,14 @@ output	sino ... An event for the  the transformation (i.e. the sinogram)
 				 (or are in the waitinglist to be changed once wait_for limitations have passed) 
 """			
 def radon(sino, img, projection_settings, wait_for=None):
-	(ofs_buf, shape, sinogram_shape,Geometryinformation) = projection_settings.struct
-
+	
+	my_function={np.dtype('float32'):projection_settings.prg.radon_float,
+			np.dtype('float'):projection_settings.prg.radon_double}
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
 			+str(sino.dtype)+" and "+str(img.dtype))
-			
-	assert(sino.dtype==projection_settings.dtype),\
-			("sinogram and projection_settings do not share common data type: "\
-			+str(sino.dtype)+" and "+str(projection_settings.dtype)+\
-			"this might be remidies by choosing the parameter data_type to\
-			 be equal to float32 or float (double precission) in the \
-			 initialization of the parameter_settings" )
-
+	
 	my_data_type=sino.dtype
 	updload_bufs(projection_settings,my_data_type)	
 	ofs_buf=projection_settings.ofs_buf[my_data_type] 
@@ -123,12 +115,7 @@ def radon(sino, img, projection_settings, wait_for=None):
 
 	
 	#Choose function with approrpiate dtype 
-	if projection_settings.data_type=="SINGLE":
-		myevent=projection_settings.prg.radon_float(sino.queue, sino.shape, None,
-					sino.data, img.data, ofs_buf,geometry_information,
-					wait_for=wait_for) 
-	if projection_settings.data_type=="DOUBLE":
-		myevent=projection_settings.prg.radon_double(sino.queue, sino.shape, None,
+	myevent=my_function[my_data_type](sino.queue, sino.shape, None,
 					sino.data, img.data, ofs_buf,
 					geometry_information,
 					wait_for=wait_for)
@@ -147,18 +134,13 @@ output	An event for the queue to compute the adjoint radon transform of image sa
 		and write the result into img
 """
 def radon_ad(img, sino, projection_settings, wait_for=None):
-	
+	my_function={np.dtype('float32'):projection_settings.prg.radon_ad_float,
+			np.dtype('float'):projection_settings.prg.radon_ad_double}
+
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
 			+str(sino.dtype)+" and "+str(img.dtype))
 			
-	assert(sino.dtype==projection_settings.dtype),\
-			("sinogram and projection_settings do not share common data type: "\
-			+str(sino.dtype)+" and "+str(projection_settings.dtype)+\
-			"this might be remidies by choosing the parameter data_type to\
-			 be equal to float32 or float (double precission) in the \
-			 initialization of the parameter_settings" )
-
 
 	my_data_type=sino.dtype
 	updload_bufs(projection_settings,my_data_type)	
@@ -167,12 +149,8 @@ def radon_ad(img, sino, projection_settings, wait_for=None):
 
 
 	#Choose function with approrpiate dtype 
-	if projection_settings.data_type=="SINGLE":
-		myevent=projection_settings.prg.radon_ad_float(img.queue, img.shape, None,
-						img.data, sino.data, ofs_buf,
-						geometry_information,wait_for=wait_for)
-	if projection_settings.data_type=="DOUBLE":
-		myevent=projection_settings.prg.radon_ad_double(img.queue, img.shape, None,
+	
+	myevent=my_function[my_data_type](img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
 						geometry_information,wait_for=wait_for)
 	img.add_event(myevent)
@@ -196,12 +174,12 @@ Output:
 		shape ... The same shape as in the input.
 		sinogram_shape ... The sinogram_shape is a list with first the number of detectors, then number of angles.
 		Geometry_info  ...  pyopencl array containing the geometric
-							information [delta_x,delta_xi,Nx,Ny,Ni,Nj]
+							information [delta_x,delta_s,Nx,Ny,Ni,Nj]
 """
 def radon_struct(queue, shape, angles, n_detectors=None,
-			 detector_width=2.0, image_width=2.0,detector_shift=0.0,data_type=float32,fullangle=True):
+			 detector_width=2.0, image_width=2.0,detector_shift=0.0,fullangle=True):
 	
-	#relative_detector_pixel_width is delta_xi/delta_x
+	#relative_detector_pixel_width is delta_s/delta_x
 	relative_detector_pixel_width=detector_width/float(image_width)*max(shape)/n_detectors
 	
 	
@@ -286,25 +264,25 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	[Nx,Ny]=shape
 	[Ni,Nj]= [nd,len(angles)]
 	delta_x=image_width/float(max(Nx,Ny))
-	delta_xi=float(detector_width)/nd
+	delta_s=float(detector_width)/nd
 
 	
 	Geo_dict={}
 	Ofs_dict={}
 	for my_data_type in [np.dtype('float64'),np.dtype('float32')]:
 		#Save angular information into the ofs buffer
-		ofs = zeros((8, len(angles)), dtype=data_type, order='F')
+		ofs = zeros((8, len(angles)), dtype=my_data_type, order='F')
 		ofs[0,:] = X; ofs[1,:] = Y; ofs[2,:] = offset; ofs[3,:] = Xinv
 		ofs[4,:]=angles_diff
 		Ofs_dict[my_data_type]=ofs
 		
-		geometry_info = np.array([delta_x,delta_xi,Nx,Ny,Ni,Nj],dtype=my_data_type,order='F')
+		geometry_info = np.array([delta_x,delta_s,Nx,Ny,Ni,Nj],dtype=my_data_type,order='F')
 		Geo_dict[my_data_type]=geometry_info
 	
 	
 
 	sinogram_shape = (nd, len(angles))
-	return (Ofs_dict, shape, sinogram_shape, Geo_dict)
+	return (Ofs_dict, shape, sinogram_shape, Geo_dict,angles_diff)
  
 
 """Starts the GPU Radon transform code 
@@ -315,15 +293,12 @@ output	An event for the queue to compute the radon transform of image saved into
 """		   
 def fanbeam(sino, img, projection_settings, wait_for=None):
 	
+	my_function={np.dtype('float32'):projection_settings.prg.fanbeam_float,
+			np.dtype('float'):projection_settings.prg.fanbeam_double}
+	
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype),("sinogram and image do not share common data type: "\
 		+str(sino.dtype)+" and "+str(img.dtype))	
-	assert(sino.dtype==projection_settings.dtype),\
-		("sinogram and projection_settings do not share common data type: "\
-		+str(sino.dtype)+" and "+str(projection_settings.dtype)\
-		+"this might be remidies by choosing the parameter data_type to\
-		 be equal to 'single' (for float32) or 'double' (float) in the initialization \
-		 of the parameter_settings" )
 		 
 	my_data_type=sino.dtype
 
@@ -333,13 +308,7 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 	geometry_information=projection_settings.geometry_information[my_data_type]
 	
 	#Choose function with approrpiate dtype
-	if projection_settings.data_type=='SINGLE':
-		myevent=projection_settings.prg.fanbeam_float(sino.queue, sino.shape, None,
-						sino.data, img.data, ofs_buf,sdpd_buf,
-						geometry_information,
-						wait_for=wait_for)
-	if projection_settings.data_type=='DOUBLE':
-		myevent=projection_settings.prg.fanbeam_double(sino.queue, sino.shape, None,
+	myevent=my_function[my_data_type](sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
 						geometry_information,
 						wait_for=wait_for)
@@ -348,18 +317,13 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 
 def fanbeam_add( img,sino, projection_settings, wait_for=None):
 	
+	my_function={np.dtype('float32'):projection_settings.prg.fanbeam_add_float,
+			np.dtype('float'):projection_settings.prg.fanbeam_add_double}
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
 			+str(sino.dtype)+" and "+str(img.dtype))
 			
-	assert(sino.dtype==projection_settings.dtype),\
-			("sinogram and projection_settings do not share common data type: "\
-			+str(sino.dtype)+" and "+str(projection_settings.dtype)+\
-			"this might be remidies by choosing the parameter data_type to\
-			 be equal to float32 or float (double precission) in the \
-			 initialization of the parameter_settings" )
-
 
 	my_data_type=sino.dtype
 	
@@ -369,13 +333,8 @@ def fanbeam_add( img,sino, projection_settings, wait_for=None):
 	geometry_information=projection_settings.geometry_information[my_data_type]
 
 	
-	#Choose function with approrpiate dtype
-	if projection_settings.data_type=='SINGLE':
-		myevent = projection_settings.prg.fanbeam_add_float(img.queue, img.shape, None,
-					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information,
-					   wait_for=wait_for)
-	if projection_settings.data_type=='DOUBLE':
-		myevent = projection_settings.prg.fanbeam_add_double(img.queue, img.shape, None,
+	
+	myevent = my_function[my_data_type](img.queue, img.shape, None,
 					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information,
 					   wait_for=wait_for)
 					   
@@ -408,13 +367,12 @@ shape,sinogram_shape,ofs_buf,sdpd_buf,image_width,Geometry_info
 		sdpd_buf... a bufer representing sqrt(xi^2+R^2), i.e. weighting term
 		image_width...	a scalar represnting the image_width (see input image_width)
 		Geometry_info  ...  pyopencl array containing the geometric
-							information [R,RE,delta_xi(rescaled to delta_x), midpoint_x,midpoint_y,midpoint_detectors,Nx,Ny,Nxi,Nphi,delta_x]
+							information [R,RE,delta_s(rescaled to delta_x), midpoint_x,midpoint_y,midpoint_detectors,Nx,Ny,Nxi,Nphi,delta_x]
 """
 def fanbeam_struct_gpu(queue, shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
                    n_detectors=None, detector_shift = 0.0,
-                   image_width=None,midpointshift=[0,0], fullangle=True, 
-                   data_type="float32"):
+                   image_width=None,midpointshift=[0,0], fullangle=True):
 	
 	detector_width=float(detector_width)
 	source_detector_dist=float(source_detector_dist)
@@ -508,7 +466,7 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 	thetaX = -cos(angles)
 	thetaY = sin(angles)
 	
-	#Direction vector of detector direction normed to the length of a single detector pixel (i.e. delta_xi (in the scale of delta_x=1))
+	#Direction vector of detector direction normed to the length of a single detector pixel (i.e. delta_s (in the scale of delta_x=1))
 	XD=thetaX*detector_width/nd
 	YD=thetaY*detector_width/nd
 
@@ -551,7 +509,7 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 		
 	
 	
-	return (shape,sinogram_shape,Ofs_dict,Sdpd_dict,image_width,Geo_dict)
+	return (shape,sinogram_shape,Ofs_dict,Sdpd_dict,image_width,Geo_dict,angles_diff)
 
 
 """Determine the operator norm of the Projectionmethod
@@ -562,11 +520,11 @@ input
 Output	
 		norm ... the operator_norm of the operator
 """
-def normest( projection_settings,number_of_iterations=50):
+def normest( projection_settings,number_of_iterations=50,my_dtype='float32'):
 	queue=projection_settings.queue
 	
 	#random starting point
-	img = clarray.to_device(queue, require((random.randn(*projection_settings.shape)), projection_settings.dtype, 'F'))
+	img = clarray.to_device(queue, require((random.randn(*projection_settings.shape)), my_dtype, 'F'))
 	sino=forwardprojection(None, img, projection_settings, wait_for=img.events)
 	
 	#power_iteration
@@ -602,8 +560,8 @@ atributes:
 			ofs...		the ofs_buf buffer from the struct
 			sdpd...		the sdpd_buf buffer from the struct
 			delta_x... discretization parameter in image_resolution
-			delta_xi... discretization parameter in detector_resolution
-			delta_ratio ... delta_x/delta_xi
+			delta_s... discretization parameter in detector_resolution
+			delta_ratio ... delta_s/delta_x
 methods:
 			show_geometry ... shows geometry visually for a given angle
 """
@@ -611,7 +569,7 @@ class projection_settings():
 	def __init__(self, queue,geometry, img_shape, angles, n_detectors=None, 
 					detector_width=2.0,detector_shift = 0.0, midpoint_shift=[0,0],
 					R=None, RE=None,
-					image_width=None, fullangle=True,data_type="SINGLE"):
+					image_width=None, fullangle=True):
 		
 		self.geometry=geometry.upper()
 		self.queue=queue
@@ -634,10 +592,22 @@ class projection_settings():
 			img_shape=[img_shape[0],img_shape[1]]
 		self.shape=tuple(img_shape)
 		
+		
+		if self.geometry not in ["RADON","PARALLEL","FAN","FANBEAM"]:
+			raise("unknown projection_type, projection_type must be 'parallel' or 'fan'")
+		if self.geometry in ["RADON","PARALLEL"]:
+			self.is_parallel=1
+			self.is_fan=0
+		if self.geometry in ["FAN","FANBEAM"]:
+			self.is_parallel=0
+			self.is_fan=1
+
+
+		
 		if isscalar(angles):
-			if self.geometry in ["FAN","FANBEAM"]:
+			if self.is_fan:
 				angles = linspace(0,2*pi,angles+1)[:-1] + pi
-			elif self.geometry in ["RADON","PARALLEL"]:
+			elif self.is_parallel:
 				angles = linspace(0,pi,angles+1)[:-1] 
 		angles=angles
 		
@@ -666,31 +636,10 @@ class projection_settings():
 		
 		self.detector_width=detector_width
 		self.R=R
-		self.RE=RE
+		self.RE=RE			
 				
-		if data_type==float32:
-			self.data_type="SINGLE"
-		elif data_type==float:
-			self.data_type="DOUBLE"
-		else:
-			self.data_type=data_type.upper()
-		assert(self.data_type.upper() in ["SINGLE","DOUBLE"]),\
-				"Unknown data_type, choose 'single' or float32  for \
-				float operations, or 'double' or float for double precision"
-		
-		
-		if self.data_type.upper()=="SINGLE":
-			self.dtype=float32
-		elif self.data_type.upper()=="DOUBLE":
-			self.dtype=float
 			
-	
-
-		if self.geometry not in ["RADON","PARALLEL","FAN","FANBEAM"]:
-			raise("unknown projection_type, projection_type must be 'parallel' or 'fan'")
-			
-			
-		if self.geometry in ["FAN","FANBEAM"]:
+		if self.is_fan:
 			assert( (R!=None)*(RE!=None)),"For the Fanbeam geometry \
 				you need to set R (the normal distance from source to detector)\
 				 and RE (distance from source to coordinate origin which is the \
@@ -699,7 +648,7 @@ class projection_settings():
 			
 			self.struct=fanbeam_struct_gpu(self.queue,self.shape, self.angles, 
 					self.detector_width, R, self.RE,self.n_detectors, self.detector_shift,
-					image_width,self.midpoint_shift, self.fullangle, self.dtype)
+					image_width,self.midpoint_shift, self.fullangle)
 			
 			self.buf_upload={np.dtype('float64'):0,np.dtype('float32'):0}
 			
@@ -707,37 +656,42 @@ class projection_settings():
 			self.sdpd_buf=self.struct[3]
 			self.image_width=self.struct[4]
 			self.geometry_information=self.struct[5]
-						
+			
+			self.angle_weights=self.struct[6]
+			
 			self.delta_x=self.image_width/max(img_shape)			
-			self.delta_xi=detector_width/n_detectors
-			self.delta_ratio=self.delta_xi/self.delta_x
+			self.delta_s=detector_width/n_detectors
+			self.delta_ratio=self.delta_s/self.delta_x
 			
 	
-		if self.geometry in ["RADON","PARALLEL"]:
+		if self.is_parallel:
 			if image_width==None:
 				self.image_width=2.
 			
 			self.struct=radon_struct(self.queue,self.shape, self.angles, 
 				n_detectors=self.n_detectors,
 				detector_width=self.detector_width, image_width= self.image_width,
-				detector_shift=self.detector_shift,fullangle=self.fullangle, data_type=self.dtype)
+				detector_shift=self.detector_shift,fullangle=self.fullangle, )
                 
 			self.ofs_buf=self.struct[0]
 			self.buf_upload={np.dtype('float64'):0,np.dtype('float32'):0}
+			
 
 			
 			self.delta_x=self.image_width/max(self.shape)
-			self.delta_xi=self.detector_width/self.n_detectors
-			self.delta_ratio=self.delta_xi/self.delta_x	
+			self.delta_s=self.detector_width/self.n_detectors
+			self.delta_ratio=self.delta_s/self.delta_x	
 			
 			
 			self.geometry_information=self.struct[3]
+			self.angle_weights=self.struct[4]
+
 
 		
 	def show_geometry(self,angle):
 
 		figure(0)
-		if self.geometry in ["FAN","FANBEAM"]:
+		if self.is_fan:
 			detector_width=self.detector_width
 			source_detector_dist=self.R
 			source_origin_dist=self.RE
@@ -790,7 +744,7 @@ class projection_settings():
 			ylim([-maxsize,maxsize])
 			
 			
-		if self.geometry in ["RADON","PARALLEL"]:
+		if self.is_parallel:
 			
 			detector_width=self.detector_width
 			image_width=self.image_width
@@ -849,11 +803,11 @@ Input:		sinogram 	... pyopencl.array of sinogram for which to compute the invers
 """
 def Landweberiteration(sinogram,PS,number_iterations=100,w=1):
 	norm_estimate=normest(PS)
-	w=PS.dtype(w/norm_estimate**2)	
+	w=sinogram.dtype.type(w/norm_estimate**2)	
 
-	sinonew=clarray.to_device(PS.queue, require(sinogram.get(), PS.dtype, 'F'))	
+	sinonew=sinogram+0.
 	U=w*backprojection(None,sinonew,PS)
-	Unew=clarray.zeros(PS.queue,U.shape,dtype=PS.dtype, order='F')
+	Unew=clarray.zeros(PS.queue,U.shape,dtype=sinogram.dtype, order='F')
 	
 	for i in range(number_iterations):
 		sinonew=forwardprojection(sinonew,Unew,PS,wait_for=Unew.events)-sinogram
@@ -900,7 +854,7 @@ def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
 		
 		sold=snew+0.	
 		forwardprojection(q,p,PS,wait_for=p.events)
-		alpha=PS.dtype( PS.delta_x**2/(PS.delta_xi*(2*np.pi)/PS.n_angles)*(clarray.vdot(sold,sold)/clarray.vdot(q,q)).get())
+		alpha=x.dtype.type( PS.delta_x**2/(PS.delta_s*(2*np.pi)/PS.n_angles)*(clarray.vdot(sold,sold)/clarray.vdot(q,q)).get())
 		x=x+alpha*p;		d=d-alpha*q;
 		backprojection(snew,d,PS ,wait_for=d.events)
 		beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
