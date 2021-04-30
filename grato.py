@@ -36,15 +36,12 @@ def forwardprojection(sino,img, projection_settings, wait_for=None):
 	
 	my_function={0:radon,1:fanbeam}
 	
-	if img.flags.c_contiguous:
-		img=img.T
-	
 	#Initialize new sinogram if no sinogram is yet given
 	if sino is None:
 		z_dimension=tuple()
 		if len(img.shape)>2:
 			z_dimension=[img.shape[2]]
-		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=img.dtype, order='F')	
+		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=img.dtype, order={0:'F',1:'C'}[img.flags.c_contiguous])	
 
 	#execute corresponding Projection operation
 	myevent=my_function[projection_settings.is_fan](sino, img, projection_settings, wait_for=wait_for)
@@ -69,16 +66,12 @@ def backprojection(img, sino, projection_settings, wait_for=None):
 	
 	my_function={0:radon_ad,1:fanbeam_add}
 	
-	
-	if sino.flags.c_contiguous:
-		sino=sino.T
-	
 	#Initialize new img (to save backprojection in) if none is yet given
 	if img is None:
 		z_dimension=tuple()
 		if len(sino.shape)>2:
 			z_dimension=[sino.shape[2]]
-		img = clarray.zeros(projection_settings.queue, projection_settings.shape+tuple(z_dimension), dtype=sino.dtype, order='F')	
+		img = clarray.zeros(projection_settings.queue, projection_settings.shape+tuple(z_dimension), dtype=sino.dtype, order={0:'F',1:'C'}[sino.flags.c_contiguous])	
 
 	#execute corresponding backprojection operation
 	myevent=my_function[projection_settings.is_fan](img, sino, projection_settings, wait_for=wait_for)
@@ -101,8 +94,14 @@ output	sino ... An event for the  the transformation (i.e. the sinogram)
 """			
 def radon(sino, img, projection_settings, wait_for=None):
 	
-	my_function={np.dtype('float32'):projection_settings.prg.radon_float,
-			np.dtype('float'):projection_settings.prg.radon_double}
+	my_function={(np.dtype('float32'),0,0):projection_settings.prg.radon_float_ff,
+			(np.dtype('float32'),1,0):projection_settings.prg.radon_float_cf,
+			(np.dtype('float32'),0,1):projection_settings.prg.radon_float_fc,
+			(np.dtype('float32'),1,1):projection_settings.prg.radon_float_cc,
+			(np.dtype('float'),0,0):projection_settings.prg.radon_double_ff,
+			(np.dtype('float'),1,0):projection_settings.prg.radon_double_cf,
+			(np.dtype('float'),0,1):projection_settings.prg.radon_double_fc,
+			(np.dtype('float'),1,1):projection_settings.prg.radon_double_cc}
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
@@ -113,9 +112,8 @@ def radon(sino, img, projection_settings, wait_for=None):
 	ofs_buf=projection_settings.ofs_buf[my_data_type] 
 	geometry_information=projection_settings.geometry_information[my_data_type]
 
-	
 	#Choose function with approrpiate dtype 
-	myevent=my_function[my_data_type](sino.queue, sino.shape, None,
+	myevent=my_function[(my_data_type,sino.flags.c_contiguous,img.flags.c_contiguous)](sino.queue, sino.shape, None,
 					sino.data, img.data, ofs_buf,
 					geometry_information,
 					wait_for=wait_for)
@@ -134,8 +132,15 @@ output	An event for the queue to compute the adjoint radon transform of image sa
 		and write the result into img
 """
 def radon_ad(img, sino, projection_settings, wait_for=None):
-	my_function={np.dtype('float32'):projection_settings.prg.radon_ad_float,
-			np.dtype('float'):projection_settings.prg.radon_ad_double}
+	my_function={(np.dtype('float32'),0,0):projection_settings.prg.radon_ad_float_ff,
+			(np.dtype('float32'),1,0):projection_settings.prg.radon_ad_float_cf,
+			(np.dtype('float32'),0,1):projection_settings.prg.radon_ad_float_fc,
+			(np.dtype('float32'),1,1):projection_settings.prg.radon_ad_float_cc,
+			(np.dtype('float'),0,0):projection_settings.prg.radon_ad_double_ff,
+			(np.dtype('float'),1,0):projection_settings.prg.radon_ad_double_cf,
+			(np.dtype('float'),0,1):projection_settings.prg.radon_ad_double_fc,
+			(np.dtype('float'),1,1):projection_settings.prg.radon_ad_double_cc}
+
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
@@ -150,7 +155,7 @@ def radon_ad(img, sino, projection_settings, wait_for=None):
 
 	#Choose function with approrpiate dtype 
 	
-	myevent=my_function[my_data_type](img.queue, img.shape, None,
+	myevent=my_function[(my_data_type,img.flags.c_contiguous,sino.flags.c_contiguous)](img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
 						geometry_information,wait_for=wait_for)
 	img.add_event(myevent)
@@ -292,9 +297,14 @@ input	sino ... A pyopencl.array in which result will be saved.
 output	An event for the queue to compute the radon transform of image saved into img w.r.t. r_struct geometry
 """		   
 def fanbeam(sino, img, projection_settings, wait_for=None):
-	
-	my_function={np.dtype('float32'):projection_settings.prg.fanbeam_float,
-			np.dtype('float'):projection_settings.prg.fanbeam_double}
+	my_function={(np.dtype('float32'),0,0):projection_settings.prg.fanbeam_float_ff,
+			(np.dtype('float32'),1,0):projection_settings.prg.fanbeam_float_cf,
+			(np.dtype('float32'),0,1):projection_settings.prg.fanbeam_float_fc,
+			(np.dtype('float32'),1,1):projection_settings.prg.fanbeam_float_cc,
+			(np.dtype('float'),0,0):projection_settings.prg.fanbeam_double_ff,
+			(np.dtype('float'),1,0):projection_settings.prg.fanbeam_double_cf,
+			(np.dtype('float'),0,1):projection_settings.prg.fanbeam_double_fc,
+			(np.dtype('float'),1,1):projection_settings.prg.fanbeam_double_cc}
 	
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype),("sinogram and image do not share common data type: "\
@@ -308,7 +318,7 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 	geometry_information=projection_settings.geometry_information[my_data_type]
 	
 	#Choose function with approrpiate dtype
-	myevent=my_function[my_data_type](sino.queue, sino.shape, None,
+	myevent=my_function[(my_data_type,sino.flags.c_contiguous,img.flags.c_contiguous)](sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
 						geometry_information,
 						wait_for=wait_for)
@@ -317,8 +327,14 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 
 def fanbeam_add( img,sino, projection_settings, wait_for=None):
 	
-	my_function={np.dtype('float32'):projection_settings.prg.fanbeam_add_float,
-			np.dtype('float'):projection_settings.prg.fanbeam_add_double}
+	my_function={(np.dtype('float32'),0,0):projection_settings.prg.fanbeam_ad_float_ff,
+			(np.dtype('float32'),1,0):projection_settings.prg.fanbeam_ad_float_cf,
+			(np.dtype('float32'),0,1):projection_settings.prg.fanbeam_ad_float_fc,
+			(np.dtype('float32'),1,1):projection_settings.prg.fanbeam_ad_float_cc,
+			(np.dtype('float'),0,0):projection_settings.prg.fanbeam_ad_double_ff,
+			(np.dtype('float'),1,0):projection_settings.prg.fanbeam_ad_double_cf,
+			(np.dtype('float'),0,1):projection_settings.prg.fanbeam_ad_double_fc,
+			(np.dtype('float'),1,1):projection_settings.prg.fanbeam_ad_double_cc}
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
@@ -334,7 +350,7 @@ def fanbeam_add( img,sino, projection_settings, wait_for=None):
 
 	
 	
-	myevent = my_function[my_data_type](img.queue, img.shape, None,
+	myevent = my_function[(my_data_type,img.flags.c_contiguous,sino.flags.c_contiguous)](img.queue, img.shape, None,
 					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information,
 					   wait_for=wait_for)
 					   
@@ -537,6 +553,17 @@ def normest( projection_settings,number_of_iterations=50,my_dtype='float32'):
 	return sqrt(normsqr)
 
 
+def create_code():
+	
+	total_code=""
+	for file in ["Radontransform","fanbeam"]:
+		for my_dtype in ["float","double"]:
+			for order1 in ["f","c"]:
+				for order2 in ["f","c"]:
+					text=open(file).read()
+					total_code+=text.replace("\my_variable_type",my_dtype).replace("\order1",order1).replace("\order2",order2)
+	return total_code
+
 """Class saving all relevant projection information, which is always used to compute projections
 atributes:
 			queue ... 	a pyopencl.queue associated to the context in question
@@ -574,15 +601,9 @@ class projection_settings():
 		self.geometry=geometry.upper()
 		self.queue=queue
 		
-		
-		raw_fanbeam_code=open("fanbeam").read()
-		raw_radon_code=open("Radontransform").read()
-		adjusted_code=raw_fanbeam_code.replace("my_variable_type","float")\
-			+raw_fanbeam_code.replace("my_variable_type","double")\
-			+raw_radon_code.replace("my_variable_type","float")\
-			+raw_radon_code.replace("my_variable_type","double")
+		self.adjusted_code=create_code()
 
-		self.prg = Program(queue.context,adjusted_code)
+		self.prg = Program(queue.context,self.adjusted_code)
 		self.image_width=image_width
 		
 		if isscalar(img_shape):
