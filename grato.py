@@ -845,6 +845,10 @@ def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
 	p=backprojection(None,d,PS,wait_for=d.events)
 	q=clarray.empty_like(d,PS.queue)
 	snew=p+0
+		
+	angle_weights=clarray.reshape(PS.angle_weights,[1,len(PS.angle_weights)])
+	angle_weights=np.ones(sinogram.shape)*angle_weights
+	angle_weights=clarray.to_device(PS.queue,require(angle_weights,sinogram.dtype,'F'))
 
 	for k in range(0,number_iterations):
 		residual=np.sum(clarray.vdot(snew,snew).get())**0.5
@@ -854,7 +858,7 @@ def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
 		
 		sold=snew+0.	
 		forwardprojection(q,p,PS,wait_for=p.events)
-		alpha=x.dtype.type( PS.delta_x**2/(PS.delta_s*(2*np.pi)/PS.n_angles)*(clarray.vdot(sold,sold)/clarray.vdot(q,q)).get())
+		alpha=x.dtype.type( PS.delta_x**2/(PS.delta_s)*(clarray.vdot(sold,sold)/clarray.vdot(q*angle_weights,q)).get())
 		x=x+alpha*p;		d=d-alpha*q;
 		backprojection(snew,d,PS ,wait_for=d.events)
 		beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
