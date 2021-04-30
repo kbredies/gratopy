@@ -34,13 +34,16 @@ output	sino ... An pyopencl.array representing the transformation (i.e. the sino
 """
 def forwardprojection(sino,img, projection_settings, wait_for=None):
 	
+	
+	if img.flags.c_contiguous:
+		img=img.T
+	
 	#Initialize new sinogram if no sinogram is yet given
 	if sino is None:
 		z_dimension=tuple()
 		if len(img.shape)>2:
 			z_dimension=[img.shape[2]]
 		sino = clarray.zeros(projection_settings.queue, projection_settings.sinogram_shape+tuple(z_dimension), dtype=projection_settings.dtype, order='F')	
-	
 	#execute corresponding Projection operation
 	if projection_settings.geometry in ["FAN","FANBEAM"]:
 		myevent=fanbeam(sino, img, projection_settings, wait_for=wait_for)
@@ -64,6 +67,10 @@ output	img ... An pyopencl.array representing the backprojection
 				 (or are in the waitinglist to be changed once wait_for limitations have passed) 
 """	
 def backprojection(img, sino, projection_settings, wait_for=None):
+	
+	if sino.flags.c_contiguous:
+		sino=sino.T
+
 	
 	#Initialize new img (to save backprojection in) if none is yet given
 	if img is None:
@@ -109,15 +116,21 @@ def radon(sino, img, projection_settings, wait_for=None):
 			 be equal to float32 or float (double precission) in the \
 			 initialization of the parameter_settings" )
 
+	my_data_type=sino.dtype
+	updload_bufs(projection_settings,my_data_type)	
+	ofs_buf=projection_settings.ofs_buf[my_data_type] 
+	geometry_information=projection_settings.geometry_information[my_data_type]
+
+	
 	#Choose function with approrpiate dtype 
 	if projection_settings.data_type=="SINGLE":
 		myevent=projection_settings.prg.radon_float(sino.queue, sino.shape, None,
-					sino.data, img.data, ofs_buf,Geometryinformation.data,
+					sino.data, img.data, ofs_buf,geometry_information,
 					wait_for=wait_for) 
 	if projection_settings.data_type=="DOUBLE":
 		myevent=projection_settings.prg.radon_double(sino.queue, sino.shape, None,
 					sino.data, img.data, ofs_buf,
-					Geometryinformation.data,
+					geometry_information,
 					wait_for=wait_for)
 
 	
@@ -134,7 +147,6 @@ output	An event for the queue to compute the adjoint radon transform of image sa
 		and write the result into img
 """
 def radon_ad(img, sino, projection_settings, wait_for=None):
-	(ofs_buf, shape, sinogram_shape,Geometryinformation) = projection_settings.struct
 	
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
@@ -147,15 +159,22 @@ def radon_ad(img, sino, projection_settings, wait_for=None):
 			 be equal to float32 or float (double precission) in the \
 			 initialization of the parameter_settings" )
 
+
+	my_data_type=sino.dtype
+	updload_bufs(projection_settings,my_data_type)	
+	ofs_buf=projection_settings.ofs_buf[my_data_type] 
+	geometry_information=projection_settings.geometry_information[my_data_type]
+
+
 	#Choose function with approrpiate dtype 
 	if projection_settings.data_type=="SINGLE":
 		myevent=projection_settings.prg.radon_ad_float(img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
-						Geometryinformation.data,wait_for=wait_for)
+						geometry_information,wait_for=wait_for)
 	if projection_settings.data_type=="DOUBLE":
 		myevent=projection_settings.prg.radon_ad_double(img.queue, img.shape, None,
 						img.data, sino.data, ofs_buf,
-						Geometryinformation.data,wait_for=wait_for)
+						geometry_information,wait_for=wait_for)
 	img.add_event(myevent)
 	return myevent
 
@@ -196,6 +215,48 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	else:
 		nd = n_detectors
 	
+	
+	#Extract angle information
+	if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
+		n_angles=0
+		angles_new=[]
+		angles_section=[0]
+		count=0
+		for j in range(len(angles)):
+			n_angles+=len(angles[j])
+			for k in range(len(angles[j])): 
+				angles_new.append(angles[j][k])
+				count+=1
+			angles_section.append(count)
+		angles=np.array(angles_new)
+	else:
+		n_angles=len(angles)
+		angles_section=[0,n_angles]
+	
+	sinogram_shape = (nd, n_angles)
+	
+	#Angular weights (resolution associated to angles)
+	#If fullangle is activated, the angles partion [0,pi] completely and choose the first /last width appropriately
+	if fullangle==True:
+		angles_index = np.argsort(angles%(np.pi)) 
+		angles_sorted=angles[angles_index]	%(np.pi)
+		angles_sorted=np.array(hstack([-np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+np.pi]))
+		angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
+		angles_diff=np.array(angles_diff)
+		angles_diff=angles_diff[angles_index]
+	else:##Act as though first/last angles width is equal to the distance from the second/second to last angle  
+		angles_diff=[]
+		for j in range(len(angles_section)-1):
+			current_angles=angles[angles_section[j]:angles_section[j+1]]
+			current_angles_index = np.argsort(current_angles%(np.pi)) 
+			current_angles=current_angles[current_angles_index]	%(np.pi)
+
+			angles_sorted_temp=np.array(hstack([2*current_angles[0]-current_angles[1],
+				current_angles,2*current_angles[len(current_angles)-1]-current_angles[len(current_angles)-2]]))
+			
+			angles_diff_temp= 0.5*(abs(angles_sorted_temp[2:len(angles_sorted_temp)]-angles_sorted_temp[0:len(angles_sorted_temp)-2]))
+			angles_diff+=list(angles_diff_temp[current_angles_index])
+	
 	#Compute the midpoints of geometries
 	midpoint_domain = array([shape[0]-1, shape[1]-1])/2.0
 	midpoint_detectors = (nd-1.0)/2.0
@@ -221,32 +282,29 @@ def radon_struct(queue, shape, angles, n_detectors=None,
 	angles_index = np.argsort(angles%(np.pi)) 
 	angles_sorted=angles[angles_index]	%(np.pi)
 	
-	if fullangle==True:
-		angles_sorted=np.array(hstack([-np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+np.pi]))
-	else:
-		angles_sorted=np.array(hstack([2*angles_sorted[0]-angles_sorted[1],angles_sorted,2*angles_sorted[len(angles)-1]-angles_sorted[len(angles)-2]]))
-	angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
-	angles_diff=angles_diff[angles_index]
-
-	#Save angular information into the ofs buffer
-	ofs = zeros((8, len(angles)), dtype=data_type, order='F')
-	ofs[0,:] = X; ofs[1,:] = Y; ofs[2,:] = offset; ofs[3,:] = Xinv
-	ofs[4,:]=angles_diff
-	# write to buffer
-	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
-	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
-	
-	
 	#Also write basic information to gpu 
 	[Nx,Ny]=shape
 	[Ni,Nj]= [nd,len(angles)]
 	delta_x=image_width/float(max(Nx,Ny))
 	delta_xi=float(detector_width)/nd
-	Geometry_info = np.array([delta_x,delta_xi,Nx,Ny,Ni,Nj])
-	Geometry_info =	clarray.to_device(queue, require(Geometry_info, data_type, 'F'))
+
+	
+	Geo_dict={}
+	Ofs_dict={}
+	for my_data_type in [np.dtype('float64'),np.dtype('float32')]:
+		#Save angular information into the ofs buffer
+		ofs = zeros((8, len(angles)), dtype=data_type, order='F')
+		ofs[0,:] = X; ofs[1,:] = Y; ofs[2,:] = offset; ofs[3,:] = Xinv
+		ofs[4,:]=angles_diff
+		Ofs_dict[my_data_type]=ofs
+		
+		geometry_info = np.array([delta_x,delta_xi,Nx,Ny,Ni,Nj],dtype=my_data_type,order='F')
+		Geo_dict[my_data_type]=geometry_info
+	
+	
 
 	sinogram_shape = (nd, len(angles))
-	return (ofs_buf, shape, sinogram_shape, Geometry_info)
+	return (Ofs_dict, shape, sinogram_shape, Geo_dict)
  
 
 """Starts the GPU Radon transform code 
@@ -256,8 +314,6 @@ input	sino ... A pyopencl.array in which result will be saved.
 output	An event for the queue to compute the radon transform of image saved into img w.r.t. r_struct geometry
 """		   
 def fanbeam(sino, img, projection_settings, wait_for=None):
-	ofs_buf=projection_settings.ofs_buf; sdpd_buf=projection_settings.sdpd_buf
-	geometry_information=projection_settings.geometry_information
 	
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype),("sinogram and image do not share common data type: "\
@@ -268,25 +324,30 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 		+"this might be remidies by choosing the parameter data_type to\
 		 be equal to 'single' (for float32) or 'double' (float) in the initialization \
 		 of the parameter_settings" )
+		 
+	my_data_type=sino.dtype
 
+	updload_bufs(projection_settings,my_data_type)	
+	ofs_buf=projection_settings.ofs_buf[my_data_type]; 
+	sdpd_buf=projection_settings.sdpd_buf[my_data_type]
+	geometry_information=projection_settings.geometry_information[my_data_type]
+	
 	#Choose function with approrpiate dtype
 	if projection_settings.data_type=='SINGLE':
 		myevent=projection_settings.prg.fanbeam_float(sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
-						geometry_information.data,
+						geometry_information,
 						wait_for=wait_for)
 	if projection_settings.data_type=='DOUBLE':
 		myevent=projection_settings.prg.fanbeam_double(sino.queue, sino.shape, None,
 						sino.data, img.data, ofs_buf,sdpd_buf,
-						geometry_information.data,
+						geometry_information,
 						wait_for=wait_for)
 	sino.add_event(myevent)
 	return myevent
 
 def fanbeam_add( img,sino, projection_settings, wait_for=None):
 	
-	ofs_buf=projection_settings.ofs_buf; sdpd_buf=projection_settings.sdpd_buf
-	geometry_information=projection_settings.geometry_information
 
 	#ensure that all relevant arrays have common data_type
 	assert (sino.dtype==img.dtype), ("sinogram and image do not share common data type: "\
@@ -299,14 +360,23 @@ def fanbeam_add( img,sino, projection_settings, wait_for=None):
 			 be equal to float32 or float (double precission) in the \
 			 initialization of the parameter_settings" )
 
+
+	my_data_type=sino.dtype
+	
+	updload_bufs(projection_settings,my_data_type)	
+	ofs_buf=projection_settings.ofs_buf[my_data_type]; 
+	sdpd_buf=projection_settings.sdpd_buf[my_data_type]
+	geometry_information=projection_settings.geometry_information[my_data_type]
+
+	
 	#Choose function with approrpiate dtype
 	if projection_settings.data_type=='SINGLE':
 		myevent = projection_settings.prg.fanbeam_add_float(img.queue, img.shape, None,
-					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information.data,
+					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information,
 					   wait_for=wait_for)
 	if projection_settings.data_type=='DOUBLE':
 		myevent = projection_settings.prg.fanbeam_add_double(img.queue, img.shape, None,
-					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information.data,
+					   img.data,sino.data, ofs_buf,sdpd_buf,geometry_information,
 					   wait_for=wait_for)
 					   
 	img.add_event(myevent)
@@ -364,9 +434,50 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 		nd = n_detectors
 	assert isinstance(nd, int), "Number of detectors must be integer"
 	
-	#set sinogram_shape 
-	sinogram_shape = (nd, len(angles))
+	#Extract angle information
+	if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
+		n_angles=0
+		angles_new=[]
+		angles_section=[0]
+		count=0
+		for j in range(len(angles)):
+			n_angles+=len(angles[j])
+			for k in range(len(angles[j])): 
+				angles_new.append(angles[j][k])
+				count+=1
+			angles_section.append(count)
+		angles=np.array(angles_new)
+	else:
+		n_angles=len(angles)
+		angles_section=[0,n_angles]
 	
+	sinogram_shape = (nd, n_angles)
+	
+	#Angular weights (resolution associated to angles)
+	#If fullangle is activated, the angles partion [0,2pi] completely and choose the first /last width appropriately
+	if fullangle==True:
+		angles_index = np.argsort(angles%(2*np.pi)) 
+		angles_sorted=angles[angles_index]	%(2*np.pi)
+		angles_sorted=np.array(hstack([-2*np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+2*np.pi]))
+		angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
+		angles_diff=np.array(angles_diff)
+		angles_diff=angles_diff[angles_index]
+	else:##Act as though first/last angles width is equal to the distance from the second/second to last angle  
+		angles_diff=[]
+		for j in range(len(angles_section)-1):
+			current_angles=angles[angles_section[j]:angles_section[j+1]]
+			current_angles_index = np.argsort(current_angles%(2*np.pi)) 
+			current_angles=current_angles[current_angles_index]	%(2*np.pi)
+
+			angles_sorted_temp=np.array(hstack([2*current_angles[0]-current_angles[1],
+				current_angles,2*current_angles[len(current_angles)-1]-current_angles[len(current_angles)-2]]))
+			
+			angles_diff_temp= 0.5*(abs(angles_sorted_temp[2:len(angles_sorted_temp)]-angles_sorted_temp[0:len(angles_sorted_temp)-2]))
+			angles_diff+=list(angles_diff_temp[current_angles_index])
+		
+	
+	
+
 	#compute  midpoints foror orientation
 	midpoint_domain = array([shape[0]-1, shape[1]-1])/2.0
 	midpoint_detectors = (nd-1.0)/2.0
@@ -409,43 +520,38 @@ def fanbeam_struct_gpu(queue, shape, angles, detector_width,
 	Dx0= thetaY*(source_detector_dist-source_origin_dist)
 	Dy0= -thetaX*(source_detector_dist-source_origin_dist)
 
-	# Determine source detectorpixel-distance (=sqrt(R+xi**2)) for scaling
-	xi=(np.arange(0,nd)- midpoint_detectors)*detector_width/nd
-	source_detectorpixel_distance= sqrt((xi)**2+source_detector_dist**2)
-	source_detectorpixel_distance=np.array(source_detectorpixel_distance,dtype=data_type,order='F')
-	sdpd = zeros(( 1,len(source_detectorpixel_distance)), dtype=data_type, order='F')
-	sdpd[0,:]=source_detectorpixel_distance[:]
-	#write to Buffer
-	sdpd_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, sdpd.nbytes)	
-	cl.enqueue_copy(queue, sdpd_buf, sdpd.data).wait()
 	
-	#Angular weights (resolution associated to angles)
-	angles_index = np.argsort(angles%(2*np.pi)) 
-	angles_sorted=angles[angles_index]	%(2*np.pi)
-
-	#If fullangle is activated, the angles partion [0,2pi] completely and choose the first /last width appropriately
-	if fullangle==True:
-		angles_sorted=np.array(hstack([-2*np.pi+angles_sorted[-1],angles_sorted,angles_sorted[0]+2*np.pi]))
-	else:##Act as though first/last angles width is equal to the distance from the second/second to last angle  
-		angles_sorted=np.array(hstack([2*angles_sorted[0]-angles_sorted[1],angles_sorted,2*angles_sorted[len(angles)-1]-angles_sorted[len(angles)-2]]))
-	angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]-angles_sorted[0:len(angles_sorted)-2]))
-	angles_diff=angles_diff[angles_index]
+	#Save relevant information	
+	Ofs_dict={}
+	Sdpd_dict={}
+	Geo_dict={}
+	for my_data_type in [np.dtype('float64'),np.dtype('float32')]:
+		#Angular Information
+		ofs = zeros((8, len(angles)), dtype=my_data_type, order='F')
+		ofs[0,:] = XD; ofs[1,:] = YD
+		ofs[2,:]=Qx; ofs[3,:]=Qy
+		ofs[4,:]=Dx0; ofs[5]=Dy0
+		ofs[6]=angles_diff
+		Ofs_dict[my_data_type]=ofs
+		
+		
+		# Determine source detectorpixel-distance (=sqrt(R+xi**2)) for scaling
+		xi=(np.arange(0,nd)- midpoint_detectors)*detector_width/nd
+		source_detectorpixel_distance= sqrt((xi)**2+source_detector_dist**2)
+		source_detectorpixel_distance=np.array(source_detectorpixel_distance,dtype=my_data_type,order='F')
+		sdpd = zeros(( 1,len(source_detectorpixel_distance)), dtype=my_data_type, order='F')
+		sdpd[0,:]=source_detectorpixel_distance[:]
+		Sdpd_dict[my_data_type]=sdpd
+		
+		#collect various geometric information necessary for computations
+		geometry_info=np.array([source_detector_dist,source_origin_dist,detector_width/nd,
+			midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],
+			sinogram_shape[1],image_width/float(max(shape))],dtype=my_data_type,order='F')
+		Geo_dict[my_data_type]=geometry_info
+		
 	
-	#Save relevant angular information
-	ofs = zeros((8, len(angles)), dtype=data_type, order='F')
-	ofs[0,:] = XD; ofs[1,:] = YD
-	ofs[2,:]=Qx; ofs[3,:]=Qy
-	ofs[4,:]=Dx0; ofs[5]=Dy0
-	ofs[6]=angles_diff
-	#write to Buffer
-	ofs_buf = cl.Buffer(queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
-	cl.enqueue_copy(queue, ofs_buf, ofs.data).wait()
 	
-	#collect various geometric information necessary for computations
-	Geometry_info=np.array([source_detector_dist,source_origin_dist,detector_width/nd, midpoint_x,midpoint_y,midpoint_detectors,shape[0],shape[1],sinogram_shape[0],sinogram_shape[1],image_width/float(max(shape))])
-	Geometry_info=	clarray.to_device(queue, require(Geometry_info, data_type, 'F'))
-	
-	return (shape,sinogram_shape,ofs_buf,sdpd_buf,image_width,Geometry_info)
+	return (shape,sinogram_shape,Ofs_dict,Sdpd_dict,image_width,Geo_dict)
 
 
 """Determine the operator norm of the Projectionmethod
@@ -533,7 +639,7 @@ class projection_settings():
 				angles = linspace(0,2*pi,angles+1)[:-1] + pi
 			elif self.geometry in ["RADON","PARALLEL"]:
 				angles = linspace(0,pi,angles+1)[:-1] 
-		self.angles=angles
+		angles=angles
 		
 		if n_detectors is None:
 			self.n_detectors = int(ceil(hypot(img_shape[0],img_shape[1])))
@@ -542,7 +648,15 @@ class projection_settings():
 
 		detector_width=float(detector_width)
 		
-		self.n_angles=len(angles)
+		
+		
+		if isinstance(angles[0], list)or isinstance(angles[0],np.ndarray):
+			self.n_angles=0
+			for j in range(len(angles)):
+				self.n_angles+=len(angles[j])
+		else:
+			self.n_angles=len(angles)
+		self.angles=angles
 		self.sinogram_shape=(self.n_detectors,self.n_angles)
 
 		self.fullangle=fullangle
@@ -565,7 +679,6 @@ class projection_settings():
 				float operations, or 'double' or float for double precision"
 		
 		
-
 		if self.data_type.upper()=="SINGLE":
 			self.dtype=float32
 		elif self.data_type.upper()=="DOUBLE":
@@ -578,7 +691,7 @@ class projection_settings():
 			
 			
 		if self.geometry in ["FAN","FANBEAM"]:
-			assert( (R!=None)*(R!=None)),"For the Fanbeam geometry \
+			assert( (R!=None)*(RE!=None)),"For the Fanbeam geometry \
 				you need to set R (the normal distance from source to detector)\
 				 and RE (distance from source to coordinate origin which is the \
 				 rotation center) "
@@ -587,6 +700,8 @@ class projection_settings():
 			self.struct=fanbeam_struct_gpu(self.queue,self.shape, self.angles, 
 					self.detector_width, R, self.RE,self.n_detectors, self.detector_shift,
 					image_width,self.midpoint_shift, self.fullangle, self.dtype)
+			
+			self.buf_upload={np.dtype('float64'):0,np.dtype('float32'):0}
 			
 			self.ofs_buf=self.struct[2]
 			self.sdpd_buf=self.struct[3]
@@ -599,7 +714,6 @@ class projection_settings():
 			
 	
 		if self.geometry in ["RADON","PARALLEL"]:
-			
 			if image_width==None:
 				self.image_width=2.
 			
@@ -609,6 +723,8 @@ class projection_settings():
 				detector_shift=self.detector_shift,fullangle=self.fullangle, data_type=self.dtype)
                 
 			self.ofs_buf=self.struct[0]
+			self.buf_upload={np.dtype('float64'):0,np.dtype('float32'):0}
+
 			
 			self.delta_x=self.image_width/max(self.shape)
 			self.delta_xi=self.detector_width/self.n_detectors
@@ -744,6 +860,27 @@ def Landweberiteration(sinogram,PS,number_iterations=100,w=1):
 		Unew=Unew-w*backprojection(U,sinonew,PS,wait_for=sinonew.events)	
 	return Unew
 
+
+
+def updload_bufs(projection_settings,mydtype):
+	if projection_settings.buf_upload[mydtype]==0:
+		ofs=projection_settings.ofs_buf[mydtype]
+		ofs_buf = cl.Buffer(projection_settings.queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
+		cl.enqueue_copy(projection_settings.queue, ofs_buf, ofs.data).wait()
+		
+		geometry_information=projection_settings.geometry_information[mydtype]
+		geometry_buf=cl.Buffer(projection_settings.queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
+		cl.enqueue_copy(projection_settings.queue, geometry_buf, geometry_information.data).wait()
+		
+		if projection_settings.geometry=="FAN":
+			sdpd=projection_settings.sdpd_buf[mydtype]
+			sdpd_buf = cl.Buffer(projection_settings.queue.context, cl.mem_flags.READ_ONLY, sdpd.nbytes)	
+			cl.enqueue_copy(projection_settings.queue, sdpd_buf, sdpd.data).wait()
+			projection_settings.sdpd_buf[mydtype]=sdpd_buf
+
+		projection_settings.ofs_buf[mydtype]=ofs_buf
+		projection_settings.geometry_information[mydtype]=geometry_buf
+		projection_settings.buf_upload[mydtype]=1
 
 
 

@@ -13,7 +13,7 @@
 //			values inside sino are altered to represent the computed fanbeam transform
 __kernel void fanbeam_my_variable_type(__global my_variable_type *sino, __global my_variable_type *img,
                       __constant my_variable_type8 *ofs, __constant my_variable_type *sdpd ,
-                      __global my_variable_type* Geometryinformation)
+                      __constant my_variable_type* Geometryinformation)
 {
 	
 //Geometric information
@@ -234,7 +234,7 @@ sino[i+I*j+thirddim*I*J]=acc*sdpd[i]/delta_xi*delta_x;
 //			values inside img are altered to represent the computed fanbeam backprojection 
 __kernel void fanbeam_add_my_variable_type(__global my_variable_type *img, __global my_variable_type *sino,
                       __constant my_variable_type8 *ofs, __constant my_variable_type *sdpd,  
-                      __global my_variable_type* Geometryinformation)
+                      __constant my_variable_type* Geometryinformation)
 {
 //geometric information
 size_t Nx = get_global_size(0);

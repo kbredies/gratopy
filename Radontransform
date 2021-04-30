@@ -14,7 +14,7 @@
 
 __kernel void radon_my_variable_type(__global my_variable_type *sino,
 					__global my_variable_type *img,__constant my_variable_type8 *ofs,
-					 __global my_variable_type* Geometryinformation)
+					 __constant my_variable_type* Geometryinformation)
 {
 	//Geometric and discretization information
    size_t I = get_global_size(0);
@@ -96,7 +96,7 @@ __kernel void radon_my_variable_type(__global my_variable_type *sino,
 //			values inside img are altered to represent the computed Radon backprojection 
 __kernel void radon_ad_my_variable_type(__global my_variable_type *img, __global my_variable_type *sino,
 					   __constant my_variable_type8 *ofs, 
-					   __global my_variable_type* Geometryinformation
+					   __constant my_variable_type* Geometryinformation
 					   )
 {
   //Geometric and discretization information
