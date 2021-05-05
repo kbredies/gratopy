@@ -29,8 +29,11 @@ def rgb2gray(rgb):
     return gray
     
 
-class FanbeamTest(unittest.TestCase):
+class TestFanbeam(unittest.TestCase):
     def test_projection(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+        
         img=np.zeros([225,225,2])
         A =  imread(TESTBRAIN)[:,:,0]
         A/=np.max(A)
@@ -77,6 +80,9 @@ class FanbeamTest(unittest.TestCase):
         show()
 
     def test_weighting(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ## Weighting
         print("Weighting;")
         for number_detectors in [50,100,200,400,800,1600]:
@@ -104,6 +110,9 @@ class FanbeamTest(unittest.TestCase):
 
 
     def test_adjointness(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ###Adjointness
         print("Adjointness:")
         
@@ -144,6 +153,9 @@ class FanbeamTest(unittest.TestCase):
         print ('Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
 
     def test_fullangle(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ###Fullangle    
         A=mpimg.imread(TESTFILE)
         A=np.array(rgb2gray(A),dtype=float)
@@ -194,6 +206,9 @@ class FanbeamTest(unittest.TestCase):
 	
 
     def test_halfangle(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ########
         A=mpimg.imread(TESTFILE)
         A=np.array(rgb2gray(A),dtype=float)
@@ -242,6 +257,9 @@ class FanbeamTest(unittest.TestCase):
         show()	 
     
     def test_midpointshift(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ##Midpointshift
         A=mpimg.imread(TESTFILE)
         A=np.array(rgb2gray(A),dtype=float)
@@ -292,6 +310,9 @@ class FanbeamTest(unittest.TestCase):
         show()			
 
     def test_landweber(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ###Nuss Landweber
         print("Walnut reconstruction test")
         walnut=mpimg.imread(TESTWALNUT)
@@ -352,6 +373,9 @@ class FanbeamTest(unittest.TestCase):
         sinonew=[sinonew.T]
 
     def test_nonquadratic(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ##Non-quadratic images
 
         A=mpimg.imread(TESTFILE)
@@ -406,7 +430,4 @@ class FanbeamTest(unittest.TestCase):
 
 # test
 if __name__ == '__main__':
-    ctx = cl.create_some_context(interactive=False)
-    queue = cl.CommandQueue(ctx)
-
     unittest.main()

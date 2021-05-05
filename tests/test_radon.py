@@ -26,6 +26,9 @@ def rgb2gray(rgb):
 
 class TestRadon(unittest.TestCase):
     def test_projection(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         print("Projection test")
         
         A=mpimg.imread(TESTFILE)
@@ -72,6 +75,9 @@ class TestRadon(unittest.TestCase):
         show()
 
     def test_weighting(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ###Weighting
         print("Weighting test")
         N=900
@@ -97,6 +103,9 @@ class TestRadon(unittest.TestCase):
         print("The mass inside the image is "+str(A)+" was carried over in the mass inside an projection is "+str(B)+" i.e. the relative error is "+ str(abs(1-A/B)))
         
     def test_adjointness(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         ##Adjointness
         print("Adjointness test")
         Nx=900
@@ -135,6 +144,9 @@ class TestRadon(unittest.TestCase):
         print ('Adjointness: Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
 
     def test_nonquadratic(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
         A=mpimg.imread(TESTFILE)
         A=np.array(rgb2gray(A),dtype=float)
         N=A.shape[0]
@@ -177,7 +189,4 @@ class TestRadon(unittest.TestCase):
         
 # test
 if __name__ == '__main__':
-    ctx = cl.create_some_context(interactive=False)
-    queue = cl.CommandQueue(ctx)
-
     unittest.main()
