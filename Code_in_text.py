@@ -14,7 +14,7 @@ angles=180
 Ns=500
 
 if True:
-	PS=grato.projection_settings(queue,"parallel",img.shape,angles,Ns)
+	PS=grato.ProjectionSettings(queue,"parallel",img.shape,angles,Ns)
 	img_gpu = cl.array.to_device(queue, require(img, "float32", 'F'))
 	sino_gpu=grato.forwardprojection(None,img_gpu,PS)
 	backproj_gpu=grato.backprojection(None,sino_gpu,PS)

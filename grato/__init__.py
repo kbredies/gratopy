@@ -1,2 +1,2 @@
-from .grato import forwardprojection, backprojection, projection_settings, landweber, cg
+from .grato import forwardprojection, backprojection, ProjectionSettings, landweber, cg
 from .phantom import ct_shepp_logan as phantom

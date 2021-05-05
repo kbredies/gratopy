@@ -3,22 +3,25 @@
 '''The canonical Shepp-Logan phantom used for CT simulations.'''
 
 import numpy as np
+import pyopencl as cl
 
-def ct_shepp_logan(
-        N, modified=True, E=None, ret_E=False):
-    '''Generate a Shepp-Logan phantom of size (N, N).
+def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
+                   dtype='double', allocator=None):
+    '''Generate an OpenCL Shepp-Logan phantom of size (N, N).
 
-    Parameters
-    ----------
-    N : int or array_like
-        Matrix size, (N, N) or (M, N).
-    modified : bool, optional
-        Use original grey-scale values as given in [1]_.  Most
-        implementations use modified values for better contrast (for
-        example, see [3]_ and [4]_).
-    E : array_like, optional
-        For 2D: ex6 numeric matrix defining e ellipses.  The six
-        columns of E are:
+    **Parameters**
+
+        queue : pyopencl.CommandQueue
+            The *OpenCL* command queue 
+        N : int or array_like
+            Matrix size, (N, N) or (M, N).
+        modified : bool, optional
+            Use original grey-scale values as given in [1]_.  Most
+            implementations use modified values for better contrast (for
+            example, see [3]_ and [4]_).
+        E : array_like, optional
+            For 2D: ex6 numeric matrix defining e ellipses.  The six
+            columns of E are:
 
             - Gray value of the ellipse (in [0, 1])
             - Length of the horizontal semiaxis of the ellipse
@@ -28,36 +31,37 @@ def ct_shepp_logan(
             - Angle between the horizontal semiaxis of the ellipse
               and the x-axis of the image (in rad)
 
-    ret_E : bool, optional
-        Return the matrix E used to generate the phantom, ph.
+        ret_E : bool, optional
+            Return the matrix E used to generate the phantom, ph.
+        allocator : pyopencl.Allocator
+            The *PyOpenCL* allocator used for memory allocation.
+            If *None*, 
 
-    Returns
-    -------
-    ph : array_like
-        The Shepp-Logan phantom.
-    E : array_like, optional
-        The ellipse parameters used to generate ph.
+    **Returns**
+    
+        ph : array_like
+            The Shepp-Logan phantom.
+        E : array_like, optional
+            The ellipse parameters used to generate ph.
 
-    Notes
-    -----
-    This much abused phantom is due to [1]_.  The tabulated values in
-    the paper are reproduced in the Wikipedia entry [2]_.  The
-    original values do not produce great contrast, so modified values
-    are used by default (see Table B.1 in [5]_ or implementations
-    [3]_ and [4]_).
+    **Notes**
 
-    References
-    ----------
-    .. [1] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
-           reconstruction of a head section." IEEE Transactions on
-           nuclear science 21.3 (1974): 21-43.
-    .. [2] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
-    .. [3] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/
-           sim.html#shepp_logan
-    .. [4] http://www.mathworks.com/matlabcentral/fileexchange/
-           9416-3d-shepp-logan-phantom
-    .. [5] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
-           transform-theory and implementation." (1996).
+        This much abused phantom is due to [1]_.  The tabulated values in
+        the paper are reproduced in the Wikipedia entry [2]_.  The
+        original values do not produce great contrast, so modified values
+        are used by default (see Table B.1 in [5]_ or implementations
+        [3]_ and [4]_).
+
+    **References**
+
+        .. [1] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
+               reconstruction of a head section." IEEE Transactions on
+               nuclear science 21.3 (1974): 21-43.
+        .. [2] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
+        .. [3] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
+        .. [4] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
+        .. [5] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
+               transform-theory and implementation." (1996).
     '''
 
     # Get size of phantom
@@ -72,9 +76,9 @@ def ct_shepp_logan(
             raise ValueError('Dimension must be scalar or 2D!')
 
     # Give back either a 2D or 3D phantom
-    return ct_shepp_logan_2d(M, N, modified, E, ret_E)
+    return ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator)
 
-def ct_shepp_logan_2d(M, N, modified, E, ret_E):
+def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
     '''Make a 2D phantom.'''
 
     # Get the ellipse parameters the user asked for
@@ -113,6 +117,8 @@ def ct_shepp_logan_2d(M, N, modified, E, ret_E):
         # Sum of ellipses
         ph[idx] += grey[ii]
 
+    ph = ph.astype(dtype)
+    ph = cl.array.to_device(queue, ph, allocator)
     if ret_E:
         return(ph, E)
     return ph
