@@ -1,3 +1,4 @@
+import os
 from numpy import *
 import numpy as np
 from matplotlib.pyplot import *
@@ -5,6 +6,7 @@ import pyopencl as cl
 import pyopencl.array as clarray
 
 
+CL_FILES = ["radon.cl", "fanbeam.cl"]
 
 
 ###########
@@ -108,7 +110,7 @@ def radon(sino, img, projection_settings, wait_for=None):
 			+str(sino.dtype)+" and "+str(img.dtype))
 	
 	my_data_type=sino.dtype
-	updload_bufs(projection_settings,my_data_type)	
+	upload_bufs(projection_settings,my_data_type)	
 	ofs_buf=projection_settings.ofs_buf[my_data_type] 
 	geometry_information=projection_settings.geometry_information[my_data_type]
 
@@ -148,7 +150,7 @@ def radon_ad(img, sino, projection_settings, wait_for=None):
 			
 
 	my_data_type=sino.dtype
-	updload_bufs(projection_settings,my_data_type)	
+	upload_bufs(projection_settings,my_data_type)	
 	ofs_buf=projection_settings.ofs_buf[my_data_type] 
 	geometry_information=projection_settings.geometry_information[my_data_type]
 
@@ -312,7 +314,7 @@ def fanbeam(sino, img, projection_settings, wait_for=None):
 		 
 	my_data_type=sino.dtype
 
-	updload_bufs(projection_settings,my_data_type)	
+	upload_bufs(projection_settings,my_data_type)	
 	ofs_buf=projection_settings.ofs_buf[my_data_type]; 
 	sdpd_buf=projection_settings.sdpd_buf[my_data_type]
 	geometry_information=projection_settings.geometry_information[my_data_type]
@@ -343,7 +345,7 @@ def fanbeam_add( img,sino, projection_settings, wait_for=None):
 
 	my_data_type=sino.dtype
 	
-	updload_bufs(projection_settings,my_data_type)	
+	upload_bufs(projection_settings,my_data_type)	
 	ofs_buf=projection_settings.ofs_buf[my_data_type]; 
 	sdpd_buf=projection_settings.sdpd_buf[my_data_type]
 	geometry_information=projection_settings.geometry_information[my_data_type]
@@ -554,22 +556,23 @@ def normest( projection_settings,number_of_iterations=50,my_dtype='float32'):
 
 
 def create_code():
-	
-	total_code=""
-	for file in ["Radontransform","fanbeam"]:
-		for my_dtype in ["float","double"]:
-			for order1 in ["f","c"]:
-				for order2 in ["f","c"]:
-					text=open(file).read()
-					total_code+=text.replace("\my_variable_type",my_dtype).replace("\order1",order1).replace("\order2",order2)
-	return total_code
+    total_code=""
+    for file in CL_FILES:
+        for my_dtype in ["float","double"]:
+            for order1 in ["f","c"]:
+                for order2 in ["f","c"]:
+                    textfile=open(os.path.join(os.path.abspath(os.path.dirname(__file__)), file))
+                    text=textfile.read()
+                    total_code+=text.replace("\my_variable_type",my_dtype).replace("\order1",order1).replace("\order2",order2)
+                    textfile.close()
+    return total_code
 
 """Class saving all relevant projection information, which is always used to compute projections
 atributes:
-			queue ... 	a pyopencl.queue associated to the context in question
-			geometry... a strinc containing "PARALLEL"/"Radon" OR "FAN"/"FANBEAM" (i.e. which type of projection)
-			self.prg... Instance of programm class containing the programs for the execution of the projection-methods 
-			shape ... tuple representing the number of pixels (of the image) in x and y direction
+            queue ...   a pyopencl.queue associated to the context in question
+            geometry... a strinc containing "PARALLEL"/"Radon" OR "FAN"/"FANBEAM" (i.e. which type of projection)
+            self.prg... Instance of programm class containing the programs for the execution of the projection-methods 
+            shape ... tuple representing the number of pixels (of the image) in x and y direction
 			sinogram_shape... tuple representing the number of detectors and number of angles considered
 			angles		... list the angles for which the projections are considered
 			n_detector	... int the number of detectors used
@@ -817,27 +820,7 @@ class projection_settings():
 		show()
 
 
-"""Executes Landweberiteration for projectionmethod
-Input:		sinogram 	... pyopencl.array of sinogram for which to compute the inverse projection transform
-			number_iterations... int number of iterations to execute
-			w ...	float representing the relaxation parameter (w<1 garanties convergence)
-"""
-def Landweberiteration(sinogram,PS,number_iterations=100,w=1):
-	norm_estimate=normest(PS)
-	w=sinogram.dtype.type(w/norm_estimate**2)	
-
-	sinonew=sinogram+0.
-	U=w*backprojection(None,sinonew,PS)
-	Unew=clarray.zeros(PS.queue,U.shape,dtype=sinogram.dtype, order='F')
-	
-	for i in range(number_iterations):
-		sinonew=forwardprojection(sinonew,Unew,PS,wait_for=Unew.events)-sinogram
-		Unew=Unew-w*backprojection(U,sinonew,PS,wait_for=sinonew.events)	
-	return Unew
-
-
-
-def updload_bufs(projection_settings,mydtype):
+def upload_bufs(projection_settings,mydtype):
 	if projection_settings.buf_upload[mydtype]==0:
 		ofs=projection_settings.ofs_buf[mydtype]
 		ofs_buf = cl.Buffer(projection_settings.queue.context, cl.mem_flags.READ_ONLY, ofs.nbytes)
@@ -859,8 +842,27 @@ def updload_bufs(projection_settings,mydtype):
 
 
 
+"""Executes Landweberiteration for projectionmethod
+Input:		sinogram 	... pyopencl.array of sinogram for which to compute the inverse projection transform
+			number_iterations... int number of iterations to execute
+			w ...	float representing the relaxation parameter (w<1 garanties convergence)
+"""
+def landweber(sinogram,PS,number_iterations=100,w=1):
+	norm_estimate=normest(PS)
+	w=sinogram.dtype.type(w/norm_estimate**2)	
 
-def CG_iteration(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
+	sinonew=sinogram+0.
+	U=w*backprojection(None,sinonew,PS)
+	Unew=clarray.zeros(PS.queue,U.shape,dtype=sinogram.dtype, order='F')
+	
+	for i in range(number_iterations):
+		sinonew=forwardprojection(sinonew,Unew,PS,wait_for=Unew.events)-sinogram
+		Unew=Unew-w*backprojection(U,sinonew,PS,wait_for=sinonew.events)	
+	return Unew
+
+        
+
+def cg(sinogram,PS,epsilon,x0,number_iterations=100,relaunch=True):
 	x=x0
 	d=sinogram-forwardprojection(None,x,PS,wait_for=x.events)
 	p=backprojection(None,d,PS,wait_for=d.events)
