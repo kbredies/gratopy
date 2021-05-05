@@ -1,5 +1,6 @@
 import unittest
 
+import os
 from numpy import *
 from matplotlib.pyplot import *
 import pyopencl as cl
@@ -11,11 +12,13 @@ from scipy import misc
 from PIL import Image
 import matplotlib.image as mpimg
 
-TESTFILE='Shepp_Logan_backprojection_grey_reversed.png'
-TESTBRAIN='brain.png'
-TESTDUCK='duck.jpg'
-TESTWALNUT='walnut.png'
-TESTWALNUTSINOGRAM='walnut_sinogram.png'
+def curdir(filename):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
+
+TESTBRAIN=curdir('brain.png')
+TESTDUCK=curdir('duck.jpg')
+TESTWALNUT=curdir('walnut.png')
+TESTWALNUTSINOGRAM=curdir('walnut_sinogram.png')
 
 ctx = None
 queue = None
@@ -27,7 +30,20 @@ def rgb2gray(rgb):
     else:
     	gray=rgb
     return gray
+
+def create_phantoms(N):
+    A=phantom(N)
     
+    B=np.ones(A.shape)*(255-120)
+    B[int(N/float(3)):int(2*N/float(3))]=0
+    B[0:int(N/float(4))]=0
+    B[int(N-N/float(4)):N]=0
+    
+    img=np.zeros(A.shape+(2,))
+    img[:,:,0]=A*255/np.max(A)
+    img[:,:,1]=B
+
+    return img
 
 class TestFanbeam(unittest.TestCase):
     def test_projection(self):
@@ -53,20 +69,20 @@ class TestFanbeam(unittest.TestCase):
         img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
         sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.n_angles,2), dtype=float32, order='F')
 
-        a=time.clock()
+        a=time.perf_counter()
         for i in range(100):
             forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)
 
-        print ('Time Required Forward',(time.clock()-a)/100)
+        print ('Time Required Forward',(time.perf_counter()-a)/100)
         sino=sino_gpu.get()
 
         numberofangles=180
         angles = linspace(0,2*pi,numberofangles+1)[:-1] + pi
 
-        a=time.clock()
+        a=time.perf_counter()
         for i in range(100):
             backprojection(img_gpu,sino_gpu,PS,wait_for=img_gpu.events)
-        print ('Time Required Backprojection',(time.clock()-a)/100)
+        print ('Time Required Backprojection',(time.perf_counter()-a)/100)
         
         figure(1)
         imshow(hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
@@ -156,76 +172,11 @@ class TestFanbeam(unittest.TestCase):
         ctx = cl.create_some_context(interactive=False)
         queue = cl.CommandQueue(ctx)
 
-        ###Fullangle    
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
-
-        B[int(N-N/float(4)):N]=255
-
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
-
-        s_axis=[]
-        Resulting_Sino=[]
-
-        angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
-
-        img=255-img
-        my_dtype=float32
-
-        p=2
-
-        Ns=int(0.3*img.shape[0])
-        shift=0
-
-        PScorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=False)
-        PSincorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=True)
-
-        img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
-
-        sino_gpu_correct=forwardprojection(None,img_gpu,PScorrect)
-        sino_gpu_incorrect=forwardprojection(None,img_gpu,PSincorrect)
-
-        figure(1)
-        imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
-
-        backprojected_correct=backprojection(None,sino_gpu_correct,PScorrect)
-        backprojected_incorrect=backprojection(None,sino_gpu_correct,PSincorrect)
-        figure(2)
-        title("Sinograms with vs without fullangle")
-        imshow(np.vstack([np.hstack([sino_gpu_correct.get()[:,:,0],sino_gpu_correct.get()[:,:,1]]),np.hstack([sino_gpu_incorrect.get()[:,:,0],sino_gpu_incorrect.get()[:,:,1]])]), cmap=cm.gray)
-        figure(3)
-        title("Backprojection with vs without fullangle")
-        imshow(np.vstack([np.hstack([backprojected_correct.get()[:,:,0],backprojected_correct.get()[:,:,1]]),np.hstack([backprojected_incorrect.get()[:,:,0],backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
-        show()			
-	
-
-    def test_halfangle(self):
-        ctx = cl.create_some_context(interactive=False)
-        queue = cl.CommandQueue(ctx)
-
         ########
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
+        N = 1200
+        img = create_phantoms(N)
 
-        B[int(N-N/float(4)):N]=255
-
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
-
-        img=255-img
-        my_dtype=float32
-
+        dtype=float32
         Ns=int(0.3*img.shape[0])
         shift=0
         
@@ -238,7 +189,7 @@ class TestFanbeam(unittest.TestCase):
         PSincorrect=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,fullangle=True)
 
         PScorrect.show_geometry(np.pi/4)
-        img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
+        img_gpu = clarray.to_device(queue, require(img, dtype, 'F'))
 
         sino_gpu_correct=forwardprojection(None,img_gpu,PScorrect)
         sino_gpu_incorrect=forwardprojection(None,img_gpu,PSincorrect)
@@ -261,21 +212,10 @@ class TestFanbeam(unittest.TestCase):
         queue = cl.CommandQueue(ctx)
 
         ##Midpointshift
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
+        N = 1200
+        img = create_phantoms(N)
         
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
-
-        B[int(N-N/float(4)):N]=255
-
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
-        img=255-img
-        my_dtype=float32
+        dtype=float32
 
         angles=360
         R=5
@@ -292,7 +232,7 @@ class TestFanbeam(unittest.TestCase):
         for k in range(0,16):
             PS.show_geometry(k*np.pi/8)
 
-        img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
+        img_gpu = clarray.to_device(queue, require(img, dtype, 'F'))
 
         sino_gpu=forwardprojection(None,img_gpu,PS)
 
@@ -358,9 +298,9 @@ class TestFanbeam(unittest.TestCase):
         Detectorwidth=114.8
         FOD=110
         FDD=300
-        numberofangles=120
+        angles = linspace(0,2*pi,121)[:-1] + pi/2
         geometry=[Detectorwidth,FDD,FOD,number_detectors]
-        PS = projection_settings(queue,"fan",img_shape=(600,600), angles=numberofangles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors)
+        PS = projection_settings(queue,"fan",img_shape=(600,600), angles=angles, detector_width=Detectorwidth, R=FDD, RE=FOD, n_detectors=number_detectors)
 
         walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'F'))
         ULW=landweber(walnut_gpu2new,PS,20)
@@ -377,25 +317,12 @@ class TestFanbeam(unittest.TestCase):
         queue = cl.CommandQueue(ctx)
 
         ##Non-quadratic images
-
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
-
-        B[int(N-N/float(4)):N]=255
-
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
+        N = 1200
+        img = create_phantoms(N)
 
         N1=img.shape[0]
         N2=int(img.shape[0]*2/3.)
-
         img=np.array(img[:,0:N2,:])
-        img=255-img
 
         angles=360
         R=5
@@ -404,12 +331,12 @@ class TestFanbeam(unittest.TestCase):
         image_width=None
         shift=0
         midpoint_shif=[0,0.]
-        my_dtype=float32
+        dtype=float32
         Ns=int(0.5*img.shape[0])
 
         PS=projection_settings(queue,"fan",img.shape,angles,Ns,image_width=image_width,R=R,RE=RE,detector_width=Detector_width,detector_shift=shift,midpoint_shift=midpoint_shif,fullangle=True)
 
-        img_gpu = clarray.to_device(queue, require(img, my_dtype, 'F'))
+        img_gpu = clarray.to_device(queue, require(img, dtype, 'F'))
 
         sino_gpu=forwardprojection(None,img_gpu,PS)
         backprojected=backprojection(None,sino_gpu,PS)

@@ -1,17 +1,14 @@
 import unittest
 
-
+import os
 from numpy import *
 from matplotlib.pyplot import *
 import pyopencl as cl
 from grato import *
 import matplotlib.image as mpimg
 
-TESTFILE='Shepp_Logan_backprojection_grey_reversed.png'
-
 ctx = None
 queue = None
-
 
 ####################
 ## fan beam CPU code
@@ -23,6 +20,20 @@ def rgb2gray(rgb):
     	gray=rgb
     return gray
 
+def create_phantoms(N):
+    A=phantom(N)
+    
+    B=np.ones(A.shape)*(255-120)
+    B[int(N/float(3)):int(2*N/float(3))]=0
+    B[0:int(N/float(4))]=0
+    B[int(N-N/float(4)):N]=0
+    
+    img=np.zeros(A.shape+(2,))
+    img[:,:,0]=A*255/np.max(A)
+    img[:,:,1]=B
+
+    return img
+
 
 class TestRadon(unittest.TestCase):
     def test_projection(self):
@@ -30,25 +41,12 @@ class TestRadon(unittest.TestCase):
         queue = cl.CommandQueue(ctx)
 
         print("Projection test")
-        
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
-	
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
-	
-        B[int(N-N/float(4)):N]=255
-	
-	
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
-        img=255-img
+
+        N = 1200
+        img = create_phantoms(N)
 	
         angles=360
-        my_dtype=float32
+        dtype=float32
         detector_width=4
         image_width=4
         Ns=int(0.5*img.shape[0])
@@ -60,7 +58,7 @@ class TestRadon(unittest.TestCase):
         PS.show_geometry(np.pi/4)
         PS.show_geometry(np.pi*3/8.)
 		
-        img_gpu = cl.array.to_device(queue, require(img, my_dtype, 'F'))
+        img_gpu = cl.array.to_device(queue, require(img, dtype, 'F'))
 
         sino_gpu=forwardprojection(None,img_gpu,PS)
 
@@ -84,15 +82,15 @@ class TestRadon(unittest.TestCase):
         img=np.zeros([N,N])
         img[int(N/3.):int(2*N/3.)][:,int(N/3.):int(2*N/3.)]=1
         angles=30
-        my_dtype=float32
+        dtype=float32
         detector_width=4
         image_width=4
         Ns=500
 	
         PS=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=detector_width,image_width=image_width)
 		
-        img_gpu = cl.array.to_device(queue, require(img, my_dtype, 'F'))
-        sino_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=my_dtype, order='F')
+        img_gpu = cl.array.to_device(queue, require(img, dtype, 'F'))
+        sino_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=dtype, order='F')
 
         forwardprojection(sino_gpu,img_gpu,PS,wait_for=sino_gpu.events)	
         
@@ -143,36 +141,63 @@ class TestRadon(unittest.TestCase):
                 
         print ('Adjointness: Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
 
+    def test_fullangle(self):
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+
+        ###Fullangle
+        N = 1200
+        img = create_phantoms(N)
+
+        s_axis=[]
+        Resulting_Sino=[]
+        angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
+        dtype=float32
+        p=2
+
+        Ns=int(0.3*img.shape[0])
+        shift=0
+
+        PScorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=False)
+        PSincorrect=projection_settings(queue,"parallel",img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=True)
+
+        img_gpu = cl.array.to_device(queue, require(img, dtype, 'F'))
+
+        sino_gpu_correct=forwardprojection(None,img_gpu,PScorrect)
+        sino_gpu_incorrect=forwardprojection(None,img_gpu,PSincorrect)
+
+        figure(1)
+        imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
+
+        backprojected_correct=backprojection(None,sino_gpu_correct,PScorrect)
+        backprojected_incorrect=backprojection(None,sino_gpu_correct,PSincorrect)
+        figure(2)
+        title("Sinograms with vs without fullangle")
+        imshow(np.vstack([np.hstack([sino_gpu_correct.get()[:,:,0],sino_gpu_correct.get()[:,:,1]]),np.hstack([sino_gpu_incorrect.get()[:,:,0],sino_gpu_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+        figure(3)
+        title("Backprojection with vs without fullangle")
+        imshow(np.vstack([np.hstack([backprojected_correct.get()[:,:,0],backprojected_correct.get()[:,:,1]]),np.hstack([backprojected_incorrect.get()[:,:,0],backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+        show()			
+        
     def test_nonquadratic(self):
         ctx = cl.create_some_context(interactive=False)
         queue = cl.CommandQueue(ctx)
 
-        A=mpimg.imread(TESTFILE)
-        A=np.array(rgb2gray(A),dtype=float)
-        N=A.shape[0]
-        B=np.ones(A.shape)*120
-        B[int(N/float(3)):int(2*N/float(3))]=255
-        B[0:int(N/float(4))]=255
-
-        B[int(N-N/float(4)):N]=255
-
-        img=np.zeros( (A.shape+tuple([2])))
-        img[:,:,0]=A*255/np.max(A)
-        img[:,:,1]=B
+        N = 1200
+        img = create_phantoms(N)
 
         N1=img.shape[0]
         N2=int(img.shape[0]*2/3.)
 
         img=np.array(img[:,0:N2,:])
-        img=255-img
 
         angles=360
         Ns=int(0.5*img.shape[0])
 
-        my_dtype=float32
+        dtype=float32
 
         PS=projection_settings(queue,"parallel",img.shape,angles,Ns)
-        img_gpu = cl.array.to_device(queue, require(img, my_dtype, 'F'))
+        img_gpu = cl.array.to_device(queue, require(img, dtype, 'F'))
         sino_gpu=forwardprojection(None,img_gpu,PS)
         backprojected=backprojection(None,sino_gpu,PS)
 
