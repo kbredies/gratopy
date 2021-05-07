@@ -1,4 +1,4 @@
-import os
+import pkgutil
 from numpy import *
 import numpy as np
 from matplotlib.pyplot import *
@@ -515,10 +515,7 @@ shape,sinogram_shape,ofs_buf,sdpd_buf,image_width,Geometry_info
 def create_code():    
     total_code=""
     for file in CL_FILES:
-        textfile=open(os.path.join(os.path.abspath(os.path.dirname(__file__)), file))
-        code_template=textfile.read()
-        textfile.close()
-        
+        code_template=pkgutil.get_data(__name__, file).decode('ascii')
         for dtype in ["float","double"]:
             for order1 in ["f","c"]:
                 for order2 in ["f","c"]:
