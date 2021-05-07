@@ -10,6 +10,9 @@ from scipy import misc
 from PIL import Image
 import matplotlib.image as mpimg
 
+INTERACTIVE=False
+
+
 def curdir(filename):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
 
@@ -43,7 +46,7 @@ def create_phantoms(queue, N, dtype='double'):
     return img
 
 def test_projection():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     img=np.zeros([225,225,2])
@@ -124,7 +127,7 @@ def test_weighting():
         print("Mass in original image",a, "mass in projection",b,"Ratio",b/a,"Ratio should be 6")
 
 def test_adjointness():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     ###Adjointness
@@ -170,7 +173,7 @@ def test_adjointness():
     print ('Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
 
 def test_fullangle():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     ########
@@ -211,7 +214,7 @@ def test_fullangle():
     show()	 
 
 def test_midpointshift():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     ##Midpointshift
@@ -249,7 +252,7 @@ def test_midpointshift():
     show()			
 
 def test_landweber():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     ###Nuss Landweber
@@ -309,7 +312,7 @@ def test_landweber():
     sinonew=[sinonew.T]
 
 def test_nonquadratic():
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     ##Non-quadratic images
