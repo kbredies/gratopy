@@ -1,6 +1,8 @@
 Function reference
 ==================
 
+.. module:: grato
+
 Transforms
 ----------
 

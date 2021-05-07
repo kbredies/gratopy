@@ -29,33 +29,27 @@ def forwardprojection(img, projection_settings, sino=None, wait_for=[]):
     fanbeam transform) of a given image using the given projection
     settings.
 
-    **Parameters**
-        img : pyopencl.Array 
-            The image to be transformed.
+    :param img: The image to be transformed.
+    :type img: :class:`pyopencl.Array`
+    :param projection_settings: The instance of the *ProjectionSettings* 
+        class that contains
+        transform type and geometry parameters.
+    :type projection_settings: :class:`grato.ProjectionSettings`
+    :param sino: The array in which the result of transformation will be saved. 
+        If *None*, a new array will be created and returned.
+    :type sino: :class:`pyopencl.Array` or None
+    :param wait_for: 
+        The events to wait for before performing the computation.
+    :type wait_for: :class:`pyopencl.Event` list or None
+    :return: The projection image.
+    :rtype: :class:`pyopencl.Array`
 
-        projection_settings : grato.ProjectionSettings
-            The instance of the *ProjectionSettings* class that contains
-            transform type and geometry parameters.
-
-        sino : pyopencl.Array, optional
-            The array in which the result of transformation will be saved. 
-            If *None*, a new array will be created.
-
-        wait_for : pyopencl.Event list, optional
-            The events to wait for before performing the computation.
-
-    **Returns**
-        sino : pyopencl.Array
-            The projection image.
-
-    **Notes**
-        The forward projection can be performed for single or double
-        precision arrays. The data type of *img* and *sino* have to coincide.
-        It respects any combination of *C* and *F* contiguous arrays.
-        The OpenCL events associated with the transform will be appended
-        to the output *sino*. In case the output array is created, it will
-        use the allocator of *img*.
-
+    The forward projection can be performed for single or double
+    precision arrays. The data type of *img* and *sino* have to coincide.
+    It respects any combination of *C* and *F* contiguous arrays.
+    The OpenCL events associated with the transform will be appended
+    to the output *sino*. In case the output array is created, it will
+    use the allocator of *img*.
 """
     
     # initialize new sinogram if no sinogram is yet given
