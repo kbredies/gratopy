@@ -35,8 +35,10 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     :param allocator: The *PyOpenCL* allocator used for memory allocation.
     :type allocator: :class:`pyopencl.Allocator` or None
     :returns: Phantom/parameter pair *(ph[, E])*. 
-    :var ph: The Shepp-Logan phantom ( :class:`pyopencl.Array` ).
-    :var E: The ellipse parameters used to generate ph (*array_like, optional*).
+    :var ph: The Shepp-Logan phantom.
+    :vartype ph: :class:`pyopencl.Array`
+    :var E: The ellipse parameters used to generate ph.
+    :vartype E: array_like, optional
     
     This much abused phantom is due to [1]_.  The tabulated values in
     the paper are reproduced in the Wikipedia entry [2]_.  The
