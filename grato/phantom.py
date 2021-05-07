@@ -9,58 +9,50 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
                    dtype='double', allocator=None):
     '''Generate an OpenCL Shepp-Logan phantom of size (N, N).
 
-    **Parameters**
+    :param queue: The *OpenCL* command queue.
+    :type queue: :class:`pyopencl.CommandQueue`
+    :param N: Matrix size, (N, N) or (M, N).
+    :type N: int or array_like
+    :param modified: Use original grey-scale values as given in [1]_.  Most
+        implementations use modified values for better contrast (for
+        example, see [3]_ and [4]_).
+    :type modified: bool
+    :param E: e times 6 numeric matrix defining e ellipses.  
+        The six columns of E are:
 
-        queue : pyopencl.CommandQueue
-            The *OpenCL* command queue 
-        N : int or array_like
-            Matrix size, (N, N) or (M, N).
-        modified : bool, optional
-            Use original grey-scale values as given in [1]_.  Most
-            implementations use modified values for better contrast (for
-            example, see [3]_ and [4]_).
-        E : array_like, optional
-            For 2D: ex6 numeric matrix defining e ellipses.  The six
-            columns of E are:
-
-            - Gray value of the ellipse (in [0, 1])
-            - Length of the horizontal semiaxis of the ellipse
-            - Length of the vertical semiaxis of the ellipse
-            - x-coordinate of the center of the ellipse (in [-1, 1])
-            - y-coordinate of the center of the ellipse (in [-1, 1])
-            - Angle between the horizontal semiaxis of the ellipse
-              and the x-axis of the image (in rad)
-
-        ret_E : bool, optional
-            Return the matrix E used to generate the phantom, ph.
-        allocator : pyopencl.Allocator
-            The *PyOpenCL* allocator used for memory allocation.
-            If *None*, 
-
-    **Returns**
+        - Gray value of the ellipse (in [0, 1])
+        - Length of the horizontal semiaxis of the ellipse
+        - Length of the vertical semiaxis of the ellipse
+        - x-coordinate of the center of the ellipse (in [-1, 1])
+        - y-coordinate of the center of the ellipse (in [-1, 1])
+        - Angle between the horizontal semiaxis of the ellipse
+            and the x-axis of the image (in rad)
+    :type E: array_like or None
+    :param ret_E: Return the matrix E used to generate the phantom.
+    :type ret_E: bool
+    :param dtype: The *PyOpenCL* data-type in which the phantom is created.
+    :type dtype: str or dtype
+    :param allocator: The *PyOpenCL* allocator used for memory allocation.
+    :type allocator: :class:`pyopencl.Allocator` or None
+    :returns: Phantom/parameter pair *(ph[, E])*. 
+    :var ph: The Shepp-Logan phantom.
+    :vartype ph: :class:`pyopencl.Array`
+    :var E: The ellipse parameters used to generate ph.
+    :vartype E: array_like, optional
     
-        ph : array_like
-            The Shepp-Logan phantom.
-        E : array_like, optional
-            The ellipse parameters used to generate ph.
+    This much abused phantom is due to [1]_.  The tabulated values in
+    the paper are reproduced in the Wikipedia entry [2]_.  The
+    original values do not produce great contrast, so modified values
+    are used by default (see Table B.1 in [5]_ or implementations
+    [3]_ and [4]_).
 
-    **Notes**
-
-        This much abused phantom is due to [1]_.  The tabulated values in
-        the paper are reproduced in the Wikipedia entry [2]_.  The
-        original values do not produce great contrast, so modified values
-        are used by default (see Table B.1 in [5]_ or implementations
-        [3]_ and [4]_).
-
-    **References**
-
-        .. [1] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
-               reconstruction of a head section." IEEE Transactions on
-               nuclear science 21.3 (1974): 21-43.
-        .. [2] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
-        .. [3] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
-        .. [4] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
-        .. [5] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
+    .. [1] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
+        reconstruction of a head section." IEEE Transactions on
+        nuclear science 21.3 (1974): 21-43.
+    .. [2] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
+    .. [3] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
+    .. [4] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
+    .. [5] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
                transform-theory and implementation." (1996).
     '''
 
