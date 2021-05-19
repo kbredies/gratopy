@@ -195,7 +195,7 @@ def test_fullangle():
                                      detector_width=Detector_width, detector_shift=shift,
                                      fullangle=True)
 
-    PScorrect.show_geometry(np.pi/4)
+    PScorrect.show_geometry(np.pi/4, show=False)
     img_gpu = img
 
     sino_gpu_correct=forwardprojection(img_gpu, PScorrect)
@@ -233,8 +233,9 @@ def test_midpointshift():
                             detector_width=Detector_width, detector_shift=shift,
                             midpoint_shift=midpoint_shift,fullangle=True)
 
+    figure(0)
     for k in range(0,16):
-        PS.show_geometry(k*np.pi/8)
+        PS.show_geometry(k*np.pi/8, axes=subplot(4,4,k+1))
 
     img_gpu = img
     sino_gpu=forwardprojection(img_gpu, PS)    
@@ -337,7 +338,7 @@ def test_nonquadratic():
     sino_gpu=forwardprojection(img_gpu, PS)
     backprojected=backprojection(sino_gpu, PS)
 
-    PS.show_geometry(1*np.pi/8)
+    PS.show_geometry(1*np.pi/8, show=False)
 
     figure(1)
     title("original non square images")

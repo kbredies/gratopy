@@ -1,4 +1,4 @@
-import os
+import os, pkgutil
 from numpy import *
 from matplotlib.pyplot import *
 import pyopencl as cl
@@ -50,11 +50,12 @@ def test_projection():
                               image_width=image_width, detector_width=detector_width,
                               detector_shift=0,
                               fullangle=True)
-	
-    PS.show_geometry(0)
-    PS.show_geometry(np.pi/8)
-    PS.show_geometry(np.pi/4)
-    PS.show_geometry(np.pi*3/8.)
+
+    figure(0)
+    PS.show_geometry(0, axes=subplot(2,2,1))
+    PS.show_geometry(np.pi/8, axes=subplot(2,2,2))
+    PS.show_geometry(np.pi/4, axes=subplot(2,2,3))
+    PS.show_geometry(np.pi*3/8., axes=subplot(2,2,4))
     
     img_gpu = img
     sino_gpu = forwardprojection(img_gpu, PS)
