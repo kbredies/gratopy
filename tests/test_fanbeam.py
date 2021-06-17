@@ -150,10 +150,10 @@ def test_adjointness():
     count=0
     eps=0.00001
 
-    img2_gpu = clarray.zeros(queue, PS.shape, dtype=float32, order='F')
+    img2_gpu = clarray.zeros(queue, PS.img_shape, dtype=float32, order='F')
     sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
     for i in range(100):
-        img1_gpu = clarray.to_device(queue, require(np.random.random(PS.shape), float32, 'F'))
+        img1_gpu = clarray.to_device(queue, require(np.random.random(PS.img_shape), float32, 'F'))
         sino1_gpu = clarray.to_device(queue, require(np.random.random(PS.sinogram_shape), float32, 'F'))
         forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         backprojection(sino1_gpu, PS, img=img2_gpu)
