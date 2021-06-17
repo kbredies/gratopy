@@ -2,7 +2,7 @@ import os, pkgutil
 from numpy import *
 from matplotlib.pyplot import *
 import pyopencl as cl
-from grato import *
+from gratopy import *
 import matplotlib.image as mpimg
 
 ctx = None

@@ -5,7 +5,7 @@ import pyopencl as cl
 import pyopencl.array as clarray
 import scipy.misc
 import time
-from grato import *
+from gratopy import *
 from scipy import misc
 from PIL import Image
 import matplotlib.image as mpimg

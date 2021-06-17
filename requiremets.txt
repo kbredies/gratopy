@@ -1,0 +1,17 @@
+appdirs==1.4.4
+cycler==0.10.0
+dataclasses==0.8
+kiwisolver==1.3.1
+Mako==1.1.4
+MarkupSafe==2.0.1
+matplotlib==3.3.4
+numpy==1.19.5
+Pillow==8.2.0
+pkg-resources==0.0.0
+pybind11==2.6.2
+pyopencl==2021.2.2
+pyparsing==2.4.7
+python-dateutil==2.8.1
+pytools==2021.2.7
+scipy==1.5.4
+six==1.16.0

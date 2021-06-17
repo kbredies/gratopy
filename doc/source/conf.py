@@ -17,7 +17,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'grato'
+project = 'GRATOPY'
 copyright = '2021, Richard Huber, Kristian Bredies'
 author = 'Richard Huber, Kristian Bredies'
 
