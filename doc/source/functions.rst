@@ -8,7 +8,7 @@ Function reference
 Transforms
 ----------
 
-.. autoclass :: gratopy.ProjectionSettings
+.. autoclass:: gratopy.ProjectionSettings
 	:members:
 .. autofunction:: gratopy.forwardprojection
 .. autofunction:: gratopy.backprojection
@@ -17,7 +17,7 @@ Solvers
 -------
 
 .. autofunction:: gratopy.landweber
-.. autofunction:: gratopy.cg
+.. autofunction:: gratopy.conjugate_gradients
 		  
 Data generation
 ---------------
@@ -36,3 +36,6 @@ Internal functions
 .. autofunction:: gratopy.fanbeam_struct
 
 .. autofunction:: gratopy.create_code
+.. autofunction:: gratopy.normest
+
+
