@@ -19,4 +19,4 @@ Acknowledgement
 Licence
 ==================
 
-` LICENSE GNU GENERAL PUBLIC LICENSE Version 3  <../../../LICENSE>`_
+`LICENSE GNU GENERAL PUBLIC LICENSE Version 3  <../../../LICENSE>`_

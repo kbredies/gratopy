@@ -257,7 +257,7 @@ def test_landweber():
     queue = cl.CommandQueue(ctx)
 
     ###Nuss Landweber
-    print("Walnut reconstruction test")
+    print("Walnut Landweber reconstruction test")
     walnut=mpimg.imread(TESTWALNUT)
     walnut=walnut/np.mean(walnut)
     walnut[np.where(walnut<=1.5)]=0
@@ -311,6 +311,125 @@ def test_landweber():
     show()
 
     sinonew=[sinonew.T]
+
+def test_conjugate_gradients():
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
+    queue = cl.CommandQueue(ctx)
+
+    print("Walnut conjugated_gradients reconstruction test")
+    walnut=mpimg.imread(TESTWALNUT)
+    walnut=walnut/np.mean(walnut)
+    walnut[np.where(walnut<=1.5)]=0
+    #walnut=scipy.misc.imresize(walnut,[328,328])
+    walnut=np.array(Image.fromarray(walnut).resize([328,328]))
+
+    dtype=float
+
+    number_detectors=328
+    (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
+    geometry=[Detectorwidth,FDD,FOD,number_detectors]
+
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=walnut.shape,
+                            angles = numberofangles, detector_width=Detectorwidth,
+                            R=FDD, RE=FOD, n_detectors=number_detectors)
+
+    walnut_gpu=clarray.to_device(queue,require(walnut,dtype,'F'))
+
+    sino=forwardprojection(walnut_gpu, PS)	
+    walnutbp=backprojection(sino, PS)
+
+    figure(1)
+    imshow(walnut, cmap=cm.gray)
+    title('original walnut')
+    figure(2)
+    imshow(sino.get(), cmap=cm.gray)
+    title('Fanbeam transformed image')
+    figure(3)
+    imshow(walnutbp.get(), cmap=cm.gray)
+    title('Backprojected image')
+
+    sinonew=mpimg.imread(TESTWALNUTSINOGRAM)
+    #sinonew[np.where(sinonew<2000)]=0
+    #sinonew=np.array(sinonew,dtype=dtype)
+    sinonew/=np.mean(sinonew)
+
+    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
+    angles = linspace(0,2*pi,121)[:-1] + pi/2
+    geometry=[Detectorwidth,FDD,FOD,number_detectors]
+    
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=(600,600), angles=angles,
+                            detector_width=Detectorwidth, R=FDD, RE=FOD,
+                            n_detectors=number_detectors)
+
+    walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
+    UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
+
+    figure(4)
+    imshow(UCG.get(),cmap=cm.gray)
+    title("Conjugate gradients reconstruction")
+    show()
+
+    sinonew=[sinonew.T]
+
+def test_conjugate_gradients2():
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
+    queue = cl.CommandQueue(ctx)
+
+    print("Walnut conjugated_gradients reconstruction test")
+    walnut=mpimg.imread(TESTWALNUT)
+    walnut=walnut/np.mean(walnut)
+    walnut[np.where(walnut<=1.5)]=0
+    #walnut=scipy.misc.imresize(walnut,[328,328])
+    walnut=np.array(Image.fromarray(walnut).resize([328,328]))
+
+    dtype=float
+
+    number_detectors=328
+    (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
+ 
+    PS = ProjectionSettings(queue, RADON, img_shape=walnut.shape,
+                            angles = numberofangles,  n_detectors=number_detectors)
+
+    walnut_gpu=clarray.to_device(queue,require(walnut,dtype,'F'))
+
+    sino=forwardprojection(walnut_gpu, PS)	
+    walnutbp=backprojection(sino, PS)
+
+    figure(1)
+    imshow(walnut, cmap=cm.gray)
+    title('original walnut')
+    figure(2)
+    imshow(sino.get(), cmap=cm.gray)
+    title('Fanbeam transformed image')
+    figure(3)
+    imshow(walnutbp.get(), cmap=cm.gray)
+    title('Backprojected image')
+
+    sinonew=sino.get()
+    #sinonew[np.where(sinonew<2000)]=0
+    #sinonew=np.array(sinonew,dtype=dtype)
+    sinonew/=np.mean(sinonew)
+
+    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
+    angles = linspace(0,2*pi,121)[:-1] + pi/2
+    geometry=[Detectorwidth,FDD,FOD,number_detectors]
+    
+
+    walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
+    UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
+    sinoreprojected=forwardprojection(UCG,PS)
+    figure(4)
+    imshow(UCG.get(),cmap=cm.gray)
+    title("Conjugate gradients reconstruction")
+    figure(5)
+    imshow(sinoreprojected.get(),cmap=cm.gray)
+    title("reprojected sinogram")
+    
+    show()
+
+    sinonew=[sinonew.T]
+
+
 
 def test_nonquadratic():
     ctx = cl.create_some_context(interactive=INTERACTIVE)
