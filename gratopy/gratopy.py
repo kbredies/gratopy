@@ -47,7 +47,7 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     precision arrays. The dtype (precision) of *img* and *sino* (if given) have to coincide and the output will be of the same precision.
     It respects any combination of *C* and *F* contiguous arrays where output will be of the same contiguity as img if no sino is given.
     The OpenCL events associated with the transform will be added to the output's events. In case the output array is created, it will
-    use the allocator of img.
+    use the allocator of img. If the image and sinogram have a third dimension (z-direction) the operator is applied slicewise.
     """
     
     # initialize new sinogram if no sinogram is yet given
@@ -77,7 +77,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 		
     :param  img: The array in which the result of backprojection will be saved.
-        If equal None is given, a new array will be created.
+        If None is given, a new array will be created and returned.
     :type img: :class:`pyoepncl.Array`  with `compatible`_ dimensions, default None
     
     :param wait_for: The events to wait for before performing the computation in order to avoid race conditions, see `PyopenCL.events  <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
@@ -90,7 +90,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     precision arrays. The dtype (precision) of *img* and *sino* have to coincide, if no img is given the output precision coincides with sino's.
     It respects any combination of *C* and *F* contiguous arrays, where if no img is given the results contiguity coincides with sino's.
     The OpenCL events associated with the transform will be added to the output's events. In case the output array is created, it will
-    use the allocator of sino.
+    use the allocator of sino. If the sinogram and image have a third dimension (z-direction) the operator is applied slicewise.
 		  
     """        
         
@@ -123,7 +123,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of Radon transform 
-        (which was added to the events of *sino*).
+        (which was also added to the events of sino).
     :rtype:  :class:`pyopencl.Event`
     
     """         
@@ -211,10 +211,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         More advanced list of lists of angles for multiple limited angle segments, see :class:`fullangle` parameter.
     :type angles: :class:`int`, :class:`list[float]` or :class:`list[list[float]]`
 			         
-    :param n_detector: :math:`N_s` the number of (equispaced) detectors pixels considered, i.e., detector resolution. When none is given Ns will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
+    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors pixels considered, i.e., detector resolution. When None is given :math:`N_s` will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detector:  :class:`int`, default None
 			         
-    :param detector_width: Physical length of the detector. In particular the ratio of detector_width to the image_width as well as to R and RE are of major relevance.
+    :param detector_width: Physical length of the detector. 
     :type detector_width: :class:`float`, default 2.0
 			          
     :param image_width: Size of the image (more precisely  the larger side length of the rectangle image),
@@ -222,7 +222,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         the standard Radon transform with each projection touching the entire object, while img_with=2 detector_width results in each projection capturing only half of the image.
     :type image_width: :class:`float`, default  2.0
 			           		        
-    :param detector_shift:   Physical shift of the detector along the detector-line and corresponding detector pixel offsets, i.e, shifting the position of the detector pixels. If not given no shift is applied, i.e. the detector reaches from [-detector_width/2,detector_width/2].
+    :param detector_shift:   Physical shift of the detector along the detector-line and corresponding detector pixel offsets, i.e, shifting the position of the detector pixels. If not given no shift is applied, i.e., the detector reaches from [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 			        
     :param fullangle:  True if entire :math:`[0,\pi[` is represented by the angles, False for a limited angle setting.
@@ -248,16 +248,16 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             
             4 ... Angular weights			
  
-        shape: tuple of integers :math:`(N_x,N_y)` pixels in the image 
+        shape: tuple of integers :math:`(N_x,N_y)` resolution of the image 
  
-        sinogram_shape: (tuple) :math:`(N_s,N_a)` pixels in the sinogram.
+        sinogram_shape: (tuple) :math:`(N_s,N_a)` resolution of the sinogram.
  
         Geo_Dict: [np.dtype --> numpy.array]
         array containing information [:math:`\delta_x,\delta_s,N_x,N_y,N_s,N_a`]
  
         angles_diff: numpy.array
         same values as in ofs_dict[4] representing the weight 
-        associated to the angles (i.e. size of detector-pixels)
+        associated to the angles (i.e., size of angle-pixels)
     :rtype: mutliple (Ofs_Dict,shape,Geo_Dict,angles_diff) with (:class:`dict`, :class:`tuple`, :class:`dict`, :class:`list`)
     
     """
@@ -461,7 +461,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         More advanced list of lists of angles for multiple limited angle segments, see :class:`fullangle` parameter.
     :type angles: :class:`int`, :class:`list[float]` or :class:`list[list[float]]`
     
-    :param detector_width: Physical length of the detector. In particular the ratio of detector_width to the image_width is as well as to R and RE are of relevance.
+    :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`
      
     :param source_detector_dist:  Physical (orthogonal) distance from the source to the detector line (R). 
@@ -469,17 +469,17 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :param source_origin_dist: Physical distance for source to the origin (center of rotation) (RE). 
     :type source_origin_dist: :class:`float`     
 			         
-    :param n_detector: :math:`N_s` the number of (equispaced) detectors pixels considered, i.e., detector resolution. When none is given Ns will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
+    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors pixels considered, i.e., detector resolution. When none is given :math:`N_s` will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detector:  :class:`int`, default None
 			         
 
     :param detector_shift:   Physical shift of the detector along the detector-line and corresponding detector pixel offsets, i.e, shifting the position of the detector pixels. If not given no shift is applied, i.e. the detector reaches from [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 			          
-    :param image_width: Size of the image (more precisely  the larger side length of the rectangle image),
+    :param image_width: Physical size of the image (more precisely  the larger side length of the rectangle image),
         i.e., the diameter of the circular object captured by image. 
-        For fanbeam the image_width is chosen suitably to capture all rays if no image_width is set.
-    :type image_width: float, default None corresponds to 2.0 for parallel-beam, choosen adaptively for fanbeam
+        The image_width is chosen suitably to capture all rays if no image_width is set.
+    :type image_width: float, default None corresponds  automatic choice
 			           		        
     :param midpoint_shift: Vector of length two representing the  shift of the image away from center of rotation. If not given no shift is applied.
     :type midpoint_shift:  :class:`list` , default [0.0,0.0]
@@ -491,9 +491,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type fullangel: :class:`bool`, default True
         
     :return: 
-        img_shape: :class:`tuple`  :math:`(N_x,N_y)` pixels in the image 
+        img_shape: :class:`tuple`  :math:`(N_x,N_y)` resolution of the image 
         
-        sinogram_shape: :class:`tuple  :math:`(N_s,N_a)` pixels in the sinogram.
+        sinogram_shape: :class:`tuple`  :math:`(N_s,N_a)` resolution of the sinogram.
         
         Ofs_Dict- dict[np.dtype --> numpy.array]
         Dictionary containing the relevant angular information in 
@@ -509,23 +509,23 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
             
             6   ... Angular weights      SDPD_Dict[np.dtype --> numpy.array]
         
-        Sdpd_Dict dictionary containing numpy.array with regard to dtype 
-        reprsenting the values sqrt( s^2+R^2) for the weighting in 
-        the Fanbeam transform (weighted by delta_ratio)
+        Sdpd_Dict: dictionary containing numpy.array with regard to dtype 
+        reprsenting the values :math:`\sqrt{(s^2+R^2)}` for the weighting in 
+        the fanbeam transform (weighted by delta_ratio).
         
-        image_width: the observed image_width, is equal to the input if given,
+        image_width: Physical width of the image, is equal to the input if given,
         or the determined suitable image_width if *None* is give
-        (see parameter image_width)         
+        (see parameter image_width).         
         
         geo_dict: numpy array (source_detector_dist, source_origin_dist,width of a detector_pixel,
         midpoint_x,midpoint_y,midpoint_detectors, img_shape[0],img_shape[1], sinogram_shape[0],
-        sinogram_shape[1],width of a pixel])
+        sinogram_shape[1],width of a pixel]).
         
         angles_diff: numpy.array
         same values as in ofs_dict[4] representing the weight 
-        associated to the angles (i.e. size of detector-pixels)
+        associated to the angles (i.e. size of detector-pixels).
         
-    :rtype: multiple (img_shape,sinogram_shape,Ofs_Dict,Sdpd_Dict,image_width,geo_dict,angles_diff) with (:class`tuple`, :class:`tuple`, :class:`dict`,
+    :rtype: multiple (img_shape,sinogram_shape,Ofs_Dict,Sdpd_Dict,image_width,geo_dict,angles_diff) with (:class:`tuple`, :class:`tuple`, :class:`dict`,
         :class:`dict`, :class:`float`, :class:`dict`, :class:`list`)
     """	
     
@@ -713,36 +713,36 @@ class ProjectionSettings():
     :param queue: Opencl CommandQueue in which context the computations are to be executed.
     :type queue: :class:`pyoencl.CommandQueue`  	
   	
-    :param geometry: Represents wether parallel beam or fanbeam setting is considered. 
+    :param geometry: Represents whether parallel beam or fanbeam setting is considered. 
     	    Number 1 representing parallel beam setting, 2 fanbeam setting.
     	    Alternatively gratopy.RADON and gratopy.FANBEAM are set to these values and can be used.
     	    
     :type geometry: :class:`int`
     	      
-    :param img_shape:  The number of pixels of the image in x- and y-direction respectively, i.e. image resolution. It is assumed that the center of rotation is in the middle of the grid of quadratic pixels.
+    :param img_shape:  The number of pixels of the image in x- and y-direction respectively, i.e., image resolution. It is assumed that the center of rotation is in the middle of the grid of quadratic pixels.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
     
-    :param angles:  Determines which angles are considered for the projection. Integer :math:`N_a` for the number of uniformly distributed angles in the angular range :math:`[0,\pi[,\ [0,2\pi[` for Radon and fanbeam transform respectively. List containing all angles considered for the projection. 
-        More advanced list of lists of angles for multiple limited angle segments, see :class:`fullangle` parameter.
+    :param angles:  Determines which angles are considered for the projection. Integer :math:`N_a` for the number of uniformly distributed angles in the angular range :math:`[0,\pi[,\ [0,2\pi[` for Radon and fanbeam transform respectively. Alternatively, a list containing all angles considered for the projection can be given. 
+        More advanced, list of lists of angles for multiple limited angle segments can be given, see :class:`fullangle` parameter.
     :type angles: :class:`int`, :class:`list[float]` or :class:`list[list[float]]` 
-    :param n_detector: :math:`N_s` the number of (equispaced) detectors pixels considered. When none is given Ns will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
+    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors pixels considered. When none is given Ns will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detector:  :class:`int`, default None
-    :param detector_width: Physical length of the detector. In particular the ratio of detector_width to the image_width is as well as to R and RE are of relevance.
+    :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`, default 2.0
 
-    :param image_width: Size of the image (more precisely  the larger side length of the rectangle image),
+    :param image_width: Physical size of the image (more precisely  the sidelength of the larger side of the rectangle image),
         i.e., the diameter of the circular object captured by image. 
-        For fanbeam the image_width is chosen suitably to capture all rays if no image_width is set. For the parallel beam setting chosing image_width = detector_width results in 
+        For fanbeam the image_width is chosen suitably so the projections captures exactly the image if no image_width is set. For the parallel beam setting chosing image_width = detector_width results in 
         the standard Radon transform with each projection touching the entire object, while img_with=2 detector_width results in each projection capturing only half of the image.
     :type image_width: :class:`float`, default None corresponds to 2.0 for parallel-beam, choosen adaptively for fanbeam
 
-    :param R:  Physical (orthogonal) distance from the source to the detector line. Has no impact for parallel setting.
+    :param R:  Physical (orthogonal) distance from the source to the detector line. Has no impact for parallel beam setting.
     :type R: :class:`float`, **must be set for fanbeam situation**
-    :param RE: Physical distance for source to the origin (center of rotation). Has no impact for parallel setting.
+    :param RE: Physical distance from source to the origin (center of rotation). Has no impact for parallel beam setting.
     :type RE: :class:`float`, **must be set for fanbeam situation**
 
 
-    :param detector_shift:   Physical shift of the detector along the detector-line and corresponding detector pixel offsets, i.e, shifting the position of the detector pixels. If not given no shift is applied, i.e. the detector reaches from [-detector_width/2,detector_width/2].
+    :param detector_shift:   Physical shift of the detector along the detector-line and corresponding detector pixel offsets, i.e, shifting the position of the detector pixels. If not given no shift is applied, i.e., the detector reaches from [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
     :param midpoint_shift: Vector of length two representing the  shift of the image away from center of rotation. If not given no shift is applied.
     :type midpoint_shift:  :class:`list` , default [0.0,0.0]
@@ -764,18 +764,18 @@ class ProjectionSettings():
     :ivar n_angles: Number of angles :math:`N_a` used.
     :vartype n_angles: :class:`int`
     
-    :ivar sinogram_shape:   Represents the number of detectors (n_detectors) and number of angles considered.
+    :ivar sinogram_shape:   Represents the number of detectors (n_detectors) and number of angles (n_angles) considered.
     :vartype sinogram_shape: :class:`tuple` :math:`(N_s,N_a)`
-    :ivar delta_x: Width and height :math:`\delta_x` of the image pixels.
+    :ivar delta_x: 	Physical width and height :math:`\delta_x` of the image pixels.
     :vartype delta_x:  :class:`float`
-    :ivar delta_s:  Width :math:`\delta_s` of a detector pixel. 
+    :ivar delta_s:  Physical width :math:`\delta_s` of a detector pixel. 
     :vartype delta_s:  :class:`float`
     :ivar delta_ratio:  Ratio :math:`{\delta_s}/{\delta_x}`, i.e. the detector pixel width relative to unit image pixels.
     :vartype delta_ratio:  :class:`float`
     :ivar angle_weights:    representing the angular discretization
-        width for each angle, which can be used to weight the projections. In the fullangle case these sum up to [0,pi[ or [0,2pi[ respectively.
+        width for each angle, which can be used to weight the projections. In the fullangle case these sum up to :math:`[0,\pi[` or :math:`[0,2\pi[` respectively.
     :vartype angle_weights: :class:`list[float]` 
-    :ivar prg:   Program containing the kernels to execute gratopy.
+    :ivar prg:   Program containing the kernels to execute gratopy, for the corresponding code see :class:`gratopy.create_code`
     :vartype prg:  :class:`gratopy.Programm`
     
     :ivar struct: Contains various information, in particular  pyopencl.Arrays containing the angular information necessary for computations.
@@ -1005,7 +1005,7 @@ class ProjectionSettings():
         :param figure: Figure in which to plot. If neither figure nor axes are given, a new figure (figure(0)) will be created.
         :type figure: :class:`matplotlib.pyplot.figure`, default None
         
-        :param axes: Axes to plot in. If None is given, a new axes is created.
+        :param axes: Axes to plot in. If None is given, a new axes inside the figure is created.
         :type axes: :class:`matplotlib.pyplot.axes`, default None
         
         :param show: True if the resulting plot shall be shown right away, False otherwise.  Alternatively you can  use the *show()* method at a later point  to show the figures.
@@ -1013,7 +1013,7 @@ class ProjectionSettings():
         
         :return: Figure and axes in which the graphic was plotted.
         
-        :rtype: mutliple, (:class:`matplotlib.pyplot.figure`, :class:`matplotlib.pyplot.axes`)
+        :rtype: mutliple (:class:`matplotlib.pyplot.figure`, :class:`matplotlib.pyplot.axes`)
         """
 
         if (figure is None) and (axes is None):
@@ -1137,12 +1137,12 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
             allocator=None):
     """
     Determine the operator norm of the projection method via power iteration. This the norm with respect to the standard :math:`l^2` norms as sum of squares. This is not a solver itself, but
-    can proof useful for many iterative methods, as convergence of such methods usually depends on the choosing a parameter suitably with respect to the operator norm of the operator. 
+    can proof useful for many iterative methods, as convergence of such methods usually depends on the choosing a parameter suitably with respect to the operator norm. 
    
-    :param projectionsetting: The instance of the *ProjectionSettings* 
-        class that contains transform type and geometry parameters.
+    :param projectionsetting: The settings in which to compute operatornorm.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
-    :param number_of_iterations:  The number of iterations to terminate after (default 50)
+
+    :param number_of_iterations:  The number of iterations to terminate after.
     :type number_of_iterations: :class:`int`, default 50 
     :param dtype:  Precision for which to apply the projection operator
         (which is not supposed to impact the estimate significantly).
@@ -1168,7 +1168,7 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
 
         
 def landweber(sino, projectionsetting, number_iterations=100, w=1):
-    """
+    """ 
     Executes Landweber iteration for projection methods to approximate a solution to the  projection inversion problem. This method is also known as SIRT to some communities.
 
     :param sino: Sinogram data to inverte.
@@ -1214,7 +1214,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01, number_iterations
     :param projectionsetting: The settings in which the projection inversion is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`		            
 
-    :param epsilon: Stopping criteria when residual<epsilon.
+    :param epsilon: Stopping criteria when relative residual<epsilon.
     :type epsilon: :class:`float`, default 0.01
     
     :param number_iterations: Number of iterations to be executed.
@@ -1226,7 +1226,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01, number_iterations
     :param restart: The algorithm is relaunched when sanity check fails (for numerical reasons).
     :type restart: :class:`bool`		      
    
-    :return: Reconstruction gained via conjugate gradients.
+    :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.Array`
 
     """

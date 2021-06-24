@@ -8,8 +8,8 @@ Function reference
 
 Definition of Geometry
 ----------------------
-A  cornerstone in applying projection methods is to define in which geometry the projection are supposed to executed.
-Thus the first step in using gratopy is always creating an instance of :class:`gratopy.ProjectionSettings` defining the geometry, and thus internally precomputing relevant quantities.
+A  cornerstone in applying projection methods is to define in which geometry the projection are executed.
+Thus, the first step in using gratopy is always creating an instance of :class:`gratopy.ProjectionSettings` defining the geometry, and thus internally precomputing relevant quantities.
 
 .. autoclass:: gratopy.ProjectionSettings
 	:members:
@@ -17,7 +17,7 @@ Thus the first step in using gratopy is always creating an instance of :class:`g
 
 Transforms
 ----------
-The forwardprojection and backprojection operations execute based on the geometry defined in a projectionsetting the basic forward and backward operations. The images **img** and the sinograms **sino** 
+The forwardprojection and backprojection operations based on the geometry defined in a projectionsetting are the basic forward and backward operations. The images **img** and the sinograms **sino** 
 behave and need to be interpreted as described in `Getting Started <getting_started.html>`_.
 
 .. autofunction:: gratopy.forwardprojection
@@ -43,7 +43,7 @@ For convinient testing we also include a phantom generator which creates a modif
 Internal functions
 ------------------
 
-In the following we conclude with the documentation of a series of internal functions, which however are probably only of interest for more advanced users.  
+In the following we conclude with the documentation of a series of internal functions, which are probably only of interest for more advanced users.  
 
 .. autofunction:: gratopy.radon
 .. autofunction:: gratopy.radon_ad

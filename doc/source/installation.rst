@@ -7,7 +7,7 @@ This package can be installed via pip:
 ::
     pip install gratopy   
 
-Alternatively, you can download the package from `https://github.com/kbredies/gratopy`
+Alternatively, you can download the package from `<https://github.com/kbredies/gratopy>`_ 
 and install it via 
 ::
     python setup.py build
@@ -35,6 +35,6 @@ Amongst them the most relevant ones are
 * scipy
 * pyopencl
 
-Particularly, correctly installing PyOpenCl might take some time and efford, as dependent on the Hardware/GPU used suitable drivers might need to be installed, we refer you to `https://documen.tician.de/pyopencl/`.    
+Particularly, correctly installing PyOpenCl might take some time and efford, as dependent on the Hardware/GPU used suitable drivers might need to be installed, we refer you to `<https://documen.tician.de/pyopencl/>`_.    
 
 
