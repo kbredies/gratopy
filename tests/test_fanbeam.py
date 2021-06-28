@@ -24,18 +24,13 @@ TESTWALNUTSINOGRAM=curdir('walnut_sinogram.png')
 ctx = None
 queue = None
 
-def rgb2gray(rgb):
-    if len(rgb.shape)>2:
-    	r, g, b = rgb[:,:,0], rgb[:,:,1], rgb[:,:,2]
-    	gray = 0.2989 * r + 0.5870 * g + 0.1140 * b
-    else:
-    	gray=rgb
-    return gray
 
 def create_phantoms(queue, N, dtype='double'):
+    #Use gratopy phantom method to create Shepp-Logan
     A=phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
     
+    #Second test image consisting of 2 bars across the image
     B=cl.array.empty(queue, A.shape, dtype=dtype)
     B[:] = 255-120
     B[int(N/3):int(2*N/3)]=0
@@ -46,85 +41,95 @@ def create_phantoms(queue, N, dtype='double'):
     return img
 
 def test_projection():
+    ###Projection test: simply computes forward and backprojection of two test images, to visually confurm the correctness of the method 
+    print("Projection test")
+    
+    #Create PyopenCL context 
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    img=np.zeros([225,225,2])
-    A =  imread(TESTBRAIN)[:,:,0]
-    A/=np.max(A)
-    B=imread(TESTDUCK)[:,:,0]
-    B=np.array(B,dtype=float)
-    B/=np.max(B)
-
-    img[:,:,0] = A
-    img[:,:,1] = B
-
-    img=np.array(img,dtype=float)
+    #Create testimage
+    Nx=225
+    dtype=float32
+    img=create_phantoms(queue,Nx,dtype)
+    original=img.get()
+    
+    #Define setting for projection
     number_detectors = 600
     angles=220
-
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, angles=angles,
                             detector_width=400, R=752, RE=200, n_detectors=number_detectors)
 
-    img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
-    sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.n_angles,2), dtype=float32, order='F')
+    
+    sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.n_angles,2), dtype=dtype, order='F')
 
+    #Test speed of implementation for forward projection
     a=time.perf_counter()
     for i in range(100):
-        forwardprojection(img_gpu, PS, sino=sino_gpu)
+        forwardprojection(img, PS, sino=sino_gpu)
 
-    print ('Time Required Forward',(time.perf_counter()-a)/100)
+    print ('Average time required Forward',(time.perf_counter()-a)/100)
     sino=sino_gpu.get()
 
     numberofangles=180
-    angles = linspace(0,2*pi,numberofangles+1)[:-1] + pi
+    angles = linspace(0,2*pi,numberofangles+1)[:-1] 
 
     a=time.perf_counter()
     for i in range(100):
-        backprojection(sino_gpu, PS, img=img_gpu)
-    print ('Time Required Backprojection',(time.perf_counter()-a)/100)
+        backprojection(sino_gpu, PS, img=img)
+    print ('Average time required Backprojection',(time.perf_counter()-a)/100)
 
+
+    #plott results
     figure(1)
-    imshow(hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
+    imshow(hstack([original[:,:,0],original[:,:,1]]), cmap=cm.gray)
     title('original image')
     figure(2)
     imshow(hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]), cmap=cm.gray)
     title('Fanbeam transformed image')
     figure(3)
-    imshow(hstack([img_gpu.get()[:,:,0],img_gpu.get()[:,:,1]]), cmap=cm.gray)
+    imshow(hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     title('Backprojected image')
     show()
 
 def test_weighting():
+    ###Weighting:  Checks wether the mass of an image is correctly transported into the mass inside a projection
+    print("Weighting;")
+    
+    #Create PyopenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
-    ## Weighting
-    print("Weighting;")
+    #Execute for different number of detectors, to ensure consideration is resolution independent.
     for number_detectors in [50,100,200,400,800,1600]:
+
+        #Consider full image
         Nx=400
         img=np.ones([Nx,Nx])
         angles=720
 
+        #relevant quantities for scaling
         rescaling=1/40.*sqrt(2)
         detector_width=400*rescaling
-        R=1200*rescaling
-        RE=200*rescaling
-        image_width=40*rescaling
+        R=1200.*rescaling
+        RE=200.*rescaling
+        image_width=40.*rescaling
 
+        #create projectionsetting
         PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, angles=angles,
                                 detector_width=detector_width, R=R,RE= RE,
                                 n_detectors=number_detectors,image_width=image_width)
-        delta_x=PS.delta_x
-        delta_s_ratio=PS.delta_ratio
-
+        
+        #forward and backprojection
         img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
-        sino_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
-        forwardprojection(img_gpu, PS, sino=sino_gpu)
+        sino_gpu= forwardprojection(img_gpu, PS)
+	
+	#Compute mass inside object and on the detector
+        mass_in_image=np.sum(img_gpu.get())*PS.delta_x**2
+        mass_in_projcetion=np.sum(sino_gpu.get())*(PS.delta_ratio*PS.delta_x)/angles
 
-        a=np.sum(img_gpu.get())*delta_x**2
-        b=np.sum(sino_gpu.get())*(delta_s_ratio*delta_x)/angles
-        print("Mass in original image",a, "mass in projection",b,"Ratio",b/a,"Ratio should be 6")
+        print("Mass in original image",mass_in_image, "mass in projection",mass_in_projcetion,"Ratio",mass_in_projcetion/mass_in_image,"Ratio should be "+str(R/RE))
+        assert( abs(mass_in_projcetion/mass_in_image/(R/RE)-1)<0.1), "Due to the fan effect the object is enlarged on the detector, roughly by the ratio of the distances, but this was not satisfied in this test."
 
 def test_adjointness():
     ctx = cl.create_some_context(interactive=INTERACTIVE)
@@ -371,63 +376,51 @@ def test_conjugate_gradients():
 
     sinonew=[sinonew.T]
 
-def test_conjugate_gradients2():
+def test_total_variation():
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    print("Walnut conjugated_gradients reconstruction test")
+    print("Walnut total variation reconstruction test")
     walnut=mpimg.imread(TESTWALNUT)
     walnut=walnut/np.mean(walnut)
     walnut[np.where(walnut<=1.5)]=0
     #walnut=scipy.misc.imresize(walnut,[328,328])
     walnut=np.array(Image.fromarray(walnut).resize([328,328]))
 
-    dtype=float
+    dtype=float32
 
     number_detectors=328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
- 
-    PS = ProjectionSettings(queue, RADON, img_shape=walnut.shape,
-                            angles = numberofangles,  n_detectors=number_detectors)
 
-    walnut_gpu=clarray.to_device(queue,require(walnut,dtype,'F'))
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=walnut.shape,
+    	                    angles = numberofangles, detector_width=Detectorwidth,
+    	                    R=FDD, RE=FOD, n_detectors=number_detectors)
 
-    sino=forwardprojection(walnut_gpu, PS)	
-    walnutbp=backprojection(sino, PS)
-
-    figure(1)
-    imshow(walnut, cmap=cm.gray)
-    title('original walnut')
-    figure(2)
-    imshow(sino.get(), cmap=cm.gray)
-    title('Fanbeam transformed image')
-    figure(3)
-    imshow(walnutbp.get(), cmap=cm.gray)
-    title('Backprojected image')
-
-    sinonew=sino.get()
+    sinonew=mpimg.imread(TESTWALNUTSINOGRAM)
     #sinonew[np.where(sinonew<2000)]=0
-    #sinonew=np.array(sinonew,dtype=dtype)
+    sinonew=np.array(sinonew,dtype=dtype)
     sinonew/=np.mean(sinonew)
 
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = linspace(0,2*pi,121)[:-1] + pi/2
+
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
-    
+
 
     walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
-    UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
-    sinoreprojected=forwardprojection(UCG,PS)
+    UTV=total_variation_reconstruction(walnut_gpu2new, PS,mu=10000,number_iterations=3000,z_distance=1)
+    sinoreprojected=forwardprojection(UTV,PS)
     figure(4)
-    imshow(UCG.get(),cmap=cm.gray)
-    title("Conjugate gradients reconstruction")
+    imshow(UTV.get(),cmap=cm.gray)
+	
+    title("total variation reconstruction")
     figure(5)
     imshow(sinoreprojected.get(),cmap=cm.gray)
     title("reprojected sinogram")
-    
+
     show()
 
     sinonew=[sinonew.T]
+
 
 
 

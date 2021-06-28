@@ -6,8 +6,7 @@ import matplotlib.patches
 import pyopencl as cl
 import pyopencl.array as clarray
 
-
-CL_FILES = ["radon.cl", "fanbeam.cl"]
+CL_FILES = ["radon.cl", "fanbeam.cl","total_variation.cl"]
 
 PARALLEL = 1
 RADON = 1
@@ -1298,3 +1297,142 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01, number_iterations
 
     return x
 
+def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=1000,z_distance=1):
+    queue=projectionsetting.queue
+    ctx=queue.context
+    
+    img_shape=projectionsetting.img_shape
+
+    
+    if len(sino.shape)==2:
+        z_distance=0
+    else:
+        img_shape=img_shape+tuple([sino.shape[2]])
+
+
+    #Internal definitions
+    #projectionsetting.prg.empty_test_float_ff(sino.queue,(3,4,2),None,wait_for=[])
+
+
+    def update_lambda(lamb, Ku, f, sigma,mu, normest, wait_for=None):
+        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_ff,
+		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
+		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
+		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
+		
+        return myfunction[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
+            lamb.shape, None,lamb.data, Ku.data, f.data,
+            float32(sigma/normest), float32(mu), wait_for=wait_for)
+
+    def update_v(v, u,  sigma, z_distance, wait_for=None):
+        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
+        (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
+        (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
+        (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}
+
+		
+		
+        return myfunction[v.dtype,v.flags.c_contiguous](v.queue, u.shape, None,
+            v.data, u.data, float32(sigma),float32(z_distance), 
+            wait_for=wait_for)
+
+    def update_u(u, u_, v, Kstarlambda, tau, normest,z_distance,wait_for=None):
+		
+        
+        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
+        (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
+        (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
+        (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
+		
+    #    import pdb;pdb.set_trace()
+        return myfunction[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
+            u.data, u_.data,v.data, Kstarlambda.data, float32(tau),
+            float32(1.0/normest),float32(z_distance), wait_for=wait_for)
+
+
+    update_extra = {np.dtype(float32):cl.elementwise.ElementwiseKernel(ctx, 'float *u_, float *u',
+        'u[i] = 2.0f*u_[i] - u[i]'),
+        np.dtype(float):cl.elementwise.ElementwiseKernel(ctx, 'double *u_, double *u',
+        'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
+    def update_NormV(V,normV,wait_for=None):
+        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
+        (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_cc,
+        (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_ff,
+        (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_cc}
+        return myfunction[V.dtype,V.flags.c_contiguous](V.queue, V.shape[1:], None, 
+            V.data,normV.data, wait_for=wait_for)
+
+
+    ######Preparations       
+    
+    fig_data=np.zeros(projectionsetting.img_shape)
+    my_dtype=sino.dtype
+    my_dimensions=projectionsetting.img_shape
+    my_order=order={0:'F',1:'C'}[sino.flags.c_contiguous]
+    
+    extended_img_shape=tuple([4])+img_shape
+	
+	###Initialising Variables
+
+    U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
+    U_=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
+    V=clarray.zeros(queue, extended_img_shape, dtype=my_dtype, order=my_order)
+ 
+    Lamb=clarray.zeros(queue,sino.shape,dtype=my_dtype, order=my_order)
+    KU=clarray.zeros(queue, sino.shape, dtype=my_dtype, order=my_order)
+    KSTARlambda=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
+	
+    normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
+
+
+	#Computing estimates for Parameter
+    norm_estimate = normest(projectionsetting)
+
+    Lsqr = 17.0
+    sigma = 1.0/sqrt(Lsqr)
+    tau = 1.0/sqrt(Lsqr)
+    mu=mu/(sigma+mu)
+	
+
+    #Primal Dual Iterations
+    for i in range(number_iterations):	
+        print(i)	
+		
+        #Dual Update
+        V.add_event(update_v(V, U_, sigma,z_distance,
+        				 wait_for=U_.events))
+
+        normV.add_event(update_NormV(V,normV,wait_for=V.events))	
+
+        forwardprojection(U_,projectionsetting,KU,wait_for=U_.events)
+        #KU.add_event(radon(KU, U_, r_struct, wait_for=U_.events))		 
+        #import pdb;pdb.set_trace()
+   
+        Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu, norm_estimate,
+        						 wait_for=KU.events + sino.events))
+		
+        backprojection(Lamb,projectionsetting,KSTARlambda,wait_for=Lamb.events)
+        #KSTARlambda.add_event(radon_ad(KSTARlambda, Lamb, r_struct,
+        #							wait_for=Lamb.events))
+	
+	
+        #Primal Update
+    #    import pdb;pdb.set_trace()
+        U_.add_event(update_u(U_, U, V, KSTARlambda, tau, norm_estimate,z_distance, wait_for=[]))
+    #    import pdb;pdb.set_trace()
+									
+      #  import pdb;pdb.set_trace()
+        U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))	
+			
+
+        (U, U_) = (U_, U)
+	
+        #Plot Current Iteration
+
+	#sys.stdout.write('\rProgress at {:3.0%}'.format(float(maxiter)/maxiter))
+				
+	
+
+    return U
+
+    
