@@ -1,3 +1,4 @@
+import sys
 import os
 from numpy import *
 import numpy as np
@@ -818,7 +819,7 @@ class ProjectionSettings():
                 queue associated to the OpenCL-context in question
             geometry: int
                 1 for Radon transform or 2 for fanbeam Transform
-                Grato defines RADON with the value 1 and FANBEAM with 2,
+                Gratopy defines RADON with the value 1 and FANBEAM with 2,
                 i.e., one can give as argument the Variable RADON or FANBEAM
             img_shape: (tuple of two integers)
                 see :class:`ProjectionSettings`
@@ -1251,69 +1252,74 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01, number_iterations
 
 
     for k in range(0,number_iterations):    
-
-        
+		
         forwardprojection(p, projectionsetting, sino=q,wait_for=p.events)
         alpha=x.dtype.type(projectionsetting.delta_x**2/(projectionsetting.delta_s)*(clarray.vdot(sold,sold)/clarray.vdot(q*angle_weights,q)).get())
         x=x+alpha*p
         d=d-alpha*q
-
         backprojection(d, projectionsetting, img=snew,wait_for=d.events)
-        
-        
-        dcheck=sino-forwardprojection(x, projectionsetting,wait_for=x.events)
-        
-        print("dcheck",np.linalg.norm(dcheck.get()-d.get()))
-        
-        scheck=backprojection(dcheck,projectionsetting,wait_for=dcheck.events)
-        print("scheck",np.linalg.norm(scheck.get()-snew.get()),np.linalg.norm(scheck.get()))
-
-#         plt.figure(10)
-#        plt.imshow(np.hstack([dcheck.get(),d.get()]))
-#        plt.title("dcheck")
-#        plt.figure(11)
-#        plt.imshow(np.hstack([scheck.get(),snew.get()]))
-#        plt.title("scheck")
-#        import pdb;pdb.set_trace()
         beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
         sold=snew+0.
         p=beta*p+snew
-
-    #   print(str(k)+"-th iteration with risidual",residual, "relative orthogonality of the residuals",clarray.vdot(snew,sold)/(clarray.vdot(snew,snew)**0.5*clarray.vdot(sold,sold)**0.5))
         residual=np.sum(clarray.vdot(snew,snew).get())**0.5/np.sum(clarray.vdot(sino,sino).get())**0.5
         if  residual<epsilon:
             break
 
-        
         if beta>1 and restart==True:
-            print("restart at", k)
+            #print("restart at", k)
             d=sino-forwardprojection(x, projectionsetting,wait_for=x.events)
             p=backprojection(d, projectionsetting,wait_for=d.events)
             q=clarray.empty_like(d, projectionsetting.queue)            
             snew=backprojection(d, projectionsetting,wait_for=d.events)
             residual=np.sum(clarray.vdot(snew,snew).get())**0.5/np.sum(clarray.vdot(sino,sino).get())**0.5
-        print(residual)
-
 
     return x
 
 def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=1000,z_distance=1):
+    """
+    Executes primal-dual algorithm projection methods to solve :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+{TV}(u)` 
+    for :math:`\mathcal{P}` the projection operator in question. This is an approximation approach for the projection inversion approach
+
+    :param sino: Sinogram data to inverte.
+    :type sino: :class:`pyopencl.Array`
+			            
+    :param projectionsetting: The settings in which the projection inversion is considered.
+    :type projectionsetting: :class:`gratopy.ProjectionSettings`		            
+
+    :param mu: Weight parameter, the smaller the stronger the applied regularization.
+    :type epsilon: :class:`float`
+    
+    :param number_iterations: Number of iterations to be executed.
+    :type number_iterations: :class:`float`, default 1000
+    
+    :param z_distance: When 3-dimensional datasets are considered, regularization is also applied in z-dimension, but we allow unisotropic discretizationsize in z-direction.
+                       The parameter represents the ratio of the z-height to the xy-pixel width and length. If no coupling in z-direction is desired, choose z_distance=0.
+    :type z_distance: :class:`float`, default 1 i.e. isotropic pixels
+   
+    :return: Reconstruction gained via primal dual iteration for the total variation penalized inversion problem.
+    :rtype:  :class:`pyopencl.Array`
+
+    """
+    #Establish queue and context
+    
+    
+    
+    #preliminary definitions and parameters
     queue=projectionsetting.queue
-    ctx=queue.context
+    ctx=queue.context    
+    my_dtype=sino.dtype
+    my_dimensions=projectionsetting.img_shape
+    my_order=order={0:'F',1:'C'}[sino.flags.c_contiguous]
     
     img_shape=projectionsetting.img_shape
-
-    
     if len(sino.shape)==2:
         z_distance=0
     else:
         img_shape=img_shape+tuple([sino.shape[2]])
+    extended_img_shape=tuple([4])+img_shape
 
-
-    #Internal definitions
-    #projectionsetting.prg.empty_test_float_ff(sino.queue,(3,4,2),None,wait_for=[])
-
-
+    ##Definitions of suitable kernel functions for primal and dual updates
+    # update dual variable to dataterm
     def update_lambda(lamb, Ku, f, sigma,mu, normest, wait_for=None):
         myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_ff,
 		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
@@ -1324,36 +1330,29 @@ def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=
             lamb.shape, None,lamb.data, Ku.data, f.data,
             float32(sigma/normest), float32(mu), wait_for=wait_for)
 
+    #update v the dual of gradient of u
     def update_v(v, u,  sigma, z_distance, wait_for=None):
         myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
         (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
         (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
-        (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}
-
-		
+        (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}	
 		
         return myfunction[v.dtype,v.flags.c_contiguous](v.queue, u.shape, None,
             v.data, u.data, float32(sigma),float32(z_distance), 
             wait_for=wait_for)
 
+    #update primal variable u (the image)
     def update_u(u, u_, v, Kstarlambda, tau, normest,z_distance,wait_for=None):
-		
-        
         myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
         (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
         (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
         (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
 		
-    #    import pdb;pdb.set_trace()
         return myfunction[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
             u.data, u_.data,v.data, Kstarlambda.data, float32(tau),
             float32(1.0/normest),float32(z_distance), wait_for=wait_for)
-
-
-    update_extra = {np.dtype(float32):cl.elementwise.ElementwiseKernel(ctx, 'float *u_, float *u',
-        'u[i] = 2.0f*u_[i] - u[i]'),
-        np.dtype(float):cl.elementwise.ElementwiseKernel(ctx, 'double *u_, double *u',
-        'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
+    
+    #Compute the norm of v and project (dual update)
     def update_NormV(V,normV,wait_for=None):
         myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
         (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_cc,
@@ -1362,32 +1361,25 @@ def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=
         return myfunction[V.dtype,V.flags.c_contiguous](V.queue, V.shape[1:], None, 
             V.data,normV.data, wait_for=wait_for)
 
+    # update of the extra gradient
+    update_extra = {np.dtype(float32):cl.elementwise.ElementwiseKernel(ctx, 'float *u_, float *u',
+        'u[i] = 2.0f*u_[i] - u[i]'),
+        np.dtype(float):cl.elementwise.ElementwiseKernel(ctx, 'double *u_, double *u',
+        'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
 
-    ######Preparations       
-    
-    fig_data=np.zeros(projectionsetting.img_shape)
-    my_dtype=sino.dtype
-    my_dimensions=projectionsetting.img_shape
-    my_order=order={0:'F',1:'C'}[sino.flags.c_contiguous]
-    
-    extended_img_shape=tuple([4])+img_shape
 	
-	###Initialising Variables
-
+	#Initialising Variables for the iteration
     U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     U_=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     V=clarray.zeros(queue, extended_img_shape, dtype=my_dtype, order=my_order)
- 
     Lamb=clarray.zeros(queue,sino.shape,dtype=my_dtype, order=my_order)
     KU=clarray.zeros(queue, sino.shape, dtype=my_dtype, order=my_order)
     KSTARlambda=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
-	
     normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
 
 
 	#Computing estimates for Parameter
     norm_estimate = normest(projectionsetting)
-
     Lsqr = 17.0
     sigma = 1.0/sqrt(Lsqr)
     tau = 1.0/sqrt(Lsqr)
@@ -1395,8 +1387,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=
 	
 
     #Primal Dual Iterations
-    for i in range(number_iterations):	
-        print(i)	
+    for i in range(number_iterations):		
 		
         #Dual Update
         V.add_event(update_v(V, U_, sigma,z_distance,
@@ -1405,34 +1396,22 @@ def total_variation_reconstruction(sino, projectionsetting,mu,number_iterations=
         normV.add_event(update_NormV(V,normV,wait_for=V.events))	
 
         forwardprojection(U_,projectionsetting,KU,wait_for=U_.events)
-        #KU.add_event(radon(KU, U_, r_struct, wait_for=U_.events))		 
-        #import pdb;pdb.set_trace()
    
         Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu, norm_estimate,
         						 wait_for=KU.events + sino.events))
 		
-        backprojection(Lamb,projectionsetting,KSTARlambda,wait_for=Lamb.events)
-        #KSTARlambda.add_event(radon_ad(KSTARlambda, Lamb, r_struct,
-        #							wait_for=Lamb.events))
-	
-	
         #Primal Update
-    #    import pdb;pdb.set_trace()
+        backprojection(Lamb,projectionsetting,KSTARlambda,wait_for=Lamb.events)	
+        
         U_.add_event(update_u(U_, U, V, KSTARlambda, tau, norm_estimate,z_distance, wait_for=[]))
-    #    import pdb;pdb.set_trace()
-									
-      #  import pdb;pdb.set_trace()
+		
+		#Extragradient update 
         U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))	
 			
-
         (U, U_) = (U_, U)
-	
-        #Plot Current Iteration
 
-	#sys.stdout.write('\rProgress at {:3.0%}'.format(float(maxiter)/maxiter))
-				
-	
-
+        sys.stdout.write('\rProgress at {:3.0%}'.format(float(i)/number_iterations))
+		
     return U
 
     

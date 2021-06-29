@@ -4,37 +4,24 @@ Getting Started
 Basic principle of gratopy 
 ===============================
 
-The cornerstone of the gratopy toolbox is formed by the :py:class:`gratopy.ProjectionSettings` class, which defines the geometry to consider, and collects all relevant 
+ProjectionSettings
+-------------------
+
+The cornerstone of the gratopy toolbox is formed by the :py:class:`gratopy.ProjectionSettings` class, which defines the considered geometry , and collects all relevant 
 information to create the kernels and precomputes and saves
 relevant quantities. Thus, virtually all functions of gratopy require an object of this class. 
 In particular, gratopy offers implementation for two different geometric settings, the parallel beam and the fanbeam setting. 
 
-The main functions of gratopy are  :class:`gratopy.forwardprojection` and :class:`gratopy.backprojection`, which allow to project 
-an image **img** onto an sinogram **sino** and backproject **sino** onto **img**.
+The geometry of the parallel beam setting is mainly defined by the **image_width** -- the physical diameter of the object in question -- and **detector_width** -- the physical width of the detector --,
+both parameters of a projectionsetting. For most standard examples of Radon transform these parameters coincide, i.e., the detector is exactly as long as the diameter of object and thus captures exactly all rays passing through the object. 
+For the fanbeam setting additionally the distance from source to the center of rotation denoted by **RE** and the distance from the source to the detector denoted by **R** are necessary to define 
+the geometry, see figures below. Note that these transforms are scaling-invariant, meaning rescaling the geometry creates operators which are also rescaled versions of the original ones.
 
-
-An image of the investigated object are represented in gratopy by `pyopencl.Array  <https://documen.tician.de/pyopencl/array.html>`_ **img** of dimensions :math:`(N_x,N_y)` grid  
--- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels,
-where the saved values correspond to the average mass inside the pixel. We think of the investigated object as being a circular and contained in the corresponding image-rectangle.  
-When using an image together with projectionsetting -- an instance of :class:`ProjectionSettings` --  the xy-shape has to coincide with the attribute **img_shape** of projectionsetting, we say they need to be **compatible**. The values dtype
-of this array must be numpy.dtype(float32) or numpy.dtype(float), i.e., single or double precision, and can have either C or F contiguity. 
- 
-
-Similarly, a sinogram  is represented by a :class:`pyopencl.Array`  **sino** of the form :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` the number of detecotors and :math:`N_a` the number of angles, 
-where for the parallel beam setting the angular range :math:`[0,\pi[` is considered. These dimensions must be **compatible** 
-with the  projectionsetting of the class :class:`ProjectionSettings`  used together with, i.e., :math:`(N_s,N_a)` coincides with **sinogram_shape** attribute of projectionsetting. 
-The width of the detector is given by the attribute **detector_width** of projectionsetting, and the detector pixels are equidistantly partioning the detectorline with width 
-:math:`\delta_s`. The angles on the other hand need not be equi-distant or even partion the entire angular domain. The values associated to pixels in the sinogram again correspond to the average
-intensity values of a continuous sinogram counterpart. The values dtype of this array must be numpy.dtype(float32) or numpy.dtype(float), i.e., single or double precision, and can have either C or F contiguity.
- 
-For the Radon transform the geometry is mainly determined by the ratio of image_width to detector_width, for most standard examples these parameters coincide. 
-Note that rescaling the geometry creates operators which are also rescaled versions of the original ones.
-
-The considerations concerning **img** and **sino** remain valid for the fanbeam transform. However the geometry gets slightly more complex, as the distance from source to the center of rotation denoted
-by **RE** and the distance from the source to the detector denoted by **R**. The angular range for the Fanbeam transform is given as a subset of :math:`[0,2\pi[`.
-
+The angular range for the parallel beam setting is :math:`[0,\pi[`, while for fanbeam it is :math:`[0,2\pi[`. 
 Standardly it is assumed that the given angles completely partition the angular range, which has implications for the backprojection. In case this is not desired, and rather a limited angle situation
 is considered, see fullangle parameter of :py:class:`gratopy.ProjectionSettings`.
+
+
 
 .. image:: grafics/Radon-1.png
     :width: 5000
@@ -43,9 +30,35 @@ Geometry of the parallel beam setting.
 
 	
 .. image:: grafics/Fanbeam-1.png
-	:alt: Depiction of fan beam geometry
-
+    :width: 5000
+    :alt: Depiction of fan beam geometry
 Geometry of the fanbeam setting.
+
+
+The main functions of gratopy are  :class:`gratopy.forwardprojection` and :class:`gratopy.backprojection`, which use a projectionsetting as a basis for computation and allow to project 
+an image **img** onto an sinogram **sino** and backproject **sino** onto **img**. Next we describe, which form such images and sinograms need to have and how to interpret corresponding values.
+
+ 
+Images in gratopy
+-------------------
+
+An image of the investigated object is represented in gratopy by a `pyopencl.Array  <https://documen.tician.de/pyopencl/array.html>`_ **img** of dimensions :math:`(N_x,N_y)`   
+-- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels,
+where the associated values correspond to the average mass inside the pixel. We think of the investigated object as being a circular and contained in the corresponding image-rectangle whose larger sidelength correspond to the **image_width** attribute of the projectionsetting.  
+When using an image together with projectionsetting -- an instance of :class:`ProjectionSettings` --  :math:`(Nx,Ny)` has to coincide with the attribute **img_shape** of projectionsetting, we say they need to be **compatible**. The  dtype
+of this array must be numpy.dtype(float32) or numpy.dtype(float), i.e., single or double precision, and can have either C or F contiguity. 
+ 
+Sinograms in gratopy
+------------------------
+
+Similarly, a sinogram  is represented by a :class:`pyopencl.Array`  **sino** of the form :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` the number of detectors and :math:`N_a` the number of angles from which projections are considered. These dimensions must be **compatible** 
+with the  projectionsetting of the class :class:`ProjectionSettings`  used together with, i.e., :math:`(N_s,N_a)` coincides with the  **sinogram_shape** attribute of projectionsetting. 
+The width of the detector is given by the attribute **detector_width** of projectionsetting, and the detector pixels are equidistantly partioning the detectorline with width 
+:math:`\delta_s`. The angles on the other hand need not be equi-distant or even partion the entire angular range. The values associated to pixels in the sinogram again correspond to the average
+intensity values of a continuous sinogram counterpart. The dtype of this array must be numpy.dtype(float32) or numpy.dtype(float), i.e., single or double precision, and can have either C or F contiguity.
+ 
+
+
 
 
 
@@ -96,17 +109,18 @@ One can start in Python via
 The following depcits the plots created by the example 1.
 
 .. image:: grafics/Phantom.png
+    :width: 5000
 
 .. image:: grafics/Sinogram.png
-
+    :width: 5000
 .. image:: grafics/Backprojection.png
-
+    :width: 5000
 
 
 Second example: Fanbeam transform
 =================================
 As a second example, we consider the fanbeam geometry, which has a detector that is 120 cm wide, the distance from the source to the center of rotation is 100 cm
-while and the distance from source to detector are 200 cm. Via the :class:`gratopy.show_geometry` method of the :class:`gratopy.ProjectionSettings` to visualize the defined geometry.
+while and the distance from source to detector are 200 cm. We do not choose the image_width but rather let gratopy automatically choose a suitable image_width. Via the :class:`gratopy.show_geometry` method of the :class:`gratopy.ProjectionSettings` we visualize the defined geometry.
 ::
     #Initial import and definitions
     from numpy import *
@@ -127,7 +141,7 @@ while and the distance from source to detector are 200 cm. Via the :class:`grato
     my_R=200
     my_RE=100
 	
-	#Fanbeam setting with automatic image_width
+    #Fanbeam setting with automatic image_width
     PS1=gratopy.ProjectionSettings(queue,gratopy.FANBEAM,
         img_shape=image_shape
         ,angles=number_angles,n_detectors=number_detector, 
@@ -155,12 +169,14 @@ while and the distance from source to detector are 200 cm. Via the :class:`grato
     plt.show()
     
 Once the geometry has been defined via the projectionsetting, forward and backprojections can be used just as for the Radon transform in example 1.
-Note that the automatism of gratopy chooses image_width=57.46 cm. When looking at the corresponding plot via show_geometry, the image_width is such that the entirety of an object inside 
+Note that the automatism of gratopy chooses image_width=57.46 cm. When looking at the corresponding plot via :class:`show_geometry`, the image_width is such that the entirety of an object inside 
 the blue circle (with diameter 57.46) is exactly captured by each projection, and thus the area represented by the image corresponds to the yellow rectangle and blue circle, the smallest rectangle to capture the entire object. On the other hand, the outer red circle illustrates the diameter of an object wholy containing the image.
 
 
-Further examples can be found in the test files in the `tests` folder inside gratopy, showing multiple examples and possible uses for the gratopy toolbox. 
+Further examples can be found in the example-files in the *tests* folder inside gratopy, showing multiple examples and possible uses for the gratopy toolbox. 
 
 .. image:: grafics/Figure_1.png
+    :width: 5000
+    :align: center
 Plot from show_geometry for fanbeam setting with automatic and handchosen image_width.
 

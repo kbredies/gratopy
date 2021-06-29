@@ -109,7 +109,7 @@ def test_weighting():
     assert((abs(1-mass_image/mass_sino_rdm)<0.001)*(abs(1-mass_image/mass_sino_rdm)<0.001)), "The mass was not carried over correctly into  projections, as the relative difference is "+str(abs(1-mass_image/mass_sino_rdm))
     
 def test_adjointness():
-    ##Adjointness: Check wether forward and backprojection are indeed adjoint to one another by consider random images and there dual pairing values
+    ##Adjointness: Check whether forward and backprojection are indeed adjoint to one another by consider random images and there dual pairing values
     print("Adjointness test")
     
     #Create PyopenCL context 
@@ -183,9 +183,12 @@ def test_fullangle():
     #Angles cover only part of the angular range
     angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
     
-    #Create two projecetionsettings, one with the correct "fullangle=False" parameter for limited-angle situation, incorrectly using "fullangle=True"
-    PScorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=False)
-    PSincorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,detector_width=p,detector_shift=shift,fullangle=True)
+    #Create two projecetionsettings, one with the correct "fullangle=False"
+    #parameter for limited-angle situation, incorrectly using "fullangle=True"
+    PScorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
+       detector_width=p,detector_shift=shift,fullangle=False)
+    PSincorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
+        detector_width=p,detector_shift=shift,fullangle=True)
 
     #Forward and backprojection for the two settings
     sino_gpu_correct=forwardprojection(img,PScorrect)
@@ -205,13 +208,13 @@ def test_fullangle():
     show()			
         
 def test_nonquadratic():
-    ####Non-quadratic: Consider the case when non quadratic images are transformed.
+    ###Non-quadratic: Consider the case when non quadratic images are transformed.
     
     #Create PyopenCL context
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
-    #Creat phantom but cut of one side
+    #Create phantom but cut of one side
     dtype=float32
     N1 = 1200
     img = create_phantoms(queue,N1,dtype=dtype)

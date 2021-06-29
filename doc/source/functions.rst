@@ -31,6 +31,7 @@ These are but a few examples for easy use, which also serve to illustrate how gr
 
 .. autofunction:: gratopy.landweber
 .. autofunction:: gratopy.conjugate_gradients
+.. autofunction:: gratopy.total_variation_reconstruction
 .. autofunction:: gratopy.normest
 		  
 Data generation
