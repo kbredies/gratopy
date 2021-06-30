@@ -1,5 +1,9 @@
 # Gratop
-The **Gr**az  **To**mographic **P**rojections (Gratop) is a software tool developed to allow for efficient, high quality execution of projection methods such as Radon or fanbeam transform. It originates from a project concerning Scanning Transmission Electron Tomography of the [Institute of Mathematics and Scientific Computing](https://mathematik.uni-graz.at/en) at the [University of Graz](https://www.uni-graz.at/en) together with the [Institute for Electron Microscopy and Nanoanalysis and the Centre for Electron Microscopy](https://www.felmi-zfe.at) at [Graz University of Technology](https://www.tugraz.at), though it is not limited to such applications. The operations contained in the toolbox are based on pixel-driven projection methods, which were shown to possess suitable approximation properties. The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into PyOpenCL. Hence this can efficiently be paired with other PyOpenCL code, in particular OpenCL based optimization algorithms.
+The **Gr**az **a**ccelerated **to**mographic projection for **P**ython **(Gratopy)**  is a software tool for Python 3 developed to allow for efficient, high quality execution of projection methods
+such as Radon and fanbeam transform.  The operations contained in the toolbox are based on pixel-driven projection methods, which were shown to possess suitable approximation properties.
+The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into [PyOpenCL](https://documen.tician.de/pyopencl/index.html>). 
+Hence this can efficiently be paired with other PyOpenCL code, in particular OpenCL based optimization algorithms.
+
 
 ## Highlights
 * High quality projection implementation.
@@ -8,7 +12,7 @@ The **Gr**az  **To**mographic **P**rojections (Gratop) is a software tool develo
 
 ## Install
 ```bash
-pip install gratop
+pip install gratopy
 ```
 
 Alternatively, no dedicated installation is needed for the program, simply download the code, and copy it to the python libraries or set the insert the corresponding path and get started. Be sure to have the following Python modules installed, most of which should be standard.
@@ -25,13 +29,48 @@ Particularly, correctly installing and configuring PyOpenCL might take some time
 
 
 ## Getting started
-We refer to the article cited below which introduces and shows the basic properties. Additionally, the example folder contains various further examples showing how the toolbox can be used. The most basic example can be executed as follows, where it is assumed that a pyopencl ``queue'' queue and a pyopencl.array ``img'' coresponding to an image be given: 
+We refer you to the extensive [documentation](doc/build/html/index.html), inparticular the point [getting started](doc/build/html/getting_started.html), as well as to the test files for [Radon transform](tests/test_radon.py) or [fanbeam transform](tests/test_fanbeam.py). In the documentary you also find the following rudimentary example.
 
 ```python
-import grato
-PS=grato.projection_settings(queue,"parallel",img.shape,angles,Ns)
-sino_gpu=grato.forwardprojection(None,img,PS,wait_for=None)
-bp_gpu=grato.backprojection(None,sino_gpu,PS,wait_for=None)
+
+#Initial import and definitions
+from numpy import *
+import pyopencl as cl
+import gratopy
+import matplotlib .pyplot as plt
+number_angles=60
+number_detector=300
+Nx=300
+
+#create pyopencl context
+ctx = cl.create_some_context()
+queue = cl.CommandQueue(ctx)
+    
+#create phantom as testimage
+phantom=gratopy.phantom(queue,Nx)
+    
+#create suitable ProjectionSettings
+PS=gratopy.ProjectionSettings(queue,gratopy.RADON,phantom.shape
+    ,number_angles,number_detector)
+	    
+#Compute forward projection and backprojection of created sinogram	
+sino=gratopy.forwardprojection(phantom,PS)
+backproj=gratopy.backprojection(sino,PS)
+
+#Plot results
+plt.figure()
+plt.title("Generated Phantom")
+plt.imshow(phantom.get(),cmap="gray")
+
+plt.figure()
+plt.title("Sinogram")
+plt.imshow(sino.get(),cmap="gray")
+
+plt.figure()
+plt.title("Backprojection")
+plt.imshow(backproj.get(),cmap="gray")
+plt.show()
+
 ```
 
 
