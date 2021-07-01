@@ -183,7 +183,7 @@ Note that the automatism of gratopy chooses image_width=57.46 cm. When looking a
 the blue circle (with diameter 57.46) is exactly captured by each projection, and thus the area represented by the image corresponds to the yellow rectangle and blue circle, the smallest rectangle to capture the entire object. On the other hand, the outer red circle illustrates the diameter of an object wholy containing the image.
 
 
-Further examples can be found in the example-files in the *tests* folder inside gratopy, showing multiple examples  and possible uses for the gratopy toolbox. 
+Further examples are found in the source files of `test files <test_examples.html>`_. 
 
 .. image:: grafics/Figure_1.png
     :width: 5000

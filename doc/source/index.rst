@@ -24,6 +24,7 @@ Highlights
    
    installation
    getting_started
+   test_examples
    functions
    acknowledgement
 	 

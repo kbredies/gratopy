@@ -1,5 +1,4 @@
 include gratopy/*.cl
 include tests/*
-include doc/html
 include requirements.txt
 

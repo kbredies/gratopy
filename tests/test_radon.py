@@ -25,7 +25,9 @@ def create_phantoms(queue, N, dtype='double'):
     return img
 
 def test_projection():
-    ###Projection test: simply computes forward and backprojection of two test images, to visually confurm the correctness of the method 
+    """  Basic test simply computes forward and backprojection of Radon
+    transform of two test images, to visually confirm the correctness 
+    of the method.    """
     print("Projection test")
 
     #Create PyopenCL context 
@@ -44,9 +46,13 @@ def test_projection():
     image_width=4
     Ns=int(0.5*img.shape[0])
 
-    #Create projectionsetting with parallel beam setting with 360 equi-distant angles, the detector has a width of 4 and the observed object has a diameter of 4 (i.e. is captured by the detector), we consider half the amount of detector pixels as image pixels
+    #Create projectionsetting with parallel beam setting with 360 
+    #equi-distant angles, the detector has a width of 4 and the observed
+    #object has a diameter of 4 (i.e. is captured by the detector), we
+    #consider half the amount of detector pixels as image pixels
     PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, Ns,
-                              image_width=image_width, detector_width=detector_width,
+                              image_width=image_width, 
+			      detector_width=detector_width,
                               detector_shift=0,
                               fullangle=True)
 
@@ -67,13 +73,17 @@ def test_projection():
     figure(1)
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
-    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]), 
+        cmap=cm.gray)
     figure(3)
-    imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([backprojected.get()[:,:,0],
+        backprojected.get()[:,:,1]]), cmap=cm.gray)
     show()
 
 def test_weighting():
-    ###Weighting:  Checks wether the mass of an image is correctly transported into the mass inside a projection
+    """ Check whether the mass of an image (square with sidelength 4/3
+     and pixel-values 1) is correctly transported into the mass inside 
+     a projection, i.e., the scaling is adequate"""
     print("Weighting test")
     
     #Create PyopenCL context 
@@ -90,7 +100,8 @@ def test_weighting():
     Ns=500
 	
     #define projectionsetting
-    PS=ProjectionSettings(queue, PARALLEL,img_shape,angles,Ns,detector_width=detector_width,image_width=image_width)
+    PS=ProjectionSettings(queue, PARALLEL,img_shape,angles,Ns,
+        detector_width=detector_width,image_width=image_width)
     
     #Consider image as rectangular of side-length (4/3) 
     img=np.zeros([N,N])
@@ -103,13 +114,25 @@ def test_weighting():
     #Mass inside the image must correspond to the mass any projection
     mass_image=np.sum(img)*PS.delta_x**2
     mass_sinogram_average=np.sum(sino_gpu.get())*PS.delta_s/PS.n_angles
-    mass_sino_rdm=np.sum(sino_gpu.get()[:, random.random_integers(0, angles-1) ])*PS.delta_s
+    mass_sino_rdm=np.sum(sino_gpu.get()[:, random.random_integers(0, angles-1) ])\
+        *PS.delta_s
     
-    print("The mass inside the image is "+str(mass_image)+" was carried over in the mass inside an projection is "+str(mass_sino_rdm)+" i.e. the relative error is "+ str(abs(1-mass_image/mass_sino_rdm)))
-    assert((abs(1-mass_image/mass_sino_rdm)<0.001)*(abs(1-mass_image/mass_sino_rdm)<0.001)), "The mass was not carried over correctly into  projections, as the relative difference is "+str(abs(1-mass_image/mass_sino_rdm))
+    print("The mass inside the image is "+str(mass_image)+
+        " was carried over in the mass inside an projection is "
+	+str(mass_sino_rdm)+" i.e. the relative error is "
+	+ str(abs(1-mass_image/mass_sino_rdm)))
+	
+    assert((abs(1-mass_image/mass_sino_rdm)<0.001)*\
+        (abs(1-mass_image/mass_sino_rdm)<0.001)),\
+        "The mass was not carried over correctly into  projections,\
+        as the relative difference is "\
+	+str(abs(1-mass_image/mass_sino_rdm))
     
 def test_adjointness():
-    ##Adjointness: Check whether forward and backprojection are indeed adjoint to one another by consider random images and there dual pairing values
+    """ Randomly creates images and sinograms to check whether forward 
+    and backprojection are indeed adjoint to one another (by considering
+    corresponding dual pairings). This is carried out 
+    for multiple experiments"""
     print("Adjointness test")
     
     #Create PyopenCL context 
@@ -123,13 +146,13 @@ def test_adjointness():
     angles=360
     
     #define projectionsetting
-    PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, n_detectors=number_detectors, fullangle=True)
-	
-
-    
+    PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, 
+        n_detectors=number_detectors, fullangle=True)
     
     #define zero images and sinograms
-    sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=float32, order='F')
+    sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=float32, 
+        order='F')
+    
     img2_gpu = cl.array.zeros(queue, PS.img_shape, dtype=float32, order='F')
     
     Error=[]
@@ -138,8 +161,11 @@ def test_adjointness():
     #Loop through a number of experiments
     for i in range(100):
 	#Create random image and sinogram
-        img1_gpu = cl.array.to_device(queue, require(np.random.random(PS.img_shape), float32, 'F'))
-        sino1_gpu = cl.array.to_device(queue, require(np.random.random(PS.sinogram_shape), float32, 'F'))
+        img1_gpu = cl.array.to_device(queue, 
+            require(np.random.random(PS.img_shape), float32, 'F'))
+        
+        sino1_gpu = cl.array.to_device(queue,\
+            require(np.random.random(PS.sinogram_shape), float32, 'F'))
         
 	#Compute corresponding forward and backprojections
         forwardprojection(img1_gpu,PS,sino=sino2_gpu)
@@ -161,11 +187,18 @@ def test_adjointness():
             count+=1
             Error.append((a,b))
                 
-    print ('Adjointness: Number of Errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps))
-    assert(len(Error)<10),'A large number of experiments for adjointness turned out negative, number of errors: '+str(count)+' out of 100 tests adjointness-errors were bigger than '+str(eps) 
+    print ('Adjointness: Number of Errors: '+str(count)+' out of\
+        100 tests adjointness-errors were bigger than '+str(eps))
+    
+    assert(len(Error)<10),'A large number of experiments for adjointness\
+        turned out negative, number of errors: '+str(count)+' out of 100\
+	tests adjointness-errors were bigger than '+str(eps) 
 
 def test_fullangle():
-    ###Fullangle: Shows the effect of considering a limited angle setting correctly vs incorrectly.   
+    """ Illustrates the impact of the full-angle parameter, in particular
+    showing artifacts resulting from incorrect use for the limited 
+    angle setting """
+       
     
     #Create PyopenCL context 
     ctx = cl.create_some_context(interactive=False)
@@ -201,14 +234,22 @@ def test_fullangle():
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
     title("Sinograms with vs without fullangle")
-    imshow(np.vstack([np.hstack([sino_gpu_correct.get()[:,:,0],sino_gpu_correct.get()[:,:,1]]),np.hstack([sino_gpu_incorrect.get()[:,:,0],sino_gpu_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    imshow(np.vstack([np.hstack([sino_gpu_correct.get()[:,:,0],\
+        sino_gpu_correct.get()[:,:,1]]),\
+	np.hstack([sino_gpu_incorrect.get()[:,:,0],\
+	sino_gpu_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    
     figure(3)
     title("Backprojection with vs without fullangle")
-    imshow(np.vstack([np.hstack([backprojected_correct.get()[:,:,0],backprojected_correct.get()[:,:,1]]),np.hstack([backprojected_incorrect.get()[:,:,0],backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    imshow(np.vstack([np.hstack([backprojected_correct.get()[:,:,0],\
+        backprojected_correct.get()[:,:,1]]),\
+	np.hstack([backprojected_incorrect.get()[:,:,0],\
+	backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    
     show()			
         
 def test_nonquadratic():
-    ###Non-quadratic: Consider the case when non quadratic images are transformed.
+    """Illustrates the use of gratopy for non-quadratic images """
     
     #Create PyopenCL context
     ctx = cl.create_some_context(interactive=False)
@@ -237,10 +278,14 @@ def test_nonquadratic():
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
     title("Radon sinogram for non-square image")
-    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]),\
+        cmap=cm.gray)
+    
     figure(3)
     title("backprojection for non-square image")
-    imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([backprojected.get()[:,:,0],\
+        backprojected.get()[:,:,1]]), cmap=cm.gray)
+    
     show()	
         
 # test

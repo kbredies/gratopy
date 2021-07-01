@@ -613,7 +613,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         Dictionary containing the relevant angular information in 
         numpy.array form for respective data-type numpy.dtype(float32)
         or numpy.dtype(float64)
-        Arrays have dimension :math:`(8,  N_a)` with: 
+        Arrays have dimension :math:`(8, N_a)` with: 
         
         * 0 1 ... vector along detector-direction with length delta_s
         * 2 3 ... vector from source vector connecting source to center of rotation
