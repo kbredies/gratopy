@@ -9,14 +9,12 @@
   size_t Nx = get_global_size(0);
   size_t Ny = get_global_size(1);
   size_t Nz=get_global_size(2);
-  size_t asdf=get_global_size(1);
   size_t x = get_global_id(0), y = get_global_id(1);
   size_t z=get_global_id(2);
 
   size_t i =pos_img_\order1(x,y,z,Nx,Ny,Nz);
-  
+  }
 
-  printf("Mein Test groeße  %i\n",Nz);}
   
 
   __kernel void update_v_\my_variable_type_\order1\order2(__global \my_variable_type3 *v, __global \my_variable_type *u,
