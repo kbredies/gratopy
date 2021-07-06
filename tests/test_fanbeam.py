@@ -102,10 +102,11 @@ def test_projection():
 
 def test_weighting():
     """ Checks whether the mass of an image is correctly transported into
-    the mass inside a projection. As the object has a larger shadow as 
+    the mass inside a projection. As the object has a larger shadow than 
     itself, the mass in the sinogram is roughly a multiplication of the 
     mass by the ratio of R to RE. Indicates that scaling of the transform 
-    is suitable"""
+    is suitable.
+    """
     print("Weighting;")
     
     #Create PyopenCL context 
@@ -156,7 +157,7 @@ def test_adjointness():
     Randomly creates images and sinograms to check whether forward 
     and backprojection are indeed adjoint to one another 
     (by considering corresponding dual pairings). 
-    This is carried out for multiple experiments
+    This is carried out for multiple experiments.
     """
 
     print("Adjointness:")
@@ -228,7 +229,7 @@ def test_fullangle():
     """
     Illustrates the impact of the full-angle parameter, in particular
     showing artifacts resulting from incorrect use for the limited 
-    angle setting 
+    angle setting.
     """
     
     #Create PyopenCL context
@@ -291,7 +292,7 @@ def test_fullangle():
 def test_midpointshift():
     """ 
     Illustrates how the sinogram changes if the midpoint of an 
-    images is shifted away from the center of roation
+    images is shifted away from the center of roation.
     """
 
     #Create PyOpenCL context
@@ -338,8 +339,8 @@ def test_midpointshift():
 
 def test_landweber():
     """ 
-    Executes the Landweber iteration to compute an inversion of a 
-    sinogram, testing the implementation
+    Executes the Landweber iteration for the `walnut dataset <https://arxiv.org/abs/1905.04787>`_  to compute an inversion of a 
+    sinogram, testing the implementation.
     """
     print("Walnut Landweber reconstruction test")
 
@@ -411,8 +412,8 @@ def test_landweber():
 
 def test_conjugate_gradients():
     """ 
-    Executes the conjugate gradients iteration to compute an 
-    inversion of a sinogram, testing the implementation
+    Executes the conjugate gradients iteration for the `walnut dataset`_  to compute an 
+    inversion of a sinogram, testing the implementation.
     """
     print("Walnut conjugated_gradients reconstruction test")
 
@@ -452,7 +453,7 @@ def test_conjugate_gradients():
 def test_total_variation():
     """ 
     Executes the total variation approach to compute an inversion of
-    a sinogram, testing the implementation
+    a sinogram from the `walnut dataset`_, testing the implementation.
     """
     print("Walnut total variation reconstruction test")
 
@@ -500,7 +501,7 @@ def test_total_variation():
 
 
 def test_nonquadratic():
-    """Illustrates the use of gratopy for non-quadratic images """
+    """Illustrates the use of gratopy for non-quadratic images. """
     
     
     #create PyopenCL context

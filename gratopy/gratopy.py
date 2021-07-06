@@ -1470,7 +1470,6 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
     
     norm_estimate=normest(projectionsetting, allocator=sino.allocator)
-    print ("norm",norm_estimate)
     w=sino.dtype.type(w/norm_estimate**2)   
 
     sinonew=sino.copy()
