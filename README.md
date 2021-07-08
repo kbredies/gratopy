@@ -16,7 +16,7 @@ Hence this can efficiently be paired with other PyOpenCL code, in particular Ope
 pip install gratopy
 ```
 
-or alternatively directly from the tar folder (containing setup.py) by
+or alternatively directly download and unpack the tar folder and install inside the folder via
 
 ```bash
 pip install .

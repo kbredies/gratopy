@@ -16,7 +16,7 @@ Then the gratopy toolbox can be  installed from the internet directly via
     pip install gratopy   
 
 Alternatively, you can download the package from `<https://github.com/kbredies/gratopy>`_ 
-as zip and install it (after unpacking inside the corresponding folder) via 
+as tar and install it (after unpacking inside the corresponding folder) via 
 ::
 
     pip install .

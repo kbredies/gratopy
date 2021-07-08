@@ -94,8 +94,11 @@ __kernel void update_u_\my_variable_type_\order1\order2(__global \my_variable_ty
   
   if (z == Nz-1) val.s2 = 0.0f;
   if (z > 0) val.s2-=v[pos_img_\order1(x,y,z-1,Nx,Ny,Nz)].s2;
-  if (z_distance>0) val.s2/=z_distance; //adjust fur further step
 
+  if (z_distance>0)
+  { val.s2/=z_distance;} //adjust fur further step
+  else
+   {val.s2=0;}
 
   
 

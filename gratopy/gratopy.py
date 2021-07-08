@@ -86,7 +86,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     fanbeam transform) of a given sinogram  using the given projection 
     settings.
 		    
-    :param sino: sinogram to be backprojected.
+    :param sino: Sinogram to be backprojected.
     :type sino: :class:`pyopencl.Array` with `compatible`_ dimensions
     
 
@@ -107,7 +107,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
         
     :return: The image associated to the backprojected sinogram,
         coinciding with the **img** input if given, though the values 
-        are overwriten.
+        in its data are overwriten.
     :rtype:  :class:`pyopencl.Array` 
 
     The backprojection can be performed for single or double
@@ -159,7 +159,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of Radon transform 
-        (which was also added to the events of sino).
+        (which is also added to the events of sino).
     :rtype:  :class:`pyopencl.Event`
     
     """         
@@ -204,7 +204,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of Radon backprojection 
-        (which was added to the events of *img*).
+        (which is also added to the events of *img*).
     :rtype: :class:`pyopencl.Event`
     
     """    
@@ -288,7 +288,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         and corresponding detector pixel offsets, i.e, shifting the 
         position of the detector pixels. If not given no shift
         is applied, i.e., the detector reaches from
-        :math:`[-detector_width/2,detector_width/2]`.
+        [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 			        
     :param fullangle:  True if entire :math:`[0,\pi[` is represented by 
@@ -323,7 +323,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         angles_diff: numpy.array
         same values as in ofs_dict[4] representing the weight 
         associated to the angles (i.e., size of angle-pixels)
-    :rtype: mutliple (Ofs_Dict,shape,Geo_Dict,angles_diff) with 
+    :rtype: (Ofs_Dict,shape,Geo_Dict,angles_diff) with 
         (:class:`dict`, :class:`tuple`, :class:`dict`, :class:`list`)
     
     """
@@ -466,7 +466,7 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of fanbeam transform 
-        (which was added to the events of *sino*).
+        (which is also added to the events of *sino*).
     :rtype: `pyopencl.Event`
     """           
     
@@ -511,7 +511,7 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of fanbeam backprojection 
-        (which was added to the events of *img*).
+        (which is also added to the events of *img*).
     :rtype: `pyopencl.Event`
     """
         
@@ -540,7 +540,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
                    n_detectors=None, detector_shift = 0.0,
                    image_width=None, midpointshift=[0,0], fullangle=True):
     """Creates the structure of fanbeam geometry required for 
-    fanbeamtransform and its adjoint
+    fanbeam transform and its adjoint.
     
     :param queue: Opencl CommandQueue in which context the computations 
         are to be executed.
@@ -638,7 +638,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         same values as in ofs_dict[4] representing the weight 
         associated to the angles (i.e. size of detector-pixels).
         
-    :rtype: multiple (img_shape,sinogram_shape,Ofs_Dict,Sdpd_Dict,
+    :rtype: (img_shape,sinogram_shape,Ofs_Dict,Sdpd_Dict,
         image_width, geo_dict,angles_diff) with (:class:`tuple`, 
         :class:`tuple`, :class:`dict`,
         :class:`dict`, :class:`float`, :class:`dict`, :class:`list`)
@@ -865,7 +865,7 @@ def upload_bufs(projectionsetting, dtype):
     projectionsetting.geometry_information[dtype]=geometry_buf
 
 class ProjectionSettings():
-    """Class saving all relevant information concerning 
+    """Saves all relevant information concerning 
     the projection geometry, and is thus a cornerstone of gratopy used 
     in virtually all functions.
         
@@ -910,7 +910,7 @@ class ProjectionSettings():
     :param image_width: Physical size of the image 
         (more precisely  the sidelength 
         of the larger side of the rectangle image),
-        i.e., the diameter of the circular object captured by image. 
+        i.e., the diameter of the object captured by image. 
         For fanbeam the image_width is chosen suitably so the 
         projections captures  exactly the image if no image_width is set.
         For the parallel beam setting chosing 
@@ -1239,12 +1239,12 @@ class ProjectionSettings():
         :param show: True if the resulting plot shall be shown right away, 
             False otherwise. 
             Alternatively you can  use the *show()* method at a later  
-            point to show the figures.
+            point to show the figure.
         :type show: :class:`bool`, default True
         
-        :return: Figure and axes in which the graphic was plotted.
+        :return: Figure and axes in which the graphic is plotted.
         
-        :rtype: mutliple (:class:`matplotlib.pyplot.figure`, 
+        :rtype: (:class:`matplotlib.pyplot.figure`, 
             :class:`matplotlib.pyplot.axes`)
         """
 
@@ -1405,7 +1405,7 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
     Determine the operator norm of the projection method via power 
     iteration. This the norm with respect to the standard :math:`l^2`
     norms as sum of squares. This is not a solver itself, but
-    can proof useful for many iterative methods, as convergence of such
+    can prove useful for many iterative methods, as convergence of such
     methods usually depends on 
     the choosing a parameter suitably with respect to the operator norm. 
    
@@ -1455,7 +1455,7 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
         inversion is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 	
-    :param number_iterations: Number of Landweber iteration to be executed.
+    :param number_iterations: Number of Landweber iterations to be executed.
     :type number_iterations: :class:`int`, default 100
 
     :param w: Relaxation parameter weighted by the norm of the projection
@@ -1504,7 +1504,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
     :param number_iterations: Number of iterations to be executed.
     :type number_iterations: :class:`float`, default 20
     
-    :param x0: Startpoint for iteration (zeros by default).
+    :param x0: Startingpoint for iteration (zeros by default).
     :type x0: :class:`pyopencl.Array`, default None
 
     :param restart: The algorithm is relaunched when sanity check fails 
@@ -1516,25 +1516,29 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
 
     """
     
+    dimensions=projectionsetting.img_shape
+    dimensions2=(1,projectionsetting.n_angles)
+    if len(sino.shape)>2:
+        dimensions=dimensions+tuple([sino.shape[2]])
+        dimensions2=dimensions2+tuple([1])
+           
     if x0==None:
-        dimensions=projectionsetting.img_shape
-        if len(sino.shape)>2:
-            dimensions+tuple([sino.shape[2]])
         x0=clarray.zeros(projectionsetting.queue,dimensions,
             sino.dtype,order={0:'F',1:'C'}[sino.flags.c_contiguous])
     assert(x0.flags.c_contiguous==sino.flags.c_contiguous),\
         ("Error, please make sure both the data sino and your \
         guess x0 have the same contiguity")
     x=x0
-    
+
     d=sino-forwardprojection(x, projectionsetting,wait_for=x.events)
     p=backprojection(d, projectionsetting,wait_for=d.events)
     q=clarray.empty_like(d, projectionsetting.queue)
     snew=backprojection(d, projectionsetting,wait_for=d.events)
     sold=backprojection(d, projectionsetting,wait_for=d.events)
         
+  
     angle_weights=clarray.reshape(projectionsetting.angle_weights,\
-        [1,len(projectionsetting.angle_weights)])
+        dimensions2)
         
     angle_weights=np.ones(sino.shape)*angle_weights
     angle_weights=clarray.to_device(projectionsetting.queue,\
@@ -1544,7 +1548,6 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
 
 
     for k in range(0,number_iterations):    
-		
         forwardprojection(p, projectionsetting, sino=q,wait_for=p.events)
         alpha=x.dtype.type(projectionsetting.delta_x**2/\
             (projectionsetting.delta_s) *(clarray.vdot(sold,sold)\
@@ -1579,8 +1582,9 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
     """
     Executes primal-dual algorithm projection methods to solve 
     :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+{TV}(u)` 
-    for :math:`\mathcal{P}` the projection operator in question.
-    This is an approximation approach for the projection inversion approach
+    for :math:`\mathcal{P}` the projection operator in question, i.e. an
+    :math:`L^2-TV`reconstruction approach.
+    This is an approximation approach for the projection inversion.
 
     :param sino: Sinogram data to inverte.
     :type sino: :class:`pyopencl.Array`
@@ -1634,6 +1638,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
 		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
 		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
 		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
+		 
 		
         return myfunction[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
             lamb.shape, None,lamb.data, Ku.data, f.data,
@@ -1660,7 +1665,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
         return myfunction[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
             u.data, u_.data,v.data, Kstarlambda.data, float32(tau),
             float32(1.0/normest),float32(z_distance), wait_for=wait_for)
-    
+       
     #Compute the norm of v and project (dual update)
     def update_NormV(V,normV,wait_for=None):
         myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,

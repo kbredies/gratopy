@@ -361,6 +361,9 @@ def test_landweber():
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
     
+    
+    
+    
     #Create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=walnut.shape,
                             angles = numberofangles, detector_width=Detectorwidth,
@@ -393,20 +396,28 @@ def test_landweber():
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
     angles = linspace(0,2*pi,121)[:-1] + pi/2
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
+    img_shape=(600,600)
     
     #Create projectionsetting
-    PS = ProjectionSettings(queue, FANBEAM, img_shape=(600,600), angles=angles,
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape, angles=angles,
                             detector_width=Detectorwidth, R=FDD, RE=FOD,
                             n_detectors=number_detectors)
-
-    walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'F'))
+    
+    my_phantom=phantom(queue,img_shape)
+    my_phantom_sinogram=forwardprojection(my_phantom,PS)
+    
+    sino=np.zeros(PS.sinogram_shape+tuple([2]))    
+    sino[:,:,0]=sinonew/np.max(sinonew)
+    sino[:,:,1]=my_phantom_sinogram.get()/np.max(my_phantom_sinogram.get())
+    
+    walnut_gpu2new=clarray.to_device(queue,require(sino,dtype,'F'))
     
     #Execute Landweber method
     ULW=landweber(walnut_gpu2new, PS, 20)
 
     #Plot Landweber reconstruction
     figure(4)
-    imshow(ULW.get(),cmap=cm.gray)
+    imshow(np.hstack([ULW.get()[:,:,0],ULW.get()[:,:,1]]),cmap=cm.gray)
     title("Landweber reconstruction")
     show()
 
@@ -433,19 +444,29 @@ def test_conjugate_gradients():
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
     angles = linspace(0,2*pi,121)[:-1] + pi/2
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
-    
+    img_shape=(600,600)
     #create projectionsetting
-    PS = ProjectionSettings(queue, FANBEAM, img_shape=(600,600), angles=angles,
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape, angles=angles,
                             detector_width=Detectorwidth, R=FDD, RE=FOD,
                             n_detectors=number_detectors)
 
+
+    my_phantom=phantom(queue,img_shape)
+    my_phantom_sinogram=forwardprojection(my_phantom,PS)
+
+
+    sino=np.zeros(PS.sinogram_shape+tuple([2]))    
+    sino[:,:,0]=sinonew/np.max(sinonew)
+    sino[:,:,1]=my_phantom_sinogram.get()/np.max(my_phantom_sinogram.get())
+  
     #Execute conjugate gradients 
-    walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
+    walnut_gpu2new=clarray.to_device(queue,require(sino,dtype,'C'))
     UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
 
     #Plott results
     figure(4)
-    imshow(UCG.get(),cmap=cm.gray)
+    #imshow(UCG.get(),cmap=cm.gray)
+    imshow(np.hstack([UCG.get()[:,:,0],UCG.get()[:,:,1]]),cmap=cm.gray)
     title("Conjugate gradients reconstruction")
     show()
 
@@ -478,20 +499,25 @@ def test_total_variation():
     #sinonew[np.where(sinonew<2000)]=0
     sinonew=np.array(sinonew,dtype=dtype)
     sinonew/=np.mean(sinonew)
+    sinonew+=+np.random.randn(sinonew.shape[0],sinonew.shape[1])*0.2
     
     #Execute total_variation reconstruction
     walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
-    UTV=total_variation_reconstruction(walnut_gpu2new,PS,mu=10000,
-                                       number_iterations=3000,z_distance=1)
+
+    
+    
+    UTV=total_variation_reconstruction(walnut_gpu2new,PS,mu=1000,
+                                       number_iterations=5000,z_distance=0)
     
     sinoreprojected=forwardprojection(UTV,PS)
     
     #Plot results
     figure(4)
-    imshow(UTV.get(),cmap=cm.gray)
+    #imshow(UTV.get(),cmap=cm.gray)
+    imshow(np.hstack([UTV.get()[:,:,0],UTV.get()[:,:,1]]),cmap=cm.gray)
     title("total variation reconstruction")
     figure(5)
-    imshow(sinoreprojected.get(),cmap=cm.gray)
+    imshow(np.hstack([sinoreprojected.get()[:,:,0],sinoreprojected.get()[:,:,1]]),cmap=cm.gray)
     title("reprojected sinogram of solution")
     show()
 

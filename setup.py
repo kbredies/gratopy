@@ -18,6 +18,8 @@ setup(name='gratopy',
       license='GPLv3',
       keywords='pixel-driven projectionmethods tomography pyopencl',
       packages=['gratopy'],
+      package_data={'': ['gratopy/*.cl']},
+      include_package_data=True,
       python_requires=">=3.6",
       install_requires=[requirements.split()],
       zip_safe=False)
