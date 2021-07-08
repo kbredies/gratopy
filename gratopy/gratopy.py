@@ -900,7 +900,7 @@ class ProjectionSettings():
         see :class:`fullangle` parameter.
     :type angles: :class:`int`, :class:`list[float]` 
         or :class:`list[list[float]]` 
-    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors
+    :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
         pixels considered. When none is given :math:`N_s`
         will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detector:  :class:`int`, default None
@@ -1083,8 +1083,9 @@ class ProjectionSettings():
         self.img_shape=img_shape
                 
         if self.geometry not in [RADON, PARALLEL, FAN, FANBEAM]:
-            raise("unknown projection_type, projection_type \
+            print("unknown projection_type, projection_type \
                 must be PARALLEL or FAN")
+            raise
         if self.geometry in [RADON, PARALLEL]:
             self.is_parallel=True
             self.is_fan=False
@@ -1397,6 +1398,78 @@ class ProjectionSettings():
 #            plt.show()
         return figure, axes
 
+    def extract_sparse_matrix(self,dtype=float32,contiguity='F',
+                              ofset=0,outputfile=None):
+        """
+        Creates a list of the sparse representation of the forward
+        operator associated with the projectionsetting.
+		
+        :param dtype: Precision to compute the  representation in.
+        :type dtype: :class:`numpy.dtype`
+		
+        :param contiguity: Contiguity of the img and sinogram for 
+            the transform.
+        :type contiguity: :class:`str` 
+		
+        :param ofset: Ofset of the indices (e.g. 1 for Matlab, 0 for C++).
+        :type ofset: :class:`int`
+		
+        :param outputfile: File to write the sparse represntation into.
+        :type outputfile: :class:`str`
+		
+        :return:  List of tuples with (row, column, value)
+            sparse represntation.
+        :rtype: :class:`List[tuple]`
+        
+        Note that for high resolutions this can take quite some time and 
+        might also not be feasible due to memory constraints.
+        """
+        epsilon=0
+        if contiguity=="F":
+            def pos_1(x,y):
+            	return x+Nx*y+ofset
+            def pos_2(s,phi):
+            	return s+Ns*phi+ofset
+        elif contiguity=="C":
+        	def pos_1(x,y):
+        		return x*Ny+y+ofset
+        	def pos_2(s,phi):
+        		return s*Na+phi+ofset
+        else:
+        	print("contiguity not recognized, suitable choices are\
+        	      strings F or C")
+        	raise
+        mylist=[]
+        mylist2=[]
+
+        Nx=self.img_shape[0]
+        Ny=self.img_shape[1]
+        Ns=self.sinogram_shape[0]
+        Na=self.sinogram_shape[1]
+        for x in range(Nx):
+            for y in range(Ny):
+                img=np.zeros(self.img_shape)
+                img[x,y]=1
+                img=cl.array.to_device(self.queue, require(img, dtype, 'C'))
+                sino=forwardprojection(img,self,wait_for=img.events)
+                sino=sino.get()
+                pos=pos_1(x,y)
+				    
+                index=np.where(sino>epsilon)
+                for i in range(len(index[0])):
+                    s=index[0][i]
+                    phi=index[1][i]
+                    pos2=pos_2(s,phi)
+                    mylist.append(str(pos2)+" "+str(pos)+" "+\
+                                  str(sino[s,phi])+"\n")
+                    mylist2.append((pos2,pos,sino[s,phi]))			                          
+        if outputfile!=None:
+            txt=open(outputfile,"w")	
+            for a in mylist:
+                txt.writelines(a)
+            txt.close()
+        return mylist2
+
 
 
 def normest(projectionsetting, number_of_iterations=50, dtype='float32',
@@ -1513,7 +1586,6 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
    
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.Array`
-
     """
     
     dimensions=projectionsetting.img_shape
@@ -1583,7 +1655,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
     Executes primal-dual algorithm projection methods to solve 
     :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+{TV}(u)` 
     for :math:`\mathcal{P}` the projection operator in question, i.e. an
-    :math:`L^2-TV`reconstruction approach.
+    :math:` L^2 -- TV`reconstruction approach.
     This is an approximation approach for the projection inversion.
 
     :param sino: Sinogram data to inverte.
