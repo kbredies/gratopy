@@ -6,18 +6,18 @@
 Welcome to gratopy's documentation!
 =====================================
 
-The **Gr**\az **a**\ccelerated **to**\mographic projection for **Py**\thon **(Gratopy)**  is a software toolbox for Python3 developed to allow for efficient, high quality execution of projection methods
-such as Radon and fanbeam transform.  The operations contained in the toolbox are based on pixel-driven projection methods, which were shown to possess `suitable approximation properties <https://epubs.siam.org/doi/abs/10.1137/20M1326635>`_.
-The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into `PyOpenCL  <https://documen.tician.de/pyopencl/index.html>`_. 
-Hence gratopy can efficiently be paired with other PyOpenCL code, and is well suited to be used in all kinds of experimental tomography methods, such as optimization algorithms.
+The **Gr**\az **a**\ccelerated **to**\mographic projections for **Py**\thon **(Gratopy)**  is a software toolbox for Python3 developed to allow for efficient, high quality execution of projection methods
+such as the Radon and fanbeam transform.  The operators contained in the toolbox are based on pixel-driven projection methods, which were shown to possess `suitable approximation properties <https://epubs.siam.org/doi/abs/10.1137/20M1326635>`_.
+The code is based on a powerful parallel OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into `PyOpenCL  <https://documen.tician.de/pyopencl/index.html>`_. 
+Hence, gratopy can efficiently be combined with other PyOpenCL code, and is well-suited to be used, for instance, in all kinds of tomographic reconstruction approaches, in particular, those involving optimization algorithms.
 
 Highlights
 ==================
-* Easy to use tomography toolbox.
-* High quality projection implementation.
+* Easy-to-use tomographic projection toolbox.
+* High-quality projection operators.
 * Fast projection due to custom OpenCL/GPU-implementation.
-* Seamless integration into PyOpenCL code.
-* Contains various reconstruction schemes.
+* Seamless integration into PyOpenCL.
+* Various reconstruction schemes included.
 
 .. toctree::
    :maxdepth: 2
@@ -27,7 +27,7 @@ Highlights
    getting_started
    test_examples
    functions
-   acknowledgement
+   acknowledgements
 	 
 
 Indices and tables

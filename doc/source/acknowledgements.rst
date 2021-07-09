@@ -1,5 +1,5 @@
-Acknowledgement
-***************
+Acknowledgements
+****************
 
 Authors
 ==================
@@ -14,8 +14,8 @@ If you found the toolbox useful, please cite the following associated publicatio
 todo 
 
 
-Acknowledgement
-==================
+Acknowledgements
+=================
 TODO
 
 
