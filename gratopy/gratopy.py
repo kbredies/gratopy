@@ -1787,8 +1787,9 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
 
         forwardprojection(U_,projectionsetting,KU,wait_for=U_.events)
    
-        Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu, norm_estimate,
-        						 wait_for=KU.events + sino.events))
+        Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu,
+	                          norm_estimate,
+				  wait_for=KU.events + sino.events))
 		
         #Primal Update
         backprojection(Lamb,projectionsetting,KSTARlambda,\

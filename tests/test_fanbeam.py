@@ -513,11 +513,11 @@ def test_total_variation():
     
     #Plot results
     figure(4)
-    #imshow(UTV.get(),cmap=cm.gray)
-    imshow(np.hstack([UTV.get()[:,:,0],UTV.get()[:,:,1]]),cmap=cm.gray)
+    imshow(UTV.get(),cmap=cm.gray)
+
     title("total variation reconstruction")
     figure(5)
-    imshow(np.hstack([sinoreprojected.get()[:,:,0],sinoreprojected.get()[:,:,1]]),cmap=cm.gray)
+    imshow(sinoreprojected.get(),cmap=cm.gray)
     title("reprojected sinogram of solution")
     show()
 
