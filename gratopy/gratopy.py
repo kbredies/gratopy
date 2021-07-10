@@ -1620,6 +1620,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
 
 
     for k in range(0,number_iterations):    
+        print(k)
         forwardprojection(p, projectionsetting, sino=q,wait_for=p.events)
         alpha=x.dtype.type(projectionsetting.delta_x**2/\
             (projectionsetting.delta_s) *(clarray.vdot(sold,sold)\
@@ -1637,7 +1638,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
             break
 
         if beta>1 and restart==True:
-            #print("restart at", k)
+            print("restart at", k)
             d=sino-forwardprojection(x, projectionsetting,\
                 wait_for=x.events)
                 

@@ -86,137 +86,134 @@ yd/=(delta_xi*delta_xi);
 // Distance from source to origin devided by R
 RE=RE/R;
 
-//Seperate lines which are rather vertical than horicontal
+
+int Nyy=Ny;
+int Nxx=Nx;
+
+
+int horizontal;
+//Seperate lines which are rather vertical than horizontal 0
+//For iteration over y- values for vertical lines have much fewer relevant y
+//values with much greater number of corresponding x values, 
+// For parallelization it is preferable to iterate over similarly distributed sets
+//Therefore, for the vertical case the geometry of the image is flipped,
+//so that asside from minor if inquiry all rays execute the same loop
+//with similarly distributed iteration-sets
 if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy))//mostly horizontal lines
-	{
-	//Move in y direction stepwise, rescale dp/dm such that represents increase in y direction
-	dpx=dpx/dpy;
-	dmx=dmx/dmy;
-		
-	//compute bounds for suitable x values (for fixed y=0) 
-	//(qy+midpoint_y distance from source to y=0) according to equation
-	// x=qx+dmx*(y-qy) with y =-midpoint_y
-	\my_variable_type xlow=qx-dmx*(qy+midpoint_y);
-	\my_variable_type xhigh=qx-dpx*(qy+midpoint_y);
-	
-	//switch roles of dm and dp if necessary (to switch xlow and xhigh)
-	if ((qy)*(dmx-dpx)<0)
-	{
-		\my_variable_type trade=xhigh;
-		xhigh=xlow;
-		xlow=trade;
+	{horizontal=1;
+	}
+else //case of vertical lines, switch x and y dimensions of geometry
+{horizontal=0;
 
-		trade=dpx;
-		dpx=dmx;
-		dmx=trade; 
-	}
-	
-	//For loop going through all y values
-	for (int y=0;y<Ny;y++)
-	{	
-		// cut bounds within image_range
-		int xhighint=floor (min(Nx-1-midpoint_x,xhigh)+midpoint_x);
-		int xlowint=ceil(max(-midpoint_x,xlow)+midpoint_x);
-	
-		//changing y by one updates xlow and xhigh exactly by the slopes dp and dm
-		// as given in formular above by increasing y by 1 
-		xhigh+=dpx;
-		xlow+=dmx;
-		
-		// for (x,ylowint) compute t and s orthogonal distances from source (t values in (0,1)) 
-		// or projected detectorposition (divided by delta_xi ) 		
-		\my_variable_type t=dx*(xlowint-midpoint_x)+dy*(y-midpoint_y)+RE;
-		\my_variable_type ss=xd*(xlowint-midpoint_x)+yd*(y-midpoint_y);
-		
-		// loop through all adjacent x values inside the bounds			
-		for (int x=xlowint;x<=xhighint;x++)
-		{
-			// xi is equal the projected detector position (with exact positions as integers) 
-			 \my_variable_type xi=ss/t;
-			 
-			//Weight corresponds to distance of projected detector position 
-			//divided by the distance from the source
-			\my_variable_type Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
-					
-			//cut of ray when hits detector (in case detector inside imaging object)
-			//if(t>1)
-			//{
-			//Weight=0;
-			//}
-			
-			//accumulation
-			acc+=Weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];
-					
-			//update t and s via obvious formulas (for fixed y) and x increased by 1
-			t+=dx;
-			ss+=xd;
-		}
-	}
+\my_variable_type trade=dy;
+dy=dx;
+dx=trade;
+
+trade =yd;
+yd= xd;
+xd=trade;
+
+trade=qy;
+qy=qx;
+qx=trade;
+
+trade =dpy;
+dpy=dpx;
+dpx=trade;
+
+trade =dmy;
+dmy=dmx;
+dmx=trade;
+
+trade=midpoint_y;
+midpoint_y=midpoint_x;
+midpoint_x=trade;
+
+Nyy=Nx;
+Nxx=Ny;
 }
-else //Case  lines are mostly vertical
-	{
-	//Move in x direction stepwise, rescale dp/dm such that represents increase in y direction
-	dpy=dpy/dpx;
-	dmy=dmy/dmx;
+
 	
-	//compute bounds for suitable y values (for fixed x)	
-	\my_variable_type ylow=qy-dmy*(qx+midpoint_x);
-	\my_variable_type yhigh=qy-dpy*(qx+midpoint_x);
-
-	//switch roles of dm and dp if necessary (to switch ylow and yhigh)
-	if ((qx)*(dmy-dpy)<0)
-	{
-		\my_variable_type trade=yhigh;
-		yhigh=ylow;
-		ylow=trade;
-
-		trade=dpy;
-		dpy=dmy;
-		dmy=trade; 
-	}
+//Move in y direction stepwise, rescale dp/dm such that represents increase in y direction
+dpx=dpx/dpy;
+dmx=dmx/dmy;
 	
-	//For loop going through all x values
-	for (int x=0;x<Nx;x++)
-	{				
-		// cut bounds of to suitable values
-		int yhighint=floor (min(Ny-1-midpoint_y,yhigh)+midpoint_y);
-		int ylowint=ceil(max(-midpoint_y,ylow)+midpoint_y);
-
-		//changing x by one updates ylow and yhigh exactly by the slopes dp and dm
-		yhigh+=dpy;
-		ylow+=dmy;
-		
-		// for (x,ylowint) compute t and s orthogonal distances from source (t values in (0,1)) 
-		// or projected detectorposition (divided by delta_xi ) 
-
-		\my_variable_type t=dx*(x-midpoint_x)+dy*(ylowint-midpoint_y)+RE;
-		\my_variable_type ss=xd*(x-midpoint_x)+yd*(ylowint-midpoint_y);
-		
-		// loop through all adjacent y values inside the bounds					
-		for (int y=ylowint;y<=yhighint;y++)
-		{
-			// xi is equal the projected detector position (with exact positions as integers)
-			\my_variable_type xi=ss/t;
-			
-			//Weight corresponds to distance of projected detector position divided by the distance from the source
-			\my_variable_type Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
-			
-			//cut of ray when hits detector (in case detector inside imaging object)
-			//if(t>1)
-			//{
-			//Weight=0;
-			//}			
-			
-			//accumulation
-			acc+=Weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];
-			
-			//update s and t via obvious formulas
-			t+=dy;
-			ss+=yd;
-		}
-	}	
+//compute bounds for suitable x values (for fixed y=0) 
+//(qy+midpoint_y distance from source to y=0) according to equation
+// x=qx+dmx*(y-qy) with y =-midpoint_y
+\my_variable_type xlow=qx-dmx*(qy+midpoint_y);
+\my_variable_type xhigh=qx-dpx*(qy+midpoint_y);
 	
-	}      
+	
+//switch roles of dm and dp if necessary (to switch xlow and xhigh)
+if ((qy)*(dmx-dpx)<0)
+{
+	\my_variable_type trade=xhigh;
+	xhigh=xlow;
+	xlow=trade;
+
+	trade=dpx;
+	dpx=dmx;
+	dmx=trade; 
+}
+
+//For loop going through all y values
+for (int y=0;y<Nyy;y++)
+{	
+    //changing y by one updates xlow and xhigh exactly by the slopes dp and dm
+    // as given in formular above by increasing y by 1 
+    xhigh=qx+dpx*(y-midpoint_y-qy);
+    xlow=qx+dmx*(y-midpoint_y-qy);
+
+    // cut bounds within image_range
+    int xhighint=floor (min(Nxx-1-midpoint_x,xhigh)+midpoint_x);
+    int xlowint=ceil(max(-midpoint_x,xlow)+midpoint_x);
+    
+    
+    //alternative stepping
+    //xhigh+=dpx;
+    //xlow+=dmx;
+
+
+    // for (x,ylowint) compute t and s orthogonal distances from source (t values in (0,1)) 
+    // or projected detectorposition (divided by delta_xi ) 		
+    \my_variable_type t=dx*(xlowint-midpoint_x)+dy*(y-midpoint_y)+RE;
+    \my_variable_type ss=xd*(xlowint-midpoint_x)+yd*(y-midpoint_y);
+    
+    
+    // loop through all adjacent x values inside the bounds			
+    for (int x=xlowint;x<=xhighint;x++)
+    {
+	// xi is equal the projected detector position (with exact positions as integers) 
+	 \my_variable_type xi=ss/t;
+	 
+	//Weight corresponds to distance of projected detector position 
+	//divided by the distance from the source
+	\my_variable_type Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
+			
+	//cut of ray when hits detector (in case detector inside imaging object)
+	//if(t>1)
+	//{
+	//Weight=0;
+	//}
+	
+	//accumulation
+	if (horizontal==1)
+	{acc+=Weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];}
+	
+	if(horizontal==0) 
+	{//in this case the variable x represents 
+	//the true y value and reversely due to flipped geometry, 
+	//hence data must be accessed slightly differently
+	acc+=Weight*img[pos_img_\order2(y,x,z,Nx,Ny,Nz)];}
+			
+	//update t and s via obvious formulas (for fixed y) and x increased by 1
+	t+=dx;
+	ss+=xd;
+    }
+}
+
+     
 //update relevant sinogram value (weighted with spdp=sqrt(xi^2+R^2) 
 //(one delta_x is hidden in the R*t term)
 //(one delta_xi is hidden in weight with values [0,1] instead of [0,\delta_x])	                 
@@ -225,6 +222,8 @@ sino[pos_sino_\order1(s,a,z,Ns,Na,Nz)]=acc*sdpd[s]/delta_xi*delta_x;
 
 
  
+
+
  
 //Fanbeam Backprojection
 // Input:
