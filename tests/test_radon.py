@@ -115,7 +115,7 @@ def test_weighting():
     #Mass inside the image must correspond to the mass any projection
     mass_image=np.sum(img)*PS.delta_x**2
     mass_sinogram_average=np.sum(sino_gpu.get())*PS.delta_s/PS.n_angles
-    mass_sino_rdm=np.sum(sino_gpu.get()[:, random.random_integers(0, angles-1) ])\
+    mass_sino_rdm=np.sum(sino_gpu.get()[:, random.randint(0, angles) ])\
         *PS.delta_s
     
     print("The mass inside the image is "+str(mass_image)+
