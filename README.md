@@ -27,17 +27,18 @@ or via the wheel file
 pip install gratopy*.whl
 ```
 
-For more details we refer you to  [documentation](doc/build/html/installation.html).
+For more details we refer you to  [documentation](https://gratopy.readthedocs.io/en/latest/index.html).
 
 Alternatively, no dedicated installation is needed for the program, simply download the code, and copy it to the python libraries or set the insert the corresponding path and get started. Be sure to have the following Python modules installed, most of which should be standard.
  
 ## Requirements
 
 
-* [pyopencl](https://pypi.org/project/pyopencl/)
-* [numpy](https://pypi.org/project/numpy/)
-* [scipy](https://pypi.org/project/scipy/)
-* [matplotlib](https://pypi.org/project/matplotlib/)
+* [pyopencl>=2019.1](https://pypi.org/project/pyopencl/)
+* [numpy>=1.16.0](https://pypi.org/project/numpy/)
+* [scipy>=1.3.0](https://pypi.org/project/scipy/)
+* [matplotlib>=3.2.0](https://pypi.org/project/matplotlib/)
+* [Pillow>=6.0.0](https://pypi.org/project/Pillow/)
 
 Particularly, correctly installing and configuring PyOpenCL might take some time, as dependent on the used platform/GPU, suitable drivers must be installed.
 
@@ -114,8 +115,6 @@ If you find this tool useful, please cite the following associated publication.
 The development of this software was partially supported by the following projects:
 
 * *Regularization Graphs for Variational Imaging*, funded by the Austrian Science Fund (FWF), grant P-29192,
-
-* *Lifting-based regularization for dynamic image data*, funded by the Austrian Science Fund (FWF), grant J-4112,
 
 * *International Research Training Group IGDK 1754 Optimization and Numerical Analysis for Partial Differential Equations with Nonsmooth
 Structures*, funded by the German Research Council (DFG) and the Austrian Science Fund (FWF), grant W-1244.
