@@ -43,7 +43,7 @@ Particularly, correctly installing and configuring PyOpenCL might take some time
 
 
 ## Getting started
-We refer you to the extensive [documentation](doc/build/html/index.html), inparticular the point [getting started](doc/build/html/getting_started.html), as well as to the test files for [Radon transform](doc/build/html/_modules/test_radon.html) or [fanbeam transform](doc/build/html/_modules/test_fanbeam.html). In the documentary you also find the following [rudimentary example](doc/build/html/getting_started.html#first-example-radon-transform).
+We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/latest/index.html), in particular to the [getting started](https://gratopy.readthedocs.io/en/latest/getting_started.html) guide, as well as to the test files for the [Radon transform](https://gratopy.readthedocs.io/en/latest/_modules/test_radon.html) and [fanbeam transform](https://gratopy.readthedocs.io/en/latest/_modules/test_fanbeam.html). The following [rudimentary example](https://gratopy.readthedocs.io/en/latest/getting_started.html#first-example-radon-transform) is also included in the documentation.
 
 ```python
 
