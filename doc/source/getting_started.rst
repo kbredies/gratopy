@@ -37,7 +37,7 @@ for the backprojection operator.
 Geometry of the parallel beam setting.
 
 	
-.. image:: graphics/ranbeam-1.png
+.. image:: graphics/fanbeam-1.png
     :width: 5000
     :alt: Depiction of fan beam geometry
     
