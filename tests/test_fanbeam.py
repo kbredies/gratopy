@@ -26,11 +26,11 @@ queue = None
 
 
 def create_phantoms(queue, N, dtype='double'):
-    #Use gratopy phantom method to create Shepp-Logan
+    # use gratopy phantom method to create Shepp-Logan phantom
     A=phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
     
-    #Second test image consisting of 2 bars across the image
+    # second test image consisting of 2 horizontal bars
     B=cl.array.empty(queue, A.shape, dtype=dtype)
     B[:] = 255-120
     B[int(N/3):int(2*N/3)]=0
@@ -47,17 +47,17 @@ def test_projection():
 
     print("Projection test")
     
-    #Create PyopenCL context 
+    # create PyopenCL context 
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    #Create testimage
+    # create test image
     Nx=225
     dtype=float32
     img=create_phantoms(queue,Nx,dtype)
     original=img.get()
     
-    #Define setting for projection
+    # define setting for projection
     number_detectors = 600
     angles=220
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, 
@@ -68,7 +68,7 @@ def test_projection():
     sino_gpu = clarray.zeros(queue, (PS.n_detectors,PS.n_angles,2), 
         dtype=dtype, order='F')
 
-    #Test speed of implementation for forward projection
+    # test speed of implementation for forward projection
     a=time.perf_counter()
     for i in range(100):
         forwardprojection(img, PS, sino=sino_gpu)
@@ -86,7 +86,7 @@ def test_projection():
         (time.perf_counter()-a)/100)
 
 
-    #plott results
+    # plot results
     figure(1)
     imshow(hstack([original[:,:,0],original[:,:,1]]), cmap=cm.gray)
     title('original image')
@@ -109,36 +109,36 @@ def test_weighting():
     """
     print("Weighting;")
     
-    #Create PyopenCL context 
+    # create PyopenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
-    #Execute for different number of detectors, to ensure consideration 
-    #is resolution independent.
+    # execute for different number of detectors, to ensure
+    # resolution independence
     for number_detectors in [50,100,200,400,800,1600]:
 
-        #Consider full image
+        # consider full image
         Nx=400
         img=np.ones([Nx,Nx])
         angles=720
 
-        #relevant quantities for scaling
+        # relevant quantities for scaling
         rescaling=1/40.*sqrt(2)
         detector_width=400*rescaling
         R=1200.*rescaling
         RE=200.*rescaling
         image_width=40.*rescaling
 
-        #create projectionsetting
+        # create projectionsetting
         PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, 
 	     angles=angles, detector_width=detector_width, R=R,RE= RE,
 	    n_detectors=number_detectors,image_width=image_width)
         
-        #forward and backprojection
+        # forward and backprojection
         img_gpu = clarray.to_device(queue, require(img, float32, 'F'))
         sino_gpu= forwardprojection(img_gpu, PS)
 	
-	#Compute mass inside object and on the detector
+	# compute mass inside object and on the detector
         mass_in_image=np.sum(img_gpu.get())*PS.delta_x**2
         mass_in_projcetion=np.sum(sino_gpu.get())*(PS.delta_ratio*PS.delta_x)\
 	    /angles
@@ -162,10 +162,9 @@ def test_adjointness():
 
     print("Adjointness:")
 
-    #Create PyopenCL context 
+    # create PyopenCL context 
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
-
 
     # relevant quantities
     number_detectors=230
@@ -173,15 +172,13 @@ def test_adjointness():
     angles=390
     midpoint_shift=[100,100]
 
-    #define projection setting
+    # define projection setting
     PS = ProjectionSettings(queue, FANBEAM, img.shape, angles, 
         n_detectors=number_detectors, detector_width=83,
 	detector_shift=0.0, midpoint_shift=[0,0],
 	R=900, RE=300, image_width=None, fullangle=True)
 
-    
-
-    #preliminary definitoins
+    # preliminary definitions
     Error=[]
     count=0
     eps=0.00001
@@ -192,28 +189,28 @@ def test_adjointness():
         order='F')
     for i in range(100):
 	
-	#Loop through a number of experiments
+	# loop through a number of experiments
         img1_gpu = clarray.to_device(queue, \
 	     require(np.random.random(PS.img_shape), float32, 'F'))
         sino1_gpu = clarray.to_device(queue, \
 	     require(np.random.random(PS.sinogram_shape), float32, 'F'))
         
-        #Compute corresponding forward and backprojections
+        # compute corresponding forward and backprojections
         forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         backprojection(sino1_gpu, PS, img=img2_gpu)
         
-	#Extract suitable Information
+	# extract suitable information
         sino1=sino1_gpu.get().flatten()
         sino2=sino2_gpu.get().flatten()
         img1=img1_gpu.get().flatten()
         img2=img2_gpu.get().flatten()
 
-        #Dual pairing in imagedomain
+        # dual pairing in image domain
         a=np.dot(img1,img2)*PS.delta_x**2
-        #Dual pairing in sinogram domain
+        # dual pairing in sinogram domain
         b=np.dot(sino1,sino2)*(2*np.pi)/angles*(PS.delta_ratio*PS.delta_x)
         
-        #Check whether an error occurred  
+        # check whether an error occurred
         if abs(a-b)/min(abs(a),abs(b))>eps:
             print (a,b,a/b)
             count+=1
@@ -232,25 +229,25 @@ def test_fullangle():
     angle setting.
     """
     
-    #Create PyopenCL context
+    # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    #create test phantom
+    # create test phantom
     dtype=float32
     N = 1200
     img = create_phantoms(queue, N,dtype)
     
-    #relevant quantities
+    # relevant quantities
     Ns=int(0.3*img.shape[0])
     shift=0
     (R, RE, Detector_width, image_width)=(5, 2, 6, 2)
     
-    #Angles cover only part of the angular range
+    # angles cover only part of the angular range
     angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
    
-    #Create two projecetionsettings, one with the correct "fullangle=False"
-    #parameter for limited-angle situation, incorrectly using "fullangle=True"
+    # create two projecetionsettings, one with the correct "fullangle=False"
+    # parameter for limited-angle situation, incorrectly using "fullangle=True"
     PScorrect = ProjectionSettings(queue, FANBEAM, img.shape, angles, Ns,
 	                           image_width=image_width, R=R, RE=RE,
 				   detector_width=Detector_width,
@@ -261,16 +258,16 @@ def test_fullangle():
                                      detector_width=Detector_width, 
 				     detector_shift=shift,fullangle=True)
 
-    #Show geometry of the problem
+    # show geometry of the problem
     PScorrect.show_geometry(np.pi/4, show=False)
      
-    #Forward and backprojection for the two settings
+    # forward and backprojection for the two settings
     sino_gpu_correct=forwardprojection(img, PScorrect)
     sino_gpu_incorrect=forwardprojection(img, PSincorrect)
     backprojected_correct=backprojection(sino_gpu_correct, PScorrect)
     backprojected_incorrect=backprojection(sino_gpu_correct, PSincorrect)
 
-    #Plot results
+    # plot results
     figure(1)
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
@@ -287,7 +284,7 @@ def test_fullangle():
 	np.hstack([backprojected_incorrect.get()[:,:,0],\
 	backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
     
-    show()	 
+    show()
 
 def test_midpointshift():
     """ 
@@ -295,36 +292,36 @@ def test_midpointshift():
     images is shifted away from the center of roation.
     """
 
-    #Create PyOpenCL context
+    # create PyOpenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    #create phantom for test
+    # create phantom for test
     dtype=float32
     N = 1200
     img = create_phantoms(queue, N,dtype)
 
-    #relevant quantities
+    # relevant quantities
     (angles, R, RE, Detector_width, image_width, shift) = (360, 5, 3, 6, 2, 0)
     midpoint_shift=[0,0.5]
     Ns=int(0.5*img.shape[0])
 
-    #define projectionsetting
+    # define projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img.shape, angles, Ns,
                             image_width=image_width, R=R, RE=RE,
                             detector_width=Detector_width, detector_shift=shift,
                             midpoint_shift=midpoint_shift,fullangle=True)
     
-    #Plot the geometry from various angles
+    # plot the geometry from various angles
     figure(0)
     for k in range(0,16):
         PS.show_geometry(k*np.pi/8, axes=subplot(4,4,k+1))
 
-    #Compute forward and backprojection
+    # compute forward and backprojection
     sino_gpu=forwardprojection(img, PS)    
     backprojected=backprojection(sino_gpu, PS)
 
-    #Plot results
+    # plot results
     figure(1)
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
@@ -335,7 +332,7 @@ def test_midpointshift():
     title("Backprojection with shifted midpoint")
     imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]),\
         cmap=cm.gray)
-    show()			
+    show()
 
 def test_landweber():
     """ 
@@ -344,39 +341,34 @@ def test_landweber():
     """
     print("Walnut Landweber reconstruction test")
 
-    #create phantom for test
+    # create phantom for test
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    #Load and rescale Walnut image
+    # load and rescale Walnut image
     walnut=mpimg.imread(TESTWALNUT)
     walnut=walnut/np.mean(walnut)
     walnut[np.where(walnut<=1.5)]=0
-    #walnut=scipy.misc.imresize(walnut,[328,328])
-    walnut=np.array(Image.fromarray(walnut).resize([328,328]))
 
-    #geometric quantities
+    # geometric quantities
     dtype=float
     number_detectors=328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
     
-    
-    
-    
-    #Create projectionsetting
+    # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=walnut.shape,
                             angles = numberofangles, detector_width=Detectorwidth,
                             R=FDD, RE=FOD, n_detectors=number_detectors)
 
-    #Load image to the gpu
+    # copy image to the gpu
     walnut_gpu=clarray.to_device(queue,require(walnut,dtype,'F'))
     
-    #Compute forward and backprojection
+    # compute forward and backprojection
     sino=forwardprojection(walnut_gpu, PS)	
     walnutbp=backprojection(sino, PS)
 
-    #Plot results for forward and backprojection
+    # plot results for forward and backprojection
     figure(1)
     imshow(walnut, cmap=cm.gray)
     title('original walnut')
@@ -387,10 +379,8 @@ def test_landweber():
     imshow(walnutbp.get(), cmap=cm.gray)
     title('Backprojected image')
 
-    #Load sinogram of walnut and rescale
+    # load sinogram of walnut and rescale
     sinonew=mpimg.imread(TESTWALNUTSINOGRAM)
-    #sinonew[np.where(sinonew<2000)]=0
-    #sinonew=np.array(sinonew,dtype=dtype)
     sinonew/=np.mean(sinonew)
 
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
@@ -398,7 +388,7 @@ def test_landweber():
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
     img_shape=(600,600)
     
-    #Create projectionsetting
+    # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape, angles=angles,
                             detector_width=Detectorwidth, R=FDD, RE=FOD,
                             n_detectors=number_detectors)
@@ -412,10 +402,10 @@ def test_landweber():
     
     walnut_gpu2new=clarray.to_device(queue,require(sino,dtype,'F'))
     
-    #Execute Landweber method
+    # execute Landweber method
     ULW=landweber(walnut_gpu2new, PS, 20)
 
-    #Plot Landweber reconstruction
+    # plot Landweber reconstruction
     figure(4)
     imshow(np.hstack([ULW.get()[:,:,0],ULW.get()[:,:,1]]),cmap=cm.gray)
     title("Landweber reconstruction")
@@ -428,44 +418,42 @@ def test_conjugate_gradients():
     """
     print("Walnut conjugated_gradients reconstruction test")
 
-    #create PyopenCL context
+    # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
   
     dtype=float32
-    #Load and rescale image
+    # load and rescale image
     sinonew=mpimg.imread(TESTWALNUTSINOGRAM)
-    #sinonew[np.where(sinonew<2000)]=0
     sinonew=np.array(sinonew,dtype=dtype)
     sinonew/=np.mean(sinonew)
 
-    #geometric quantities
+    # geometric quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
     angles = linspace(0,2*pi,121)[:-1] + pi/2
     geometry=[Detectorwidth,FDD,FOD,number_detectors]
     img_shape=(600,600)
-    #create projectionsetting
+
+    # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape, angles=angles,
                             detector_width=Detectorwidth, R=FDD, RE=FOD,
                             n_detectors=number_detectors)
-
 
     my_phantom=phantom(queue,img_shape)
     my_phantom_sinogram=forwardprojection(my_phantom,PS)
 
 
-    sino=np.zeros(PS.sinogram_shape+tuple([2]))    
+    sino=np.zeros(PS.sinogram_shape+tuple([2]))
     sino[:,:,0]=sinonew/np.max(sinonew)
     sino[:,:,1]=my_phantom_sinogram.get()/np.max(my_phantom_sinogram.get())
   
-    #Execute conjugate gradients 
+    # perform conjugate gradients algorithm
     walnut_gpu2new=clarray.to_device(queue,require(sino,dtype,'C'))
     UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
 
-    #Plott results
+    # plot results
     figure(4)
-    #imshow(UCG.get(),cmap=cm.gray)
     imshow(np.hstack([UCG.get()[:,:,0],UCG.get()[:,:,1]]),cmap=cm.gray)
     title("Conjugate gradients reconstruction")
     show()
@@ -478,40 +466,37 @@ def test_total_variation():
     """
     print("Walnut total variation reconstruction test")
 
-    #create PyopenCL context
+    # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    
-    #relevant quantities
+    # relevant quantities
     dtype=float32
     number_detectors=328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
     img_shape=(328,328)
-    #create projectionsetting
+
+    # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape,
     	                    angles = numberofangles, 
 			    detector_width=Detectorwidth,
     	                    R=FDD, RE=FOD, n_detectors=number_detectors)
 
-    #Load and rescale sinogram
+    # load and rescale sinogram
     sinonew=mpimg.imread(TESTWALNUTSINOGRAM)
-    #sinonew[np.where(sinonew<2000)]=0
     sinonew=np.array(sinonew,dtype=dtype)
     sinonew/=np.mean(sinonew)
     sinonew+=+np.random.randn(sinonew.shape[0],sinonew.shape[1])*0.2
     
-    #Execute total_variation reconstruction
+    # perform total_variation reconstruction
     walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
 
-    
-    
     UTV=total_variation_reconstruction(walnut_gpu2new,PS,mu=1000,
                                        number_iterations=5000,z_distance=0)
     
     sinoreprojected=forwardprojection(UTV,PS)
     
-    #Plot results
+    # plot results
     figure(4)
     imshow(UTV.get(),cmap=cm.gray)
 
@@ -522,45 +507,40 @@ def test_total_variation():
     show()
 
 
-
-
-
-
 def test_nonquadratic():
     """Illustrates the use of gratopy for non-quadratic images. """
     
-    
-    #create PyopenCL context
+    # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
-    #Create phantom but cut of one side
+    # create phantom and cut one side
     N = 1200
     img = create_phantoms(queue, N)
     N1=img.shape[0]
     N2=int(img.shape[0]*2/3.)
     img=cl.array.to_device(queue, img.get()[:,0:N2,:].copy())
 
-    #geometric quantities
+    # geometric quantities
     (angles, R, RE, Detector_width, shift) = (360, 5, 3, 5, 0)
     image_width=None
     midpoint_shift=[0,0.]
     dtype=float32
     Ns=int(0.5*img.shape[0])
 
-    #create projectionsetting
+    # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img.shape, angles, Ns, 
         image_width=image_width,R=R, RE=RE, detector_width=Detector_width,
 	detector_shift=shift, midpoint_shift=midpoint_shift, fullangle=True)
 
-    #compute forward and backprojection
+    # compute forward and backprojection
     sino_gpu=forwardprojection(img, PS)
     backprojected=backprojection(sino_gpu, PS)
 
-    #Show geometry of projectionsetting
+    # show geometry of projectionsetting
     PS.show_geometry(1*np.pi/8, show=False)
 
-    #Plot results
+    # plot results
     figure(1)
     title("original non square images")
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
@@ -573,8 +553,7 @@ def test_nonquadratic():
     title("backprojection for non-square image")
     imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]),
         cmap=cm.gray)
-    show()			
-
+    show()
 
 # test
 if __name__ == '__main__':

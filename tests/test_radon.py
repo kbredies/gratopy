@@ -10,11 +10,11 @@ queue = None
 
 
 def create_phantoms(queue, N, dtype='double'):
-    #Use gratopy phantom method to create Shepp-Logan
+    # use gratopy phantom method to create Shepp-Logan phantom
     A=phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
     
-    #Second test image consisting of 2 bars across the image
+    # second test image consisting of 2 horizontal bars
     B=cl.array.empty(queue, A.shape, dtype=dtype)
     B[:] = 255-120
     B[int(N/3):int(2*N/3)]=0
@@ -28,52 +28,52 @@ def test_projection():
     """  Basic test simply computes forward and backprojection of Radon
     transform of two test images, to visually confirm the correctness 
     of the method.    """
+
     print("Projection test")
 
-    #Create PyopenCL context 
+    # create PyopenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
     
-                
-    #Create testimage
+    # create test image
     dtype=float32
     N = 1200
     img = create_phantoms(queue, N, dtype=dtype)
 	
-    #Define relevant quantities to determine the geometry
+    # define relevant quantities to determine the geometry
     angles=360
     detector_width=4
     image_width=4
     Ns=int(0.5*img.shape[0])
 
-    #Create projectionsetting with parallel beam setting with 360 
-    #equi-distant angles, the detector has a width of 4 and the observed
-    #object has a diameter of 4 (i.e. is captured by the detector), we
-    #consider half the amount of detector pixels as image pixels
+    # create projectionsetting with parallel beam setting with 360
+    # equi-distant angles, the detector has a width of 4 and the observed
+    # object has a diameter of 4 (i.e. is captured by the detector), we
+    # consider half the amount of detector pixels as image pixels
     PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, Ns,
-                              image_width=image_width, 
+                              image_width=image_width,
 			      detector_width=detector_width,
                               detector_shift=0,
                               fullangle=True)
 
-
-    #Plot geometry via show_geometry method to consider geometry
+    # plot geometry via show_geometry method to visualize geometry
     figure(0)
     PS.show_geometry(0, axes=subplot(2,2,1))
     PS.show_geometry(np.pi/8, axes=subplot(2,2,2))
     PS.show_geometry(np.pi/4, axes=subplot(2,2,3))
     PS.show_geometry(np.pi*3/8., axes=subplot(2,2,4))
     
-    #Compute Radon transform for given test images
+    # compute Radon transform for given test images
     sino_gpu = forwardprojection(img, PS)
-    #Compute backprojection of computed sinogram
+
+    # compute backprojection of computed sinogram
     backprojected = backprojection(sino_gpu, PS)
     
-    #Plot Results
+    # plot results
     figure(1)
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
-    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]), 
+    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]),
         cmap=cm.gray)
     figure(3)
     imshow(np.hstack([backprojected.get()[:,:,0],
@@ -82,16 +82,16 @@ def test_projection():
 
 def test_weighting():
     """ Check whether the mass of an image (square with sidelength 4/3
-     and pixel-values -- i.e. density -- 1) is correctly transported into the mass inside 
+     and pixel-values -- i.e. density -- 1) is correctly transported into the mass inside
      a projection, i.e., the scaling is adequate.
     """
     print("Weighting test")
     
-    #Create PyopenCL context 
+    # create PyopenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
     
-   #Relevant quantities
+    # relevant quantities
     dtype=float32
     N=900
     img_shape=(N,N)
@@ -100,19 +100,19 @@ def test_weighting():
     image_width=4
     Ns=500
 	
-    #define projectionsetting
+    # define projectionsetting
     PS=ProjectionSettings(queue, PARALLEL,img_shape,angles,Ns,
         detector_width=detector_width,image_width=image_width)
     
-    #Consider image as rectangular of side-length (4/3) 
+    # consider image as rectangular of side-length (4/3)
     img=np.zeros([N,N])
     img[int(N/3.):int(2*N/3.)][:,int(N/3.):int(2*N/3.)]=1
     img_gpu = cl.array.to_device(queue, require(img, dtype, 'F'))
     
-    #compute corresponding Sinogram
+    # compute corresponding sinogram
     sino_gpu = forwardprojection(img_gpu,PS)	
     
-    #Mass inside the image must correspond to the mass any projection
+    # mass inside the image must correspond to the mass any projection
     mass_image=np.sum(img)*PS.delta_x**2
     mass_sinogram_average=np.sum(sino_gpu.get())*PS.delta_s/PS.n_angles
     mass_sino_rdm=np.sum(sino_gpu.get()[:, random.randint(0, angles) ])\
@@ -137,7 +137,7 @@ def test_adjointness():
     """
     print("Adjointness test")
     
-    #Create PyopenCL context 
+    # create PyOpenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
@@ -147,11 +147,11 @@ def test_adjointness():
     img=np.zeros([Nx,Nx])
     angles=360
     
-    #define projectionsetting
+    # define projectionsetting
     PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, 
         n_detectors=number_detectors, fullangle=True)
     
-    #define zero images and sinograms
+    # define zero images and sinograms
     sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=float32, 
         order='F')
     
@@ -160,31 +160,32 @@ def test_adjointness():
     Error=[]
     count=0
     eps=0.00001
-    #Loop through a number of experiments
+    # loop through a number of experiments
     for i in range(100):
-	#Create random image and sinogram
+	# create random image and sinogram
         img1_gpu = cl.array.to_device(queue, 
             require(np.random.random(PS.img_shape), float32, 'F'))
         
         sino1_gpu = cl.array.to_device(queue,\
             require(np.random.random(PS.sinogram_shape), float32, 'F'))
         
-	#Compute corresponding forward and backprojections
+	# compute corresponding forward and backprojections
         forwardprojection(img1_gpu,PS,sino=sino2_gpu)
         backprojection(sino1_gpu,PS,img=img2_gpu)
             
-        #Extract suitable Information
+        # extract suitable Information
         sino1=sino1_gpu.get().flatten()
         sino2=sino2_gpu.get().flatten()
         img1=img1_gpu.get().flatten()
         img2=img2_gpu.get().flatten()
 	
-	#Dual pairing in imagedomain
+	# dual pairing in imagedomain
         a=np.dot(img1,img2)*PS.delta_x**2
-	#Dual pairing in sinogram domain
+
+	# dual pairing in sinogram domain
         b=np.dot(sino1,sino2)*(np.pi)/angles*(PS.delta_ratio*PS.delta_x)
         
-	#Check whether an error occurred
+	# check whether an error occurred
         if abs(a-b)/min(abs(a),abs(b))>eps:
             count+=1
             Error.append((a,b))
@@ -202,13 +203,11 @@ def test_fullangle():
     angle setting.
     """
        
-    
-    #Create PyopenCL context 
+    # create PyOpenCL context 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
-    
 
-    #relevant quantities
+    # relevant quantities
     dtype=float32
     N = 1200
     img = create_phantoms(queue, N, dtype=dtype)
@@ -216,23 +215,23 @@ def test_fullangle():
     Ns=int(0.3*img.shape[0])
     shift=0
 
-    #Angles cover only part of the angular range
+    # angles cover only a part of the angular range
     angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
     
-    #Create two projecetionsettings, one with the correct "fullangle=False"
-    #parameter for limited-angle situation, incorrectly using "fullangle=True"
+    # create two projecetionsettings, one with the correct "fullangle=False"
+    # parameter for limited-angle situation, incorrectly using "fullangle=True"
     PScorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
        detector_width=p,detector_shift=shift,fullangle=False)
     PSincorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
         detector_width=p,detector_shift=shift,fullangle=True)
 
-    #Forward and backprojection for the two settings
+    # forward and backprojection for the two settings
     sino_gpu_correct=forwardprojection(img,PScorrect)
     sino_gpu_incorrect=forwardprojection(img,PSincorrect)
     backprojected_correct=backprojection(sino_gpu_correct,PScorrect)
     backprojected_incorrect=backprojection(sino_gpu_correct,PSincorrect)
         
-    #Plot results
+    # plot results
     figure(1)
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
     figure(2)
@@ -254,28 +253,27 @@ def test_fullangle():
 def test_nonquadratic():
     """Illustrates the use of gratopy for non-quadratic images. """
     
-    #Create PyopenCL context
+    # create PyOpenCL context
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
-    #Create phantom but cut of one side
+    # create phantom but cut of one side
     dtype=float32
     N1 = 1200
     img = create_phantoms(queue,N1,dtype=dtype)
     N2=int(img.shape[0]*2/3.)
     img=cl.array.to_device(queue, img.get()[:,0:N2,:].copy())
     
-    #Additional quantities and setting
+    # additional quantities and setting
     angles=360
     Ns=int(0.5*img.shape[0])
     PS=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns)
     
-    #Compute forward and backprojection
+    # compute forward and backprojection
     sino_gpu=forwardprojection(img,PS)
     backprojected=backprojection(sino_gpu,PS)
 
-
-    #Plot results
+    # plot results
     figure(1)
     title("original non square images")
     imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)

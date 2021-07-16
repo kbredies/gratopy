@@ -5,36 +5,25 @@ Gratopy can easily be installed via pip.
 Installation via pip
 =====================
 
-For many users the `wheel <https://pypi.org/project/wheel/>`_ package is probably already installed. As not having it installed can lead to issues though, we advise to install it beforehand by hand via
-::
-
-    pip install wheel
-
-Then the gratopy toolbox can be  installed from the internet directly via 
+The gratopy toolbox can easily be installed using `pip <https://pypi.org/project/pip/>`_
 ::
 
     pip install gratopy   
 
-Alternatively, you can download the package from `<https://github.com/kbredies/gratopy>`_ 
-as tar and install it (after unpacking inside the corresponding folder) via 
+Alternatively, the release can be downloaded from `<https://github.com/kbredies/gratopy>`_ and installed (after unpacking inside the corresponding folder) via 
 ::
 
     pip install .
     
-or installing the wheel file directly via
-::
-
-    pip install gratopy*.whl
-
-In case these installations fails due to the dependency on other packages (see requirements.txt), it is advised to install the packages by hand before retrying to install gratopy. In particular the PyOpenCL package may require some additional
-effort as it depends on additional drivers and c libraries which might need to be installed by hand. 
+In case installation fails due to the dependency on other packages (see `requirements.txt <https://github.com/kbredies/gratopy/blob/master/requirements.txt>`_), it is advised to install the packages by hand before retrying to install gratopy. In particular, the PyOpenCL package may require some additional
+effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to PyOpenCL's `documentation <https://documen.tician.de/pyopencl/>`_.  
 
 Testing correct installation
 ============================
 
-In the tar.gz file (or on github) you find a tests folder, which contains a variety of tests visually and numerically observing whether gratopy was installed correctly and works as desired.
+The release archive (or GitHub repositoy) includes a ``tests`` folder which contains a variety of tests that allow to observe visually and numerically whether gratopy was installed correctly and works as desired.
 
-One can execute these tests by using `pytest <https://pypi.org/project/pytest/>`_  
+One can perform these tests by using, for instance, `pytest <https://pypi.org/project/pytest/>`_  
 ::
 
     pytest  
@@ -44,25 +33,34 @@ or `nose <https://pypi.org/project/nose/>`_
 
     nosetests 
 
-In case multiple context are available, but not all are suitably configured for the tests to work one might need to choose the context to use (as the test will choose the context determined as default by the system). You can a-priori choose which context to use in PyOpenCL by default via
+In case multiple OpenCL devices are registered in :mod:`pyopencl`, but the default device is not suitably configured for the tests to work, one might need to choose the context to use manually. This a-priori choice of context to use in :mod:`pyopencl` can be done via
 ::
 
     export PYOPENCL_CTX=<context_number>
 
+The context number can, for instance, be determined by
+::
+   
+   import pyopencl
+   pyopencl.create_some_context()
 
-Moreover, `getting started <getting_started.html>`_ contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
+following the interactive instructions and observing the console output.
+
+Moreover, the `getting started <getting_started.html>`_ guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
 
 Requirements
 ==================
-The requirements.txt file contains references to python packages  relevant to the use of gratopy.
-Amongst them the most relevant ones are
 
-* numpy 
-* matplotlib
-* scipy
-* pyopencl
+The requirements.txt file contains references to Python packages
+relevant to the use of gratopy. Amongst them the most relevant ones are
 
-Most accomplished user will probably have these packages installed as they are considered standard for numerical calculations in python.
-Particularly, correctly installing PyOpenCl might take some time and effort though, as dependent on the Hardware/GPU used suitable drivers might need to be installed, we refer to `<https://documen.tician.de/pyopencl/>`_.    
+* `pyopencl>=2019.1 <https://pypi.org/project/pyopencl/>`_
+* `numpy>=1.16.0 <https://pypi.org/project/numpy/>`_
+* `scipy>=1.3.0 <https://pypi.org/project/scipy/>`_
+* `matplotlib>=3.2.0 <https://pypi.org/project/matplotlib/>`_
+* `Pillow>=6.0.0 <https://pypi.org/project/Pillow/>`_
+
+Most users aiming scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
+Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, `<https://documen.tician.de/pyopencl/>`_.    
 
 
