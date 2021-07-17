@@ -6,7 +6,7 @@ Test examples
 In the following you find a number of references to the additional 
 functions contained in the package. These functions
 serve the double purpose of showing that the package 
-is indeed working as desired (via pytest or nosetest, see `installation <installation.html>`_),
+is indeed working as desired (via ``pytest`` or ``nosetests``, see `installation <installation.html>`_),
 and illustrating to users how to set various parameters of the 
 gratopy toolbox and what their effect are. 
   

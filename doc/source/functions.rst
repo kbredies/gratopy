@@ -8,7 +8,7 @@ Function reference
 
 Definition of Geometry
 ----------------------
-A  cornerstone in applying projection methods is to define in which geometry the projection are executed.
+A  cornerstone in applying projection methods is to define for which geometry the projection has to be computed.
 Thus, the first step in using gratopy is always creating an instance of :class:`gratopy.ProjectionSettings` defining the geometry, and thus internally precomputing relevant quantities.
 
 .. autoclass:: gratopy.ProjectionSettings

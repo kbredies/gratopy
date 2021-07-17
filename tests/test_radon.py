@@ -25,9 +25,9 @@ def create_phantoms(queue, N, dtype='double'):
     return img
 
 def test_projection():
-    """  Basic test simply computes forward and backprojection of Radon
-    transform of two test images, to visually confirm the correctness 
-    of the method.    """
+    """  Basic projection test. Simply computes forward and backprojection 
+    of the Radon transform for two test images in order to visually confirm 
+    the correctness of the method. """
 
     print("Projection test")
 
@@ -81,9 +81,10 @@ def test_projection():
     show()
 
 def test_weighting():
-    """ Check whether the mass of an image (square with sidelength 4/3
-     and pixel-values -- i.e. density -- 1) is correctly transported into the mass inside
-     a projection, i.e., the scaling is adequate.
+    """ Mass preservation test. Check whether the total mass of an image 
+    (square with side length 4/3 and pixel values, i.e. density, 1) 
+    is correctly transported into the total mass of a projection, i.e., 
+    the scaling is adequate.
     """
     print("Weighting test")
     
@@ -130,10 +131,10 @@ def test_weighting():
 	+str(abs(1-mass_image/mass_sino_rdm))
     
 def test_adjointness():
-    """ Randomly creates images and sinograms to check whether forward 
-    and backprojection are indeed adjoint to one another (by considering
-    corresponding dual pairings). This is carried out 
-    for multiple experiments.
+    """ Adjointness test. Creates random images 
+    and sinograms to check whether forward and backprojection are indeed 
+    adjoint to one another (by comparing the corresponding dual pairings). 
+    This comparison is carried out for multiple experiments.
     """
     print("Adjointness test")
     
@@ -198,9 +199,9 @@ def test_adjointness():
 	tests adjointness-errors were bigger than '+str(eps) 
 
 def test_fullangle():
-    """ Illustrates the impact of the full-angle parameter, in particular
-    showing artifacts resulting from incorrect use for the limited 
-    angle setting.
+    """ Full-angle test. Tests and illustrates the impact of the fullangle 
+    parameter, in particular showing artifacts resulting from the incorrect 
+    use of the limited angle setting.
     """
        
     # create PyOpenCL context 
@@ -251,7 +252,8 @@ def test_fullangle():
     show()			
         
 def test_nonquadratic():
-    """Illustrates the use of gratopy for non-quadratic images. """
+    """ Nonquadratic image test. Tests and illustrates the projection 
+    operator for non-quadratic images. """
     
     # create PyOpenCL context
     ctx = cl.create_some_context(interactive=False)

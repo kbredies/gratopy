@@ -41,8 +41,8 @@ def create_phantoms(queue, N, dtype='double'):
     return img
 
 def test_projection():
-    """  Basic test simply computes forward and backprojection of fanbeam
-    transform of two test images, to visually confirm the 
+    """  Basic projection test. Computes the forward and backprojection of 
+    the fanbeam transform for two test images to visually confirm the 
     correctness of the method.    """
 
     print("Projection test")
@@ -101,10 +101,12 @@ def test_projection():
     show()
 
 def test_weighting():
-    """ Checks whether the mass of an image is correctly transported into
-    the mass inside a projection. As the object has a larger shadow than 
-    itself, the mass in the sinogram is roughly a multiplication of the 
-    mass by the ratio of R to RE. Indicates that scaling of the transform 
+    """ Mass preservation test. Checks whether the total mass of an image 
+    is correctly transported into the total mass of a projection. 
+    As the object has a larger shadow than 
+    itself **(???)**, the total mass in the sinogram is roughly 
+    the multiplication of the total mass of the image by the ratio of 
+    **R** and **RE**. Indicates that the scaling of the transform 
     is suitable.
     """
     print("Weighting;")
@@ -154,10 +156,10 @@ def test_weighting():
 
 def test_adjointness():
     """ 
-    Randomly creates images and sinograms to check whether forward 
-    and backprojection are indeed adjoint to one another 
-    (by considering corresponding dual pairings). 
-    This is carried out for multiple experiments.
+    Adjointness test. Creates random images 
+    and sinograms to check whether forward and backprojection are indeed 
+    adjoint to one another (by comparing the corresponding dual pairings). 
+    This comparison is carried out for multiple experiments.
     """
 
     print("Adjointness:")
@@ -218,15 +220,15 @@ def test_adjointness():
 
     print ('Adjointness: Number of Errors: '+str(count)+' out of 100\
         tests adjointness-errors were bigger than '+str(eps))
-    assert(len(Error)<10),'A large number of experiments for adjointness\
+    assert (len(Error)<10), 'A large number of experiments for adjointness\
         turned out negative, number of errors: '+str(count)+' out of 100\
         tests adjointness-errors were bigger than '+str(eps) 
 
 def test_fullangle():
     """
-    Illustrates the impact of the full-angle parameter, in particular
-    showing artifacts resulting from incorrect use for the limited 
-    angle setting.
+    Full-angle test. Tests and illustrates the impact of the fullangle 
+    parameter, in particular showing artifacts resulting from the incorrect 
+    use of the limited angle setting.
     """
     
     # create PyopenCL context
@@ -288,8 +290,9 @@ def test_fullangle():
 
 def test_midpointshift():
     """ 
-    Illustrates how the sinogram changes if the midpoint of an 
-    images is shifted away from the center of roation.
+    Shifted midpoint test.
+    Tests and illustrates how the sinogram changes if the midpoint of an 
+    images is shifted away from the center of rotation.
     """
 
     # create PyOpenCL context
@@ -336,8 +339,16 @@ def test_midpointshift():
 
 def test_landweber():
     """ 
-    Executes the Landweber iteration for the `walnut dataset <https://arxiv.org/abs/1905.04787>`_  to compute an inversion of a 
-    sinogram, testing the implementation.
+    Landweber reconstruction test. Performs the Landweber iteration   
+    to compute a reconstruction from a sinogram contained in 
+    the walnut data set of [1]_, testing the implementation.
+
+    .. [1] Henri Der Sarkissian, Felix Lucka, Maureen van Eijnatten, 
+           Giulia Colacicco, Sophia Bethany Coban, Kees Joost Batenburg.
+           "A Cone-Beam X-Ray CT Data Collection designed for Machine 
+           Learning". 
+           https://arxiv.org/abs/1905.04787
+           **(???) Is this really the right reference?**
     """
     print("Walnut Landweber reconstruction test")
 
@@ -413,8 +424,10 @@ def test_landweber():
 
 def test_conjugate_gradients():
     """ 
-    Executes the conjugate gradients iteration for the `walnut dataset`_  to compute an 
-    inversion of a sinogram, testing the implementation.
+    Conjugate gradients reconstruction test.
+    Performs the conjugate gradients iteration   
+    to compute a reconstruction from a sinogram contained in 
+    the walnut data set of [1]_, testing the implementation.
     """
     print("Walnut conjugated_gradients reconstruction test")
 
@@ -461,8 +474,10 @@ def test_conjugate_gradients():
 
 def test_total_variation():
     """ 
-    Executes the total variation approach to compute an inversion of
-    a sinogram from the `walnut dataset`_, testing the implementation.
+    Total variation reconstruction test.
+    Performs the toolbox's total-variation-based approach   
+    to compute a reconstruction from a sinogram contained in 
+    the walnut data set of [1]_, testing the implementation.
     """
     print("Walnut total variation reconstruction test")
 
@@ -508,7 +523,10 @@ def test_total_variation():
 
 
 def test_nonquadratic():
-    """Illustrates the use of gratopy for non-quadratic images. """
+    """
+    Nonquadratic image test. Tests and illustrates the projection 
+    operator for non-quadratic images.
+    """
     
     # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)

@@ -859,71 +859,68 @@ def upload_bufs(projectionsetting, dtype):
     projectionsetting.geometry_information[dtype]=geometry_buf
 
 class ProjectionSettings():
-    """Saves all relevant information concerning 
-    the projection geometry, and is thus a cornerstone of gratopy used 
-    in virtually all functions.
+    """ Creates and stores all relevant information concerning 
+    the projection geometry. Serves as a parameter for virtually all
+    gratopy's functions.
         
+    :param queue: OpenCL command queue to which the computations 
+        are to be associated.
+    :type queue: :class:`pyopencl.CommandQueue`  	
   	
-    :param queue: Opencl CommandQueue in which context the computations 
-        are to be executed.
-    :type queue: :class:`pyoencl.CommandQueue`  	
-  	
-    :param geometry: Represents whether parallel beam or fanbeam setting
-        is considered. Number 1 representing parallel beam setting, 
-        2 fanbeam setting.
-        Alternatively gratopy.RADON and gratopy.FANBEAM are set to these
-        values and can be used.
+    :param geometry: Represents whether parallel beam (:attr:`gratopy.RADON`) 
+        or fanbeam geometry (:attr:`gratopy.FANBEAM`)
+        is considered. 
     	    
     :type geometry: :class:`int`
     	      
     :param img_shape:  The number of pixels of the image in x- and 
-        y-direction respectively, i.e.,
-        image resolution. It is assumed that the center of rotation  
-        is in the middle of the grid of quadratic pixels.
+        y-direction respectively, i.e., the image dimension. 
+        It is assumed that the center of rotation is in the middle 
+        of the grid of quadratic pixels.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
     
     :param angles:  Determines which angles are considered for 
         the projection. Integer :math:`N_a` for the number
         of uniformly distributed angles in the angular range
         :math:`[0,\pi[,\ [0,2\pi[`
-        for Radon and fanbeam transform respectively. Alternatively,
+        for Radon and fanbeam transform, respectively. Alternatively,
         a list containing all angles 
         considered for the projection can be given. 
-        More advanced, list of lists of angles for multiple limited 
+        Also, a list of lists of angles for multiple limited 
         angle segments can be given,
         see :class:`fullangle` parameter.
     :type angles: :class:`int`, :class:`list[float]` 
         or :class:`list[list[float]]` 
     :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
-        pixels considered. When none is given :math:`N_s`
+        pixels considered. When :class:`None` is given, :math:`N_s`
         will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
-    :type n_detector:  :class:`int`, default None
+    :type n_detectors:  :class:`int`, default :class:`None`
     :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`, default 2.0
 
     :param image_width: Physical size of the image 
-        (more precisely  the sidelength 
-        of the larger side of the rectangle image),
-        i.e., the diameter of the object captured by image. 
-        For fanbeam the image_width is chosen suitably so the 
-        projections captures  exactly the image if no image_width is set.
-        For the parallel beam setting chosing 
-        image_width = detector_width results in 
-        the standard Radon transform with each projection touching 
-        the entire object, while img_with=2 detector_width results in 
-        each projection capturing only 
+        (more precisely, the length of the longer side 
+        of the rectangle defining the image domain),
+        i.e., the diameter of the object captured by image **(???)**. 
+        For parallel beam geometry, when :class:`None`, 
+        **image_width** is chosen as 2.0.
+        For fanbeam geometry, when :class:`None`, **image_width** is chosen 
+        such that the projections exactly capture the image domain. 
+        To illustrate, chosing **image_width** = **detector_width** results 
+        in  the standard Radon transform with each projection touching 
+        the entire object, while **img_width** = 2 **detector_width** 
+        results in each projection capturing only 
         half of the image.
-    :type image_width: :class:`float`, default None corresponds 
-        to 2.0 for parallel-beam, choosen adaptively for fanbeam
+    :type image_width: :class:`float`, default :class:`None`
 
     :param R:  Physical (orthogonal) distance from the source 
         to the detector line. Has no impact for parallel beam setting.
-    :type R: :class:`float`, **must be set for fanbeam situation**
+    :type R: :class:`float`, **must be set for fanbeam geometry**
+
     :param RE: Physical distance from source to the origin 
         (center of rotation).
         Has no impact for parallel beam setting.
-    :type RE: :class:`float`, **must be set for fanbeam situation**
-
+    :type RE: :class:`float`, **must be set for fanbeam geometry**
 
     :param detector_shift:   Physical shift of the detector along 
         the detector-line and corresponding detector pixel offsets,
@@ -931,11 +928,13 @@ class ProjectionSettings():
         If not given no shift is applied, i.e., the detector reaches from
         [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
+
     :param midpoint_shift: Vector of length two representing the  shift 
         of the image away from center of rotation. If not given no shift 
         is applied.
     :type midpoint_shift:  :class:`list` , default [0.0,0.0]
-    :param fullangel: True if entire angular range (:math:`[0,\pi[` 
+
+    :param fullangle: True if entire angular range (:math:`[0,\pi[` 
         for parallel, :math:`[0,2\pi[` for fan) is represented by
         the set :class:`angles`. False thus indicates a limited
         angle setting, i.e., the angles only represent
