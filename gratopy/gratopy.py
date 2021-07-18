@@ -867,8 +867,8 @@ class ProjectionSettings():
         are to be associated.
     :type queue: :class:`pyopencl.CommandQueue`  	
   	
-    :param geometry: Represents whether parallel beam (:attr:`gratopy.RADON`) 
-        or fanbeam geometry (:attr:`gratopy.FANBEAM`)
+    :param geometry: Represents whether parallel beam (:const:`gratopy.RADON`) 
+        or fanbeam geometry (:const:`gratopy.FANBEAM`)
         is considered. 
     	    
     :type geometry: :class:`int`
@@ -892,9 +892,9 @@ class ProjectionSettings():
     :type angles: :class:`int`, :class:`list[float]` 
         or :class:`list[list[float]]` 
     :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
-        pixels considered. When :class:`None` is given, :math:`N_s`
+        pixels considered. When :obj:`None`, :math:`N_s`
         will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
-    :type n_detectors:  :class:`int`, default :class:`None`
+    :type n_detectors:  :class:`int`, default :obj:`None`
     :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`, default 2.0
 
@@ -902,90 +902,100 @@ class ProjectionSettings():
         (more precisely, the length of the longer side 
         of the rectangle defining the image domain),
         i.e., the diameter of the object captured by image **(???)**. 
-        For parallel beam geometry, when :class:`None`, 
+        For parallel beam geometry, when :obj:`None`, 
         **image_width** is chosen as 2.0.
-        For fanbeam geometry, when :class:`None`, **image_width** is chosen 
+        For fanbeam geometry, when :obj:`None`, **image_width** is chosen 
         such that the projections exactly capture the image domain. 
         To illustrate, chosing **image_width** = **detector_width** results 
         in  the standard Radon transform with each projection touching 
         the entire object, while **img_width** = 2 **detector_width** 
         results in each projection capturing only 
         half of the image.
-    :type image_width: :class:`float`, default :class:`None`
+    :type image_width: :class:`float`, default :obj:`None`
 
-    :param R:  Physical (orthogonal) distance from the source 
-        to the detector line. Has no impact for parallel beam setting.
+    :param R:  Physical (orthogonal) distance from source 
+        to detector line. Has no impact for parallel beam geometry.
     :type R: :class:`float`, **must be set for fanbeam geometry**
 
-    :param RE: Physical distance from source to the origin 
+    :param RE: Physical distance from source to origin 
         (center of rotation).
-        Has no impact for parallel beam setting.
+        Has no impact for parallel beam geometry.
     :type RE: :class:`float`, **must be set for fanbeam geometry**
 
-    :param detector_shift:   Physical shift of the detector along 
-        the detector-line and corresponding detector pixel offsets,
-        i.e, shifting the position of the detector pixels.
-        If not given no shift is applied, i.e., the detector reaches from
-        [-detector_width/2,detector_width/2].
+    :param detector_shift:   Physical shift of all detector pixels
+        along the detector line.
+        Defaults to the application of no shift, i.e., 
+        the detector pixels span the range
+        [-detector_width/2, detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 
-    :param midpoint_shift: Vector of length two representing the  shift 
-        of the image away from center of rotation. If not given no shift 
-        is applied.
-    :type midpoint_shift:  :class:`list` , default [0.0,0.0]
+    :param midpoint_shift: Two-dimensional vector representing the 
+        shift of the image away from center of rotation. 
+        Defaults to the application of no shift.
+    :type midpoint_shift:  :class:`list`, default [0.0, 0.0]
 
-    :param fullangle: True if entire angular range (:math:`[0,\pi[` 
-        for parallel, :math:`[0,2\pi[` for fan) is represented by
-        the set :class:`angles`. False thus indicates a limited
+    :param fullangle: 
+        Indicates whether the entire angular range is represented by
+        **angles**. If :obj:`True`,
+        the entire angular range (:math:`[0,\pi[` 
+        for parallel beam, :math:`[0,2\pi[` for fanbeam geometry) 
+        is represented. :obj:`False` indicates a limited
         angle setting, i.e., the angles only represent
         a discretization of a strict subset of the angular range. 
         This impacts the weights in the backprojection. 
-    :type fullangel: :class:`bool`, default True
+    :type fullangle: :class:`bool`, default :obj:`True`
  
     These input parameters create attributes of the same name in 
     an instance of :class:`ProjectionSettings`, though the corresponding 
     values might be slightly restructured by internal processes.
     Further useful attributes are listed below.
     
-    :ivar is_parallel: True if the setting is for parallel beam, 
-        False otherwise.
+    :ivar is_parallel: :obj:`True` if the geometry is for parallel beams, 
+        :obj:`False` otherwise.
     :vartype is_parallel: :class:`bool`
     
-    :ivar is_fan: True if the setting is for fanbeam, False otherwise.
+    :ivar is_fan: :obj:`True` if the setting is for fanbeam geometry, 
+        :obj:`False` otherwise.
     :vartype is_fan: :class:`bool`
     
-    :ivar angles: List of all relevant angles for the setting. 
+    :ivar angles: List of all computed projection angles. 
     :vartype angles: :class:`list[float]`
-    :ivar n_angles: Number of angles :math:`N_a` used.
+
+    :ivar n_angles: Number of all angles :math:`N_a`.
     :vartype n_angles: :class:`int`
     
-    :ivar sinogram_shape: Represents the number of detectors 
-        (n_detectors) and
-        number of angles (n_angles) considered.
+    :ivar sinogram_shape: Represents the number of considered
+        detectors (**n_detectors**) and angles (**n_angles**).
     :vartype sinogram_shape: :class:`tuple` :math:`(N_s,N_a)`
+
     :ivar delta_x: 	Physical width and height :math:`\delta_x` of 
         the image pixels.
     :vartype delta_x:  :class:`float`
+
     :ivar delta_s:  Physical width :math:`\delta_s` of a detector pixel. 
     :vartype delta_s:  :class:`float`
+
     :ivar delta_ratio:  Ratio :math:`{\delta_s}/{\delta_x}`, 
         i.e. the detector 
         pixel width relative to unit image pixels.
     :vartype delta_ratio:  :class:`float`
-    :ivar angle_weights:    representing the angular discretization
-        width for each angle, which can be used to weight the projections. 
-        In the fullangle case these sum up to 
-        :math:`[0,\pi[` or :math:`[0,2\pi[` respectively.
+
+    :ivar angle_weights: Represents the angular discretization
+        width for each angle which are used to weight the projections. 
+        In the fullangle case, these sum up to 
+        :math:`\pi` and :math:`2\pi` for parallel beam and
+        fanbeam geometry, respectively.
     :vartype angle_weights: :class:`list[float]` 
-    :ivar prg:   Program containing the kernels to execute gratopy,
-        for the corresponding code see :class:`gratopy.create_code`
-    :vartype prg:  :class:`gratopy.Programm`
+
+    :ivar prg:  OpenCL program containing the gratopy OpenCL kernels.
+        For the corresponding code, see :class:`gratopy.create_code`
+    :vartype prg:  :class:`gratopy.Program`
     
-    :ivar struct: Contains various information, in particular 
-        pyopencl.Arrays 
-        containing the angular information necessary for computations.
-    :vartype struct: list, see r_struct and fanbeam_struct returns
-    
+    :ivar struct: Various data used in the projection operatora.
+        Contains in particular 
+        :class:`pyopencl.array.Array` 
+        with the angular information necessary for computations.
+    :vartype struct: :class:`list`, see :func:`radon_struct` and :func:`fanbeam_struct` returns
     """
         
         
@@ -1214,32 +1224,34 @@ class ProjectionSettings():
             self.buf_upload[dtype] = 1
 
     def show_geometry(self, angle, figure=None, axes=None, show=True):
-        """ Visualize geometry associated with the projection settings. 
-        This can be useful in checking that indeed the correct input
-        for the desired geometry was entered.
+        """ Visualize the geometry associated with the projection settings. 
+        This can be useful in checking that indeed, the correct input
+        for the desired geometry was given.
         
-        :param angle: An angle in Radian from which the projection 
+        :param angle: The angle for which the projection 
             is considered.
         :type angle: :class:`float`
         
-        :param figure: Figure in which to plot. If neither figure nor  
-            axes are given, a new figure (figure(0)) will be created.
-        :type figure: :class:`matplotlib.pyplot.figure`, default None
+        :param figure: Figure in which to plot. If neither **figure** nor  
+            **axes** are given, a new figure (``figure(0)``) will be created.
+        :type figure: :class:`matplotlib.figure.Figure`, default :obj:`None`
         
-        :param axes: Axes to plot in. If None is given, a new axes inside 
-            the figure is created.
-        :type axes: :class:`matplotlib.pyplot.axes`, default None
+        :param axes: Axes to plot into. If :obj:`None`, a new 
+            axes inside the figure is created.
+        :type axes: :class:`matplotlib.axes.Axes`, default :obj:`None`
         
-        :param show: True if the resulting plot shall be shown right away, 
-            False otherwise. 
-            Alternatively you can  use the *show()* method at a later  
-            point to show the figure.
-        :type show: :class:`bool`, default True
+        :param show: 
+            Determines whether the resultsing plot is immediately
+            shown (:obj:`True`). 
+            If :obj:`False`, :func:`matplotlib.pyplot.show` can be used
+            at a later point to show the figure.
+        :type show: :class:`bool`, default :obj:`True`
         
-        :return: Figure and axes in which the graphic is plotted.
+        :return: Figure and axes in which the geometry visualization 
+            is plotted.
         
-        :rtype: (:class:`matplotlib.pyplot.figure`, 
-            :class:`matplotlib.pyplot.axes`)
+        :rtype: (:class:`matplotlib.figure.Figure`, 
+            :class:`matplotlib.axes.Axes`)
         """
 
         if (figure is None) and (axes is None):
@@ -1391,46 +1403,52 @@ class ProjectionSettings():
 #            plt.show()
         return figure, axes
 
-    def extract_sparse_matrix(self,dtype=float32,contiguity='F',
-                              ofset=0,outputfile=None):
+    def create_sparse_matrix(self,dtype=float32,contiguity='F',
+                                offset=0, outputfile=None):
         """
-        Creates a list of the sparse representation of the forward
-        operator associated with the projectionsetting.
+        Creates a sparse representation of the associated forward
+        operator. **(???) this is never tested**
 		
-        :param dtype: Precision to compute the  representation in.
-        :type dtype: :class:`numpy.dtype`
+        :param dtype: Precision to compute the sparse representation in.
+        :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
 		
-        :param contiguity: Contiguity of the img and sinogram for 
-            the transform.
-        :type contiguity: :class:`str` 
+        :param contiguity: Contiguity of the image and sinogram array
+            given to the transform.
+        :type contiguity: :class:`str`, default ``F``
 		
-        :param ofset: Ofset of the indices (e.g. 1 for Matlab, 0 for C++).
-        :type ofset: :class:`int`
+        :param offset: Offset of the indices (e.g., 1 for Matlab, 
+            0 for Python/C++).
+        :type offset: :class:`int`
 		
-        :param outputfile: File to write the sparse represntation into.
+        :param outputfile: Name of the file to write the sparse 
+            representation into. **(???) is this useful? users can decide
+            what to do with the output, i.e., write this as csv etc.**
+            If :obj:`None`, no output will be created.
         :type outputfile: :class:`str`
 		
-        :return:  List of tuples with (row, column, value)
-            sparse represntation.
-        :rtype: :class:`List[tuple]`
+        :return:  List of tuples of the form (row, column, value)
+            sparse representation. **(???) why is this not in a common
+            format such as for scipy.sparse.coo_matrix? **
+
+        :rtype: :class:`list[tuple]`
         
-        Note that for high resolutions this can take quite some time and 
-        might also not be feasible due to memory constraints.
+        Note that for high resolution projection operators,
+        this may require infeasibly much time and memory.
         """
         epsilon=0
         if contiguity=="F":
             def pos_1(x,y):
-            	return x+Nx*y+ofset
+            	return x+Nx*y+offset
             def pos_2(s,phi):
-            	return s+Ns*phi+ofset
+            	return s+Ns*phi+offset
         elif contiguity=="C":
         	def pos_1(x,y):
-        		return x*Ny+y+ofset
+        		return x*Ny+y+offset
         	def pos_2(s,phi):
-        		return s*Na+phi+ofset
+        		return s*Na+phi+offset
         else:
         	print("contiguity not recognized, suitable choices are\
-        	      strings F or C")
+                  'F' or 'C'")
         	raise
         mylist=[]
         mylist2=[]

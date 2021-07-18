@@ -59,5 +59,6 @@ html_static_path = []
 intersphinx_mapping = {
     "https://docs.python.org/dev": None,
     "https://numpy.org/doc/stable/": None,
-    "https://documen.tician.de/pyopencl/": None
+    "https://documen.tician.de/pyopencl/": None,
+    "https://matplotlib.org/stable/": None
 }

@@ -4,7 +4,7 @@ Getting Started
 Basic principles of gratopy 
 ============================
 
-We start by explaining some recurring relevant quantities and concepts in gratopy, in particular the :class:`gratopy.ProjectionSettings` class as well as the use of images and sinograms in the context of gratopy.
+We start by explaining some recurring relevant quantities and concepts in gratopy, in particular the :class:`ProjectionSettings <gratopy.ProjectionSettings>` class as well as the use of images and sinograms in the context of gratopy.
 
 ProjectionSettings
 -------------------
@@ -44,7 +44,7 @@ Geometry of the parallel beam setting.
 Geometry of the fanbeam setting.
 
 
-The main functions of gratopy are  :class:`gratopy.forwardprojection` and :class:`gratopy.backprojection`, which use a **projectionsetting** as the basis for computation and allow to project 
+The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`gratopy.backprojection`, which use a **projectionsetting** as the basis for computation and allow to project 
 an image **img** onto an sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe the requirements for such images and sinograms, and how to interpret their corresponding values.
 
  
