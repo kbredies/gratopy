@@ -5,8 +5,56 @@ import pyopencl as cl
 from gratopy import *
 import matplotlib.image as mpimg
 
+from numpy import random
+
 ctx = None
 queue = None
+
+def create_random_test_numbers():
+    m=1000
+    M=2000
+    rng=np.random.default_rng(1)
+    mylist=[]
+    
+    mylist.append(rng.integers(0,M,m))#s
+    mylist.append(rng.integers(0,M,m))#phi
+    mylist.append(rng.integers(0,M,m))#z
+    mylist.append(rng.normal(0,1,m)) #factors
+    
+    mylist.append(rng.integers(0,M,m))#
+    mylist.append(rng.integers(0,M,m))
+    
+    myfile=open("rnd.txt","w")
+    
+    for j in range(6):	
+        for i in range(m):
+             myfile.write(str(mylist[j][i])+"\n")
+    myfile.close()
+	
+
+
+def read_random_test_numbers(Nx,Ny,Ns,Na, Nz=1):
+    
+    myfile=open("rnd.txt","r")
+    m = 1000
+    test_s=[]
+    test_phi=[]
+    test_z=[]
+    factors=[]
+    test_x=[]
+    test_y=[]
+        
+    text=myfile.readlines()
+    
+    for i in range(m):
+        test_s.append(int(text[i])%Ns)
+        test_phi.append(int(text[i+m])%Na)
+        test_z.append(int(text[i+2*m])%Nz)
+        factors.append(float(text[i+3*m]))
+        test_x.append(int(text[i+4*m])%Nx)
+        test_y.append(int(text[i+5*m])%Ny)
+    myfile.close()
+    return test_s,test_phi,test_z,factors,test_x,test_y
 
 
 def create_phantoms(queue, N, dtype='double'):
@@ -67,18 +115,60 @@ def test_projection():
     sino_gpu = forwardprojection(img, PS)
 
     # compute backprojection of computed sinogram
-    backprojected = backprojection(sino_gpu, PS)
+    backprojected_gpu = backprojection(sino_gpu, PS)
+    
+    img=img.get()
+    sino=sino_gpu.get()
+    backprojected=backprojected_gpu.get()
+    
     
     # plot results
     figure(1)
-    imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
     figure(2)
-    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]),
+    imshow(np.hstack([sino[:,:,0],sino[:,:,1]]),
         cmap=cm.gray)
     figure(3)
-    imshow(np.hstack([backprojected.get()[:,:,0],
-        backprojected.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([backprojected[:,:,0],
+        backprojected[:,:,1]]), cmap=cm.gray)
+    
     show()
+    
+    
+    # Computing a controlnumbers to quantitatively verify correctness 
+    m=1000
+    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
+                                                     N,N,Ns,angles,2)
+    mysum0=0
+    mysum1=0
+    mysum2=0
+    for i in range(0,m):    
+        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
+        mysum1+=factors[i]*sino[test_s[i],test_phi[i],test_z[i]]
+        mysum2+=factors[i]*backprojected[test_x[i],test_y[i],test_z[i]]
+
+    mysumtrue0=2949.373863867869       
+    mysumtrue1=1221.223836630344
+    mysumtrue2=7427.706215239802
+    
+    assert(abs(mysum0-mysumtrue0)<0.001),\
+        "A control-sum for the original image did not match the expected value,\
+        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."  
+    
+    assert(abs(mysum1-mysumtrue1)<0.001),\
+        "A control-sum for the sinogram did not match the expected value,\
+        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."
+	
+    assert(abs(mysum2-mysumtrue2)<0.001),\
+        "A control-sum for the backprojection did not match the expected value,\
+        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error." 
+    
 
 def test_weighting():
     """ Mass preservation test. Check whether the total mass of an image 
@@ -211,9 +301,9 @@ def test_fullangle():
     # relevant quantities
     dtype=float32
     N = 1200
-    img = create_phantoms(queue, N, dtype=dtype)
+    img_gpu = create_phantoms(queue, N, dtype=dtype)
     p=2
-    Ns=int(0.3*img.shape[0])
+    Ns=int(0.3*N)
     shift=0
 
     # angles cover only a part of the angular range
@@ -221,35 +311,100 @@ def test_fullangle():
     
     # create two projecetionsettings, one with the correct "fullangle=False"
     # parameter for limited-angle situation, incorrectly using "fullangle=True"
-    PScorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
+    PScorrect=ProjectionSettings(queue, PARALLEL, img_gpu.shape,angles,Ns,
        detector_width=p,detector_shift=shift,fullangle=False)
-    PSincorrect=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns,
+    PSincorrect=ProjectionSettings(queue, PARALLEL, img_gpu.shape,angles,Ns,
         detector_width=p,detector_shift=shift,fullangle=True)
 
     # forward and backprojection for the two settings
-    sino_gpu_correct=forwardprojection(img,PScorrect)
-    sino_gpu_incorrect=forwardprojection(img,PSincorrect)
-    backprojected_correct=backprojection(sino_gpu_correct,PScorrect)
-    backprojected_incorrect=backprojection(sino_gpu_correct,PSincorrect)
+    sino_gpu_correct=forwardprojection(img_gpu,PScorrect)
+    sino_gpu_incorrect=forwardprojection(img_gpu,PSincorrect)
+    backprojected_gpu_correct=backprojection(sino_gpu_correct,PScorrect)
+    backprojected_gpu_incorrect=backprojection(sino_gpu_correct,PSincorrect)
+        
+    sino_correct=sino_gpu_correct.get()
+    sino_incorrect=sino_gpu_incorrect.get()
+    backprojected_correct=backprojected_gpu_correct.get()
+    backprojected_incorrect=backprojected_gpu_incorrect.get()
+    
+    img=img_gpu.get()
+
         
     # plot results
     figure(1)
-    imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
     figure(2)
     title("Sinograms with vs without fullangle")
-    imshow(np.vstack([np.hstack([sino_gpu_correct.get()[:,:,0],\
-        sino_gpu_correct.get()[:,:,1]]),\
-	np.hstack([sino_gpu_incorrect.get()[:,:,0],\
-	sino_gpu_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    imshow(np.vstack([np.hstack([sino_correct[:,:,0],\
+        sino_correct[:,:,1]]),\
+	np.hstack([sino_incorrect[:,:,0],\
+	sino_incorrect[:,:,1]])]), cmap=cm.gray)
     
     figure(3)
     title("Backprojection with vs without fullangle")
-    imshow(np.vstack([np.hstack([backprojected_correct.get()[:,:,0],\
-        backprojected_correct.get()[:,:,1]]),\
-	np.hstack([backprojected_incorrect.get()[:,:,0],\
-	backprojected_incorrect.get()[:,:,1]])]), cmap=cm.gray)
+    imshow(np.vstack([np.hstack([backprojected_correct[:,:,0],\
+        backprojected_correct[:,:,1]]),\
+	np.hstack([backprojected_incorrect[:,:,0],\
+	backprojected_incorrect[:,:,1]])]), cmap=cm.gray)
     
-    show()			
+    show()
+    
+    # Computing a controlnumbers to quantitatively verify correctness 
+    m=1000
+    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
+                                                     N,N,Ns,len(angles),2)
+    
+    
+    mysum0=0
+    mysum1=0
+    mysum2=0
+    mysum3=0
+    mysum4=0
+    for i in range(0,m):    
+        
+        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
+        mysum1+=factors[i]*sino_correct[test_s[i],test_phi[i],test_z[i]]
+        mysum2+=factors[i]*sino_incorrect[test_s[i],test_phi[i],test_z[i]]
+        mysum3+=factors[i]*backprojected_correct[test_x[i],test_y[i],test_z[i]]
+        mysum4+=factors[i]*backprojected_incorrect[test_x[i],test_y[i],test_z[i]]
+
+    mysumtrue0=2949.373863867869       
+    mysumtrue1=990.31814758003
+    mysumtrue2=990.31814758003
+    mysumtrue3=1357.265059450704
+    mysumtrue4=2409.5415802098414
+    assert(abs(mysum0-mysumtrue0)<0.001),\
+        "A control-sum for the original image did not match the expected value,\
+        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."  
+    
+    assert(abs(mysum1-mysumtrue1)<0.001),\
+        "A control-sum for the sinogram with correct fullangle did not match the expected value,\
+        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."
+    
+    assert(abs(mysum2-mysumtrue2)<0.001),\
+        "A control-sum for the sinogram with incorrect fullangle did not match the expected value,\
+        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."
+
+	
+    assert(abs(mysum3-mysumtrue3)<0.001),\
+        "A control-sum for the backprojection with correct fullangle did not match the expected value,\
+        expected: "+str(mysumtrue3) +", received: "+str(mysum3)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error." 
+
+    assert(abs(mysum4-mysumtrue4)<0.001),\
+        "A control-sum for the backprojection with correct fullangle did not match the expected value,\
+        expected: "+str(mysumtrue4) +", received: "+str(mysum4)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error." 
+
+		
         
 def test_nonquadratic():
     """ Nonquadratic image test. Tests and illustrates the projection 
@@ -264,32 +419,71 @@ def test_nonquadratic():
     N1 = 1200
     img = create_phantoms(queue,N1,dtype=dtype)
     N2=int(img.shape[0]*2/3.)
-    img=cl.array.to_device(queue, img.get()[:,0:N2,:].copy())
+    img_gpu=cl.array.to_device(queue, img.get()[:,0:N2,:].copy())
     
     # additional quantities and setting
     angles=360
-    Ns=int(0.5*img.shape[0])
-    PS=ProjectionSettings(queue, PARALLEL, img.shape,angles,Ns)
+    Ns=int(0.5*img_gpu.shape[0])
+    PS=ProjectionSettings(queue, PARALLEL, img_gpu.shape,angles,Ns)
     
     # compute forward and backprojection
-    sino_gpu=forwardprojection(img,PS)
-    backprojected=backprojection(sino_gpu,PS)
+    sino_gpu=forwardprojection(img_gpu,PS)
+    backprojected_gpu=backprojection(sino_gpu,PS)
+    
+    img=img_gpu.get()
+    sino=sino_gpu.get()
+    backprojected=backprojected_gpu.get()
 
     # plot results
     figure(1)
     title("original non square images")
-    imshow(np.hstack([img.get()[:,:,0],img.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
     figure(2)
     title("Radon sinogram for non-square image")
-    imshow(np.hstack([sino_gpu.get()[:,:,0],sino_gpu.get()[:,:,1]]),\
+    imshow(np.hstack([sino[:,:,0],sino[:,:,1]]),\
         cmap=cm.gray)
     
     figure(3)
     title("backprojection for non-square image")
-    imshow(np.hstack([backprojected.get()[:,:,0],\
-        backprojected.get()[:,:,1]]), cmap=cm.gray)
+    imshow(np.hstack([backprojected[:,:,0],\
+        backprojected[:,:,1]]), cmap=cm.gray)
     
-    show()	
+    show()
+    
+    # Computing a controlnumbers to quantitatively verify correctness 
+    m=1000
+    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
+                                                     N1,N2,Ns,angles,2)
+    mysum0=0
+    mysum1=0
+    mysum2=0
+    for i in range(0,m):    
+        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
+        mysum1+=factors[i]*sino[test_s[i],test_phi[i],test_z[i]]
+        mysum2+=factors[i]*backprojected[test_x[i],test_y[i],test_z[i]]
+
+    mysumtrue0=999.4965329492022       
+    mysumtrue1=-782.3501868881585
+    mysumtrue2=3310.347556576363
+    
+    assert(abs(mysum0-mysumtrue0)<0.001),\
+        "A control-sum for the original image did not match the expected value,\
+        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."  
+    
+    assert(abs(mysum1-mysumtrue1)<0.001),\
+        "A control-sum for the sinogram did not match the expected value,\
+        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."
+	
+    assert(abs(mysum2-mysumtrue2)<0.001),\
+        "A control-sum for the backprojection did not match the expected value,\
+        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error." 
+    
 
 
 def test_extract_sparse_matrix():
@@ -308,26 +502,69 @@ def test_extract_sparse_matrix():
     PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, 
                           n_detectors=number_detectors, fullangle=True)
     
+    #Create corresponding sparse matrix
     sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order)
+    
+    #Testimage
     img=phantom(queue, Nx, dtype)
     img=img.get()
     img=img.reshape(Nx**2,order=order)
+    #Compute forward and backprojection
     sino=sparsematrix*img
     backproj=sparsematrix.T*sino
 
+    #reshape
+    img=img.reshape(Nx,Nx,order=order)
+    sino=sino.reshape(number_detectors,angles,order=order)
+    backproj=backproj.reshape(Nx,Nx,order=order)
+
+    #plot results
     figure(1)
     title("Testimage")
-    imshow(img.reshape(Nx,Nx,order=order),cmap=cm.gray)
-
+    imshow(img,cmap=cm.gray)
 
     figure(2)
     title("projection via spase Matrix")
-    imshow(sino.reshape(number_detectors,angles,order=order),cmap=cm.gray)
+    imshow(sino,cmap=cm.gray)
     
     figure(3)
     title("backprojection via spase Matrix")
-    imshow(backproj.reshape(Nx,Nx,order=order),cmap=cm.gray)
+    imshow(backproj,cmap=cm.gray)
     show()
+    
+    # Computing a controlnumbers to quantitatively verify correctness 
+    m=1000
+    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
+                                                     Nx,Nx,number_detectors,angles,1)
+    mysum0=0
+    mysum1=0
+    mysum2=0
+    for i in range(0,m): 
+        mysum0+=factors[i]*img[test_x[i],test_y[i]]
+        mysum1+=factors[i]*sino[test_s[i],test_phi[i]]
+        mysum2+=factors[i]*backproj[test_x[i],test_y[i]]
+
+    mysumtrue0=7.118201777449383       
+    mysumtrue1=-0.5455533171777472
+    mysumtrue2=0.7838917015784652
+    assert(abs(mysum0-mysumtrue0)<0.000001),\
+        "A control-sum for the original image did not match the expected value,\
+        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."  
+    
+    assert(abs(mysum1-mysumtrue1)<0.000001),\
+        "A control-sum for the sinogram did not match the expected value,\
+        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error."
+	
+    assert(abs(mysum2-mysumtrue2)<0.000001),\
+        "A control-sum for the backprojection did not match the expected value,\
+        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
+        ". Please consider the visual results to check whether this is \
+        a numerical issue or a more fundamental error." 
+
 
 # test
 if __name__ == '__main__':
