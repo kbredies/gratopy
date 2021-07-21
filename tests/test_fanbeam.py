@@ -103,11 +103,11 @@ def test_projection():
 def test_weighting():
     """ Mass preservation test. Checks whether the total mass of an image 
     is correctly transported into the total mass of a projection. 
-    As the object has a larger shadow than 
-    itself **(???)**, the total mass in the sinogram is roughly 
-    the multiplication of the total mass of the image by the ratio of 
-    **R** and **RE**. Indicates that the scaling of the transform 
-    is suitable.
+    Due to the fan geometry the width of a projected object on the detector is 
+    wider than the original object was, as the width of the fan grows linearly with the distance it travels. Consequently, also the total mass on the detector is rougly 
+    the multiplication of the total mass in the object by the ratio of 
+    **R** and **RE**. This test indicates that the scaling of the transform 
+    is suitable. (???)
     """
     print("Weighting;")
     
@@ -343,11 +343,9 @@ def test_landweber():
     to compute a reconstruction from a sinogram contained in 
     the walnut data set of [1]_, testing the implementation.
 
-    .. [1] Henri Der Sarkissian, Felix Lucka, Maureen van Eijnatten, 
-           Giulia Colacicco, Sophia Bethany Coban, Kees Joost Batenburg.
-           "A Cone-Beam X-Ray CT Data Collection designed for Machine 
-           Learning". 
-           https://arxiv.org/abs/1905.04787
+    .. [1] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and Antti Kujanpää and Esa Niemi and Samuli Siltanen.
+           "Tomographic X-ray data of a walnut". 
+           https://arxiv.org/abs/1502.04064
            **(???) Is this really the right reference?**
     """
     print("Walnut Landweber reconstruction test")
@@ -571,6 +569,46 @@ def test_nonquadratic():
     title("backprojection for non-square image")
     imshow(np.hstack([backprojected.get()[:,:,0],backprojected.get()[:,:,1]]),
         cmap=cm.gray)
+    show()
+
+
+def test_extract_sparse_matrix():
+    order="F"
+    dtype=float64
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    # relevant quantities
+    Nx=150
+    number_detectors=100
+    img=np.zeros([Nx,Nx])
+    angles=30
+
+    # define projectionsetting
+    PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, 
+               angles=angles, detector_width=400, R=752, RE=200, 
+	       n_detectors=number_detectors)
+
+
+    sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order,outputfile=None)
+    img=phantom(queue, Nx, dtype)
+    img=img.get()
+    img=img.reshape(Nx**2,order=order)
+    sino=sparsematrix*img
+    backproj=sparsematrix.T*sino
+
+    figure(1)
+    title("Testimage")
+    imshow(img.reshape(Nx,Nx,order=order),cmap=cm.gray)
+
+
+    figure(2)
+    title("projection via spase Matrix")
+    imshow(sino.reshape(number_detectors,angles,order=order),cmap=cm.gray)
+    
+    figure(3)
+    title("backprojection via spase Matrix")
+    imshow(backproj.reshape(Nx,Nx,order=order),cmap=cm.gray)
     show()
 
 # test

@@ -290,7 +290,45 @@ def test_nonquadratic():
         backprojected.get()[:,:,1]]), cmap=cm.gray)
     
     show()	
-        
+
+
+def test_extract_sparse_matrix():
+    order="F"
+    dtype=float64
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    # relevant quantities
+    Nx=150
+    number_detectors=100
+    img=np.zeros([Nx,Nx])
+    angles=30
+    
+    # define projectionsetting
+    PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, 
+                          n_detectors=number_detectors, fullangle=True)
+    
+    sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order)
+    img=phantom(queue, Nx, dtype)
+    img=img.get()
+    img=img.reshape(Nx**2,order=order)
+    sino=sparsematrix*img
+    backproj=sparsematrix.T*sino
+
+    figure(1)
+    title("Testimage")
+    imshow(img.reshape(Nx,Nx,order=order),cmap=cm.gray)
+
+
+    figure(2)
+    title("projection via spase Matrix")
+    imshow(sino.reshape(number_detectors,angles,order=order),cmap=cm.gray)
+    
+    figure(3)
+    title("backprojection via spase Matrix")
+    imshow(backproj.reshape(Nx,Nx,order=order),cmap=cm.gray)
+    show()
+
 # test
 if __name__ == '__main__':
     pass

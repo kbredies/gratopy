@@ -98,10 +98,6 @@ plt.show()
 
 
 
-
-
-
-
 ## Known issues
 
 

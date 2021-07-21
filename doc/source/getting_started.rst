@@ -26,8 +26,8 @@ physical system intact and simply reflects a finer/coarser discretization.
 
 The angular range for the parallel beam setting is :math:`[0,\pi[`, while for the fanbeam setting, it is :math:`[0,2\pi[`. 
 By default, it is assumed that the given angles completely partition the angular range. In case this is not desired  and a limited-angle situation
-is considered, the **fullangle** parameter of :py:class:`gratopy.ProjectionSettings` can be adapted, which has implications, e.g.,
-for the backprojection operator.
+is considered, the **fullangle** parameter of :py:class:`gratopy.ProjectionSettings` can be adapted, impacting for instance the backprojection operator.
+Note also, that the projections considered are rotation-invariant in the sense, that projection of a rotated image yields a sinogram with translation in the angular dimension.
 
 
 .. image:: graphics/radon-1.png
@@ -44,28 +44,30 @@ Geometry of the parallel beam setting.
 Geometry of the fanbeam setting.
 
 
-The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`gratopy.backprojection`, which use a **projectionsetting** as the basis for computation and allow to project 
+The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`backprojection <gratopy.backprojection>`, which use a **projectionsetting** as the basis for computation and allow to project 
 an image **img** onto an sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe the requirements for such images and sinograms, and how to interpret their corresponding values.
 
  
 Images in gratopy
 -------------------
 
-An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`   
+An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`
 -- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels of size :math:`\delta_x=\text{image_width}/\max\{N_x,N_y\}`,
-where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side-length of an rectangular :math:`(N_x,N_y)` grid  of quadratic image pixels   which allow to consider *slim* objects -- 
-though this might require a shift of the angles to ensure that the object is indeed contained in the image area **(???)**.  
+where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in
+the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side-length of an rectangular :math:`(N_x,N_y)` grid  of quadratic image pixels
+which allow to consider *slim* objects.  
+In any case the object should be contained in the rectangular image-domain (with sides parallel to the x and y axes), in particular slim in vertical or horizontal direction in case of non-square images.  **(???)**.  
 When using an image together with **projectionsetting** -- an instance of :class:`gratopy.ProjectionSettings` --  the values :math:`(N_x,N_y)` have to coincide with the attribute **img_shape** of **projectionsetting**, we say they need to be **compatible**. The data type
-of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F contiguity. 
+of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F `contiguity <https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array>`_. 
  
 Sinograms in gratopy
 ------------------------
 
 Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array`  of the shape :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` being the number of detectors and :math:`N_a` being the number of angles for which projections are considered. 
-When using together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**. 
-The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equi-distantly partitioning the detector line with detector width 
+When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**. 
+The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equi-distantly partitioning the detector line with detector pixel width 
 :math:`\delta_s`. The angles, on the other hand, need not be equi-distant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
-intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F contiguity.
+intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F `contiguity`_.
  
 
 
@@ -81,7 +83,7 @@ One can start in Python via
     import gratopy
     import matplotlib.pyplot as plt
     
-    # ciscretization parameters
+    # discretization parameters
     number_angles=60
     number_detector=300
     Nx=300
