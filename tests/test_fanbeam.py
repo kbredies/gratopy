@@ -463,14 +463,13 @@ def test_conjugate_gradients():
   
     # perform conjugate gradients algorithm
     walnut_gpu2new=clarray.to_device(queue,require(sino,dtype,'C'))
-    UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1,number_iterations=100)
+    UCG=conjugate_gradients(walnut_gpu2new, PS, 0.1, number_iterations=100)
 
     # plot results
     figure(4)
     imshow(np.hstack([UCG.get()[:,:,0],UCG.get()[:,:,1]]),cmap=cm.gray)
     title("Conjugate gradients reconstruction")
     show()
-
 
 def test_total_variation():
     """ 
@@ -506,8 +505,8 @@ def test_total_variation():
     # perform total_variation reconstruction
     walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
 
-    UTV=total_variation_reconstruction(walnut_gpu2new,PS,mu=1000,
-                                       number_iterations=5000,z_distance=0)
+    UTV=total_variation(walnut_gpu2new,PS,mu=1000,
+                        number_iterations=5000,z_distance=0)
     
     sinoreprojected=forwardprojection(UTV,PS)
     
