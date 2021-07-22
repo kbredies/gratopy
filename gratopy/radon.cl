@@ -8,7 +8,8 @@
 
 
 
-//Single Line of Radon Transform: Computes the Fanbeam transform of an image with delta peak in (x,y) 
+//Radon Transform
+
 // Input:
 //			sino: pointer to array representing sinogram (to be computed) 
 //				  with detector-dimension times angle-dimension times z dimension
@@ -25,7 +26,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
 					__global \my_variable_type *img,__constant \my_variable_type8 *ofs,
 					 __constant \my_variable_type* Geometryinformation)
 {
-	//Geometric and discretization information
+  //Geometric and discretization information
   size_t Ns = get_global_size(0);
   size_t Na = get_global_size(1); 
   size_t Nz = get_global_size(2);
@@ -47,11 +48,29 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
   //o = (cos,sin,offset,1/cos)
   \my_variable_type4 o = ofs[a].s0123;
   
+  
+  int Nxx=Nx;
+  int Nyy=Ny;
+
+  int horizontal=1;
+  if (fabs(o.x)<=fabs(o.y))
+  {
+  horizontal=0;
+  
+  \my_variable_type trade= o.x;
+  o.x=o.y;
+  o.y=trade;
+  
+  Nxx=Ny;
+  Nyy=Nx;
+  }
+  
+  
   //accumulation variable
   \my_variable_type acc = 0.0f;
 
   //for through the entire y dimension
-  for(int y = 0; y < Ny; y++) {
+  for(int y = 0; y < Nyy; y++) {
   
 	int x_low, x_high;
 	
@@ -59,30 +78,30 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
 	\my_variable_type d = y*o.y + o.z;
 
 	// compute bounds
-	if (o.x == 0) { //case ray is horizontal there are only two detectors hit
-	  if ((d > ss-1) && (d < ss+1)) {
-		x_low = 0; x_high = Nx-1;
-	  } else { // horizontal ray, but detector in question is not hit, jump to next y
-		 continue;
-	  }
-	} else if (o.x > 0) {//ray increases in x dimension
-	  x_low = (int)((ss-1 - d)*o.w);
-	  x_high = (int)((ss+1 - d)*o.w);
-	} else {//ray decreasing in x dimension
-	  x_low = (int)((ss+1 - d)*o.w);
-	  x_high = (int)((ss-1 - d)*o.w);
+	x_low = (int)((ss-1 - d)*o.w);
+	x_high = (int)((ss+1 - d)*o.w);
+
+	if (o.w<0)
+	{
+	int trade = x_low;
+	x_low = x_high;
+	x_high=trade;
 	}
+	 
 	
 	//make sure x inside image dimensions
 	x_low = max(x_low, 0);
-	x_high = min(x_high, Nx-1);
+	x_high = min(x_high, Nxx-1);
 
 	// integration in x dimension for fixed y
 	for(int x = x_low; x <= x_high; x++) {
 	  //anterpolation weight via normal distance
 	  \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
 	  if (weight > 0.0f) 
-		acc += weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];
+	      if (horizontal==1)
+	      {acc += weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];}
+	      else
+	      {acc += weight*img[pos_img_\order2(y,x,z,Nx,Ny,Nz)];}
 	}
   }
   //assign value to sinogram
@@ -148,8 +167,7 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_ty
 
 
 
-
-//Radon Transform
+//Single Line of Radon Transform: Computes the Fanbeam transform of an image with delta peak in (x,y) 
 // Input:
 //			sino: pointer to array representing sinogram (to be computed) 
 //				  with detector-dimension times angle-dimension times z dimension
@@ -167,13 +185,14 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
 					int x,  int y,
 					__constant \my_variable_type8 *ofs,
 					 __constant \my_variable_type* Geometryinformation)
-{
-  //Geometric and discretization information
+{  //Geometric and discretization information
   size_t Ns = get_global_size(0);
   size_t Na = get_global_size(1); 
+  size_t Nz = 1;
 
   size_t s = get_global_id(0);
   size_t a = get_global_id(1);
+  size_t z = 0;
   
   const int Nx= Geometryinformation[2];
   const int Ny= Geometryinformation[3];
@@ -184,47 +203,71 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
   //hack (since otherwise s is unsigned which leads to overflow problems)
   int ss=s;
   
-   
   //o = (cos,sin,offset,1/cos)
   \my_variable_type4 o = ofs[a].s0123;
+  
+  int Nxx=Nx;
+  int Nyy=Ny;
+
+  int horizontal=1;
+  if (fabs(o.x)<=fabs(o.y))
+  {
+  horizontal=0;
+  
+  \my_variable_type trade= o.x;
+  o.x=o.y;
+  o.y=trade;
+  
+  Nxx=Ny;
+  Nyy=Nx;
+  
+  trade=x;
+  x=y;
+  y=trade;
+  }
+  
   
   //accumulation variable
   \my_variable_type acc = 0.0f;
 
+  //for through the entire y dimension
   
   
-  int x_low, x_high;
-  //project (0,y) onto detector
-  \my_variable_type d = y*o.y + o.z;
+	int x_low, x_high;
+	
+	//project (0,y) onto detector
+	\my_variable_type d = y*o.y + o.z;
 
-  // compute bounds
-  if (o.x == 0) { //case ray is horizontal, there are only two detectors hit
-  if ((d > ss-1) && (d < ss+1)) {
-	x_low = 0; x_high = Nx-1;
-    }
+	// compute bounds
+	x_low = (int)((ss-1 - d)*o.w);
+	x_high = (int)((ss+1 - d)*o.w);
 
-	} else if (o.x > 0) {//ray increases in x dimension
-	  x_low = (int)((ss-1 - d)*o.w);
-	  x_high = (int)((ss+1 - d)*o.w);
-	} else {//ray decreasing in x dimension
-	  x_low = (int)((ss+1 - d)*o.w);
-	  x_high = (int)((ss-1 - d)*o.w);
+	if (o.w<0)
+	{
+	int trade = x_low;
+	x_low = x_high;
+	x_high=trade;
 	}
+	 
 	
 	//make sure x inside image dimensions
 	x_low = max(x_low, 0);
-	x_high = min(x_high, Nx-1);
+	x_high = min(x_high, Nxx-1);
 
-	// is (x,y) in feasible range
-	if ((x_low< x) && (x<x_high)){
+	// integration in x dimension for fixed y
+	if((x_low<=x) && (x<=x_high)){
 	  //anterpolation weight via normal distance
 	  \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
 	  if (weight > 0.0f) 
-		acc += weight*1; // assume value is exactly 1 (unit vectors)
+	      if (horizontal==1)
+	      {acc += weight*1;}
+	      else
+	      {acc += weight*1;}
 	}
   
   //assign value to sinogram
-  sino[ pos_sino_\order1(s,a,0,Ns,Na,1)] = acc*delta_x*delta_x/delta_xi;
+  sino[ pos_sino_\order1(s,a,z,Ns,Na,Nz)] = acc*delta_x*delta_x/delta_xi;
+
 }
 
 

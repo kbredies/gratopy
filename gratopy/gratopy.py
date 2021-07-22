@@ -404,19 +404,14 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     X = cos(angles)/relative_detector_pixel_width
     Y = sin(angles)/relative_detector_pixel_width
     Xinv = 1.0/X
-
     # set near vertical lines to vertical
-    mask = abs(Xinv) > 10*nd
-    X[mask] = 0
-    Y[mask] = sin(angles[mask]).round()/relative_detector_pixel_width
-    Xinv[mask] = 0
-
+    mask = np.where(abs(X) <= abs(Y))
+    Xinv[mask] = 1.0/Y[mask]
 
     #X*x+Y*y=detectorposition, ofs is error in midpoint of 
     #the image (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
             - Y*midpoint_domain[1] + detector_shift/detector_width*nd
-
 
     #Angular weights
     angles_index = np.argsort(angles%(np.pi)) 

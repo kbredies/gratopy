@@ -123,19 +123,19 @@ def test_projection():
     # create test image
     dtype=float32
     N = 1200
-    img = create_phantoms(queue, N, dtype=dtype)
+    img_gpu = create_phantoms(queue, N, dtype=dtype)
 	
     # define relevant quantities to determine the geometry
     angles=360
     detector_width=4
     image_width=4
-    Ns=int(0.5*img.shape[0])
+    Ns=int(0.5*N)
 
     # create projectionsetting with parallel beam setting with 360
     # equi-distant angles, the detector has a width of 4 and the observed
     # object has a diameter of 4 (i.e. is captured by the detector), we
     # consider half the amount of detector pixels as image pixels
-    PS=ProjectionSettings(queue, PARALLEL, img.shape, angles, Ns,
+    PS=ProjectionSettings(queue, PARALLEL, img_gpu.shape, angles, Ns,
                               image_width=image_width,
 			      detector_width=detector_width,
                               detector_shift=0,
@@ -149,12 +149,12 @@ def test_projection():
     PS.show_geometry(np.pi*3/8., axes=subplot(2,2,4))
     
     # compute Radon transform for given test images
-    sino_gpu = forwardprojection(img, PS)
+    sino_gpu = forwardprojection(img_gpu, PS)
 
     # compute backprojection of computed sinogram
     backprojected_gpu = backprojection(sino_gpu, PS)
     
-    img=img.get()
+    img=img_gpu.get()
     sino=sino_gpu.get()
     backprojected=backprojected_gpu.get()
     
@@ -170,19 +170,38 @@ def test_projection():
         backprojected[:,:,1]]), cmap=cm.gray)
     
     show()
+
+   # test speed of implementation for forward projection
+    M=10
+    a=time.perf_counter()
+    for i in range(M):
+        forwardprojection(img_gpu, PS, sino=sino_gpu)
+    img_gpu.get()
+    print ('Average time required Forward',(time.perf_counter()-a)/M)
+
+
+    a=time.perf_counter()
+    for i in range(M):
+        backprojection(sino_gpu, PS, img=backprojected_gpu)
+    sino_gpu.get()
+    print ('Average time required Backprojection',\
+        (time.perf_counter()-a)/M)
     
     
     # Computing controlnumbers to quantitatively verify correctness     
-    evaluate_control_numbers(img, (N,N,Ns,angles,2),exptected_result=2949.3738,
+    evaluate_control_numbers(img, (N,N,Ns,angles,2),
+                exptected_result=2949.3738,
 		precision=0.001,classified="img",name="original image")
 
-    evaluate_control_numbers(sino, (N,N,Ns,angles,2),exptected_result=1221.2238,
+    evaluate_control_numbers(sino, (N,N,Ns,angles,2),
+                exptected_result=1221.2257,
 		precision=0.001,classified="sino",name="sinogram")
 
-    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),exptected_result=7427.7062,
+    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
+                exptected_result=7427.7049,
 		precision=0.001,classified="img",name="backprojected image")
 		
-
+ 
 
     
 
@@ -364,15 +383,16 @@ def test_fullangle():
     show()
     
     # Computing controlnumbers to quantitatively verify correctness 
-    evaluate_control_numbers(img, (N,N,Ns,len(angles),2),exptected_result=2949.3738,
+    evaluate_control_numbers(img, (N,N,Ns,len(angles),2),
+                exptected_result=2949.3738,
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino_correct, (N,N,Ns,len(angles),2),
-                exptected_result=990.3181,precision=0.001,classified="sino",
+                exptected_result=990.3170,precision=0.001,classified="sino",
 		name="sinogram with correct fullangle setting")
 
     evaluate_control_numbers(sino_incorrect, (N,N,Ns,len(angles),2),
-		exptected_result=990.3181,precision=0.001,classified="sino",
+		exptected_result=990.3170,precision=0.001,classified="sino",
 		name="sinogram with incorrect fullangle setting")
 
     evaluate_control_numbers(backprojected_correct, (N,N,Ns,len(angles),2),
@@ -433,19 +453,26 @@ def test_nonquadratic():
     show()
     
     # Computing a controlnumbers to quantitatively verify correctness 
-    evaluate_control_numbers(img, (N1,N2,Ns,angles,2),exptected_result=999.4965,
+    evaluate_control_numbers(img, (N1,N2,Ns,angles,2),
+                exptected_result=999.4965,
 		precision=0.001,classified="img",name="original image")
 
-    evaluate_control_numbers(sino, (N1,N2,Ns,angles,2),exptected_result=-782.3501,
+    evaluate_control_numbers(sino, (N1,N2,Ns,angles,2),
+                exptected_result=-782.3489,
 		precision=0.001,classified="sino",name="sinogram")
 
-    evaluate_control_numbers(backprojected, (N1,N2,Ns,angles,2),exptected_result=3310.3475,
+    evaluate_control_numbers(backprojected, (N1,N2,Ns,angles,2),
+                exptected_result=3310.3464,
 		precision=0.001,classified="img",name="backprojected image")
 
 
 
 
 def test_extract_sparse_matrix():
+    """
+    Tests the create_sparse_matrix method to create a sparse matrix
+    associated with the transform.
+    """
     order="F"
     dtype=float64
     ctx = cl.create_some_context(interactive=False)
@@ -466,6 +493,7 @@ def test_extract_sparse_matrix():
     
     #Testimage
     img=phantom(queue, Nx, dtype)
+    
     img=img.get()
     img=img.reshape(Nx**2,order=order)
     #Compute forward and backprojection
@@ -492,16 +520,17 @@ def test_extract_sparse_matrix():
     show()
     
     # Computing a controlnumbers to quantitatively verify correctness 
-    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,1),exptected_result=7.1182017,
+    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,1),
+                exptected_result=7.1182017,
 		precision=0.000001,classified="img",name="original image")
 
-    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,1),exptected_result=-0.545553317,
+    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,1),
+                exptected_result=-1.061323217,
 		precision=0.000001,classified="sino",name="sinogram")
 
-    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1),exptected_result=0.783891701,
+    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1)
+               ,exptected_result=1.0395559772,
 		precision=0.000001,classified="img",name="backprojected image")
-
-    
 
 
 # test

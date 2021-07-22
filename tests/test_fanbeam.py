@@ -128,14 +128,14 @@ def test_projection():
     queue = cl.CommandQueue(ctx)
 
     # create test image
-    Nx=225
+    Nx=1200
     dtype=float32
     img=create_phantoms(queue,Nx,dtype)
     original=img.get()
     
     # define setting for projection
     number_detectors = 600
-    angles=220
+    angles=360
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img.shape, 
         angles=angles, detector_width=400, R=752, RE=200, 
 	n_detectors=number_detectors)
@@ -149,18 +149,21 @@ def test_projection():
 
 
     # test speed of implementation for forward projection
+    iterations=10
     a=time.perf_counter()
-    for i in range(100):
+    for i in range(iterations):
         forwardprojection(img, PS, sino=sino_gpu)
+    img.get()
 
-    print ('Average time required Forward',(time.perf_counter()-a)/100)
+    print ('Average time required Forward',(time.perf_counter()-a)/iterations)
 
 
     a=time.perf_counter()
-    for i in range(100):
+    for i in range(iterations):
         backprojection(sino_gpu, PS, img=backprojected_gpu)
+    sino_gpu.get()
     print ('Average time required Backprojection',\
-        (time.perf_counter()-a)/100)
+        (time.perf_counter()-a)/iterations)
     
     sino=sino_gpu.get()
     backprojected=backprojected_gpu.get()
@@ -181,13 +184,15 @@ def test_projection():
     show()
     
     # Computing controlnumbers to quantitatively verify correctness 
-    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,2),exptected_result=-289.1671,
+    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,2),
+                exptected_result=2949.3728,
 		precision=0.001,classified="img",name="original image")
 
-    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,2),exptected_result=121742.4099,
+    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,2),
+                exptected_result=66998.337281,
 		precision=0.001,classified="sino",name="sinogram")
 
-    evaluate_control_numbers(backprojected, (Nx,Nx,number_detectors,angles,2),exptected_result=327884.2978,
+    evaluate_control_numbers(backprojected, (Nx,Nx,number_detectors,angles,2),exptected_result=1482240.72690,
 		precision=0.001,classified="img",name="backprojected image")
 
     
@@ -750,6 +755,11 @@ def test_nonquadratic():
 
 
 def test_extract_sparse_matrix():
+    """
+    Tests the create_sparse_matrix method to create a sparse matrix
+    associated with the transform.
+    """
+
     order="F"
     dtype=float64
     ctx = cl.create_some_context(interactive=False)
