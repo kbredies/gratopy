@@ -7,10 +7,47 @@ import matplotlib.image as mpimg
 
 from numpy import random
 
+
+def curdir(filename):
+    return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
+
+
+TESTRNG=curdir("rng.txt")
+
 ctx = None
 queue = None
 
-def create_random_test_numbers():
+def evaluate_control_numbers(data, dimensions,exptected_result,precision,classified,name):
+    [Nx,Ny,Ns,Na,Nz]=dimensions
+    
+    test_s,test_phi,test_z,factors,test_x,test_y=read_control_numbers(
+                                                     Nx,Ny,Ns,Na,Nz)
+    m=1000
+    mysum=0
+    if classified=="img":
+        var1=test_x
+        var2=test_y
+        var3=test_z
+    else:
+        var1=test_s
+        var2=test_phi
+        var3=test_z
+    
+    if Nz==1:
+        data=data.reshape(data.shape[0],data.shape[1],1)
+    for i in range(0,m):    
+        mysum+=factors[i]*data[var1[i],var2[i],var3[i]]
+    
+    assert(abs(mysum-exptected_result)<precision),\
+        "A control-sum for the "+name+ " did not match the expected value,"\
+        +"expected: "+str(exptected_result) +", received: "+str(mysum)+\
+        ". Please consider the visual results to check whether this is "+\
+        "a numerical issue or a more fundamental error."  
+
+
+
+
+def create_control_numbers():
     m=1000
     M=2000
     rng=np.random.default_rng(1)
@@ -24,7 +61,7 @@ def create_random_test_numbers():
     mylist.append(rng.integers(0,M,m))#
     mylist.append(rng.integers(0,M,m))
     
-    myfile=open("rnd.txt","w")
+    myfile=open(TESTRNG,"w")
     
     for j in range(6):	
         for i in range(m):
@@ -33,9 +70,9 @@ def create_random_test_numbers():
 	
 
 
-def read_random_test_numbers(Nx,Ny,Ns,Na, Nz=1):
+def read_control_numbers(Nx,Ny,Ns,Na, Nz=1):
     
-    myfile=open("rnd.txt","r")
+    myfile=open(TESTRNG,"r")
     m = 1000
     test_s=[]
     test_phi=[]
@@ -135,39 +172,18 @@ def test_projection():
     show()
     
     
-    # Computing a controlnumbers to quantitatively verify correctness 
-    m=1000
-    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
-                                                     N,N,Ns,angles,2)
-    mysum0=0
-    mysum1=0
-    mysum2=0
-    for i in range(0,m):    
-        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
-        mysum1+=factors[i]*sino[test_s[i],test_phi[i],test_z[i]]
-        mysum2+=factors[i]*backprojected[test_x[i],test_y[i],test_z[i]]
+    # Computing controlnumbers to quantitatively verify correctness     
+    evaluate_control_numbers(img, (N,N,Ns,angles,2),exptected_result=2949.3738,
+		precision=0.001,classified="img",name="original image")
 
-    mysumtrue0=2949.373863867869       
-    mysumtrue1=1221.223836630344
-    mysumtrue2=7427.706215239802
-    
-    assert(abs(mysum0-mysumtrue0)<0.001),\
-        "A control-sum for the original image did not match the expected value,\
-        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."  
-    
-    assert(abs(mysum1-mysumtrue1)<0.001),\
-        "A control-sum for the sinogram did not match the expected value,\
-        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."
-	
-    assert(abs(mysum2-mysumtrue2)<0.001),\
-        "A control-sum for the backprojection did not match the expected value,\
-        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error." 
+    evaluate_control_numbers(sino, (N,N,Ns,angles,2),exptected_result=1221.2238,
+		precision=0.001,classified="sino",name="sinogram")
+
+    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),exptected_result=7427.7062,
+		precision=0.001,classified="img",name="backprojected image")
+		
+
+
     
 
 def test_weighting():
@@ -326,10 +342,8 @@ def test_fullangle():
     sino_incorrect=sino_gpu_incorrect.get()
     backprojected_correct=backprojected_gpu_correct.get()
     backprojected_incorrect=backprojected_gpu_incorrect.get()
-    
     img=img_gpu.get()
 
-        
     # plot results
     figure(1)
     imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
@@ -349,60 +363,28 @@ def test_fullangle():
     
     show()
     
-    # Computing a controlnumbers to quantitatively verify correctness 
-    m=1000
-    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
-                                                     N,N,Ns,len(angles),2)
-    
-    
-    mysum0=0
-    mysum1=0
-    mysum2=0
-    mysum3=0
-    mysum4=0
-    for i in range(0,m):    
-        
-        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
-        mysum1+=factors[i]*sino_correct[test_s[i],test_phi[i],test_z[i]]
-        mysum2+=factors[i]*sino_incorrect[test_s[i],test_phi[i],test_z[i]]
-        mysum3+=factors[i]*backprojected_correct[test_x[i],test_y[i],test_z[i]]
-        mysum4+=factors[i]*backprojected_incorrect[test_x[i],test_y[i],test_z[i]]
+    # Computing controlnumbers to quantitatively verify correctness 
+    evaluate_control_numbers(img, (N,N,Ns,len(angles),2),exptected_result=2949.3738,
+		precision=0.001,classified="img",name="original image")
 
-    mysumtrue0=2949.373863867869       
-    mysumtrue1=990.31814758003
-    mysumtrue2=990.31814758003
-    mysumtrue3=1357.265059450704
-    mysumtrue4=2409.5415802098414
-    assert(abs(mysum0-mysumtrue0)<0.001),\
-        "A control-sum for the original image did not match the expected value,\
-        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."  
-    
-    assert(abs(mysum1-mysumtrue1)<0.001),\
-        "A control-sum for the sinogram with correct fullangle did not match the expected value,\
-        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."
-    
-    assert(abs(mysum2-mysumtrue2)<0.001),\
-        "A control-sum for the sinogram with incorrect fullangle did not match the expected value,\
-        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."
+    evaluate_control_numbers(sino_correct, (N,N,Ns,len(angles),2),
+                exptected_result=990.3181,precision=0.001,classified="sino",
+		name="sinogram with correct fullangle setting")
 
-	
-    assert(abs(mysum3-mysumtrue3)<0.001),\
-        "A control-sum for the backprojection with correct fullangle did not match the expected value,\
-        expected: "+str(mysumtrue3) +", received: "+str(mysum3)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error." 
+    evaluate_control_numbers(sino_incorrect, (N,N,Ns,len(angles),2),
+		exptected_result=990.3181,precision=0.001,classified="sino",
+		name="sinogram with incorrect fullangle setting")
 
-    assert(abs(mysum4-mysumtrue4)<0.001),\
-        "A control-sum for the backprojection with correct fullangle did not match the expected value,\
-        expected: "+str(mysumtrue4) +", received: "+str(mysum4)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error." 
+    evaluate_control_numbers(backprojected_correct, (N,N,Ns,len(angles),2),
+		exptected_result=1357.2650, precision=0.001,classified="img",
+		name="backprojected image with correct fullangle setting")
+
+    evaluate_control_numbers(backprojected_incorrect, (N,N,Ns,len(angles),2),
+		exptected_result=2409.5415,precision=0.001,classified="img",
+		name="backprojected image with incorrect fullangle setting")
+
+    
+    
 
 		
         
@@ -451,39 +433,16 @@ def test_nonquadratic():
     show()
     
     # Computing a controlnumbers to quantitatively verify correctness 
-    m=1000
-    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
-                                                     N1,N2,Ns,angles,2)
-    mysum0=0
-    mysum1=0
-    mysum2=0
-    for i in range(0,m):    
-        mysum0+=factors[i]*img[test_x[i],test_y[i],test_z[i]]
-        mysum1+=factors[i]*sino[test_s[i],test_phi[i],test_z[i]]
-        mysum2+=factors[i]*backprojected[test_x[i],test_y[i],test_z[i]]
+    evaluate_control_numbers(img, (N1,N2,Ns,angles,2),exptected_result=999.4965,
+		precision=0.001,classified="img",name="original image")
 
-    mysumtrue0=999.4965329492022       
-    mysumtrue1=-782.3501868881585
-    mysumtrue2=3310.347556576363
-    
-    assert(abs(mysum0-mysumtrue0)<0.001),\
-        "A control-sum for the original image did not match the expected value,\
-        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."  
-    
-    assert(abs(mysum1-mysumtrue1)<0.001),\
-        "A control-sum for the sinogram did not match the expected value,\
-        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."
-	
-    assert(abs(mysum2-mysumtrue2)<0.001),\
-        "A control-sum for the backprojection did not match the expected value,\
-        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error." 
-    
+    evaluate_control_numbers(sino, (N1,N2,Ns,angles,2),exptected_result=-782.3501,
+		precision=0.001,classified="sino",name="sinogram")
+
+    evaluate_control_numbers(backprojected, (N1,N2,Ns,angles,2),exptected_result=3310.3475,
+		precision=0.001,classified="img",name="backprojected image")
+
+
 
 
 def test_extract_sparse_matrix():
@@ -533,37 +492,16 @@ def test_extract_sparse_matrix():
     show()
     
     # Computing a controlnumbers to quantitatively verify correctness 
-    m=1000
-    test_s,test_phi,test_z,factors,test_x,test_y=read_random_test_numbers(
-                                                     Nx,Nx,number_detectors,angles,1)
-    mysum0=0
-    mysum1=0
-    mysum2=0
-    for i in range(0,m): 
-        mysum0+=factors[i]*img[test_x[i],test_y[i]]
-        mysum1+=factors[i]*sino[test_s[i],test_phi[i]]
-        mysum2+=factors[i]*backproj[test_x[i],test_y[i]]
+    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,1),exptected_result=7.1182017,
+		precision=0.000001,classified="img",name="original image")
 
-    mysumtrue0=7.118201777449383       
-    mysumtrue1=-0.5455533171777472
-    mysumtrue2=0.7838917015784652
-    assert(abs(mysum0-mysumtrue0)<0.000001),\
-        "A control-sum for the original image did not match the expected value,\
-        expected: "+str(mysumtrue0) +", received: "+str(mysum0)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."  
+    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,1),exptected_result=-0.545553317,
+		precision=0.000001,classified="sino",name="sinogram")
+
+    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1),exptected_result=0.783891701,
+		precision=0.000001,classified="img",name="backprojected image")
+
     
-    assert(abs(mysum1-mysumtrue1)<0.000001),\
-        "A control-sum for the sinogram did not match the expected value,\
-        expected: "+str(mysumtrue1) +", received: "+str(mysum1)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error."
-	
-    assert(abs(mysum2-mysumtrue2)<0.000001),\
-        "A control-sum for the backprojection did not match the expected value,\
-        expected: "+str(mysumtrue2) +", received: "+str(mysum2)+\
-        ". Please consider the visual results to check whether this is \
-        a numerical issue or a more fundamental error." 
 
 
 # test

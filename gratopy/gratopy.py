@@ -1585,7 +1585,6 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
     #power_iteration
     for i in range(number_of_iterations):
         normsqr = float(clarray.sum(img).get())
-    
         img /= normsqr
         forwardprojection(img, projectionsetting, sino=sino)
         backprojection(sino, projectionsetting, img=img) 
@@ -1619,21 +1618,27 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
     """    
 
-    
+    # Set relaxation parameter
     norm_estimate=normest(projectionsetting, allocator=sino.allocator)
     w=sino.dtype.type(w/norm_estimate**2)   
 
     sinonew=sino.copy()
+    
     U=w*backprojection(sinonew, projectionsetting)
     Unew=clarray.zeros(projectionsetting.queue, U.shape, dtype=sino.dtype,
         order='F', allocator=sino.allocator)
     
+    #Poweriteration
     for i in range(number_iterations):
-        print(np.linalg.norm(sinonew.get()))
+        sys.stdout.write('\rProgress at {:3.0%}'
+                             .format(float(i)/number_iterations))
+			    
         sinonew=forwardprojection(Unew, projectionsetting, sino=sinonew)\
             -sino
-            
-        Unew=Unew-w*backprojection(sinonew, projectionsetting, img=U) 
+        Unew=Unew-w*backprojection(sinonew, projectionsetting, img=U)
+    
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
     return Unew
 
 def conjugate_gradients(sino, projectionsetting, epsilon=0.01, 
@@ -1665,13 +1670,16 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.array.Array`
     """
-    
+
+    #Determine suitable dimensions    
     dimensions=projectionsetting.img_shape
     dimensions2=(1,projectionsetting.n_angles)
     if len(sino.shape)>2:
         dimensions=dimensions+tuple([sino.shape[2]])
         dimensions2=dimensions2+tuple([1])
-           
+    
+    
+    #Default zeros guess
     if x0==None:
         x0=clarray.zeros(projectionsetting.queue,dimensions,
             sino.dtype,order={0:'F',1:'C'}[sino.flags.c_contiguous])
@@ -1680,11 +1688,11 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
         guess x0 have the same contiguity")
     x=x0
 
-    d=sino-forwardprojection(x, projectionsetting,wait_for=x.events)
-    p=backprojection(d, projectionsetting,wait_for=d.events)
+    d=sino-forwardprojection(x, projectionsetting)
+    p=backprojection(d, projectionsetting)
     q=clarray.empty_like(d, projectionsetting.queue)
-    snew=backprojection(d, projectionsetting,wait_for=d.events)
-    sold=backprojection(d, projectionsetting,wait_for=d.events)
+    snew=backprojection(d, projectionsetting)
+    sold=backprojection(d, projectionsetting)
         
   
     angle_weights=clarray.reshape(projectionsetting.angle_weights,
@@ -1698,33 +1706,42 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
 
 
     for k in range(0,number_iterations):    
-        print(k)
-        forwardprojection(p, projectionsetting, sino=q,wait_for=p.events)
+        sys.stdout.write('\rProgress at {:3.0%}'
+                             .format(float(k)/number_iterations))
+
+        forwardprojection(p, projectionsetting, sino=q)
         alpha=x.dtype.type(projectionsetting.delta_x**2/
             (projectionsetting.delta_s) *(clarray.vdot(sold,sold)
            /clarray.vdot(q*angle_weights,q)).get())
            
         x=x+alpha*p
         d=d-alpha*q
-        backprojection(d, projectionsetting, img=snew,wait_for=d.events)
+        backprojection(d, projectionsetting, img=snew)
         beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
         sold=snew+0.
         p=beta*p+snew
         residual=sqrt(np.sum(clarray.vdot(snew,snew).get())\
           /np.sum(clarray.vdot(sino,sino).get()))
         if  residual<epsilon:
+            sys.stdout.write('\rProgress aborted prematurely as desired'
+	              +'precision is reached')
+	    
             break
 
         if beta>1 and restart==True:
-            print("restart at", k)
-            d=sino-forwardprojection(x, projectionsetting,
-                wait_for=x.events)
+            sys.stdout.write('\r')
+            sys.stdout.flush()
+            print("restart at", k,"\n")
+            d=sino-forwardprojection(x, projectionsetting)
                 
-            p=backprojection(d, projectionsetting,wait_for=d.events)
+            p=backprojection(d, projectionsetting)
             q=clarray.empty_like(d, projectionsetting.queue)            
-            snew=backprojection(d, projectionsetting,wait_for=d.events)
+            snew=backprojection(d, projectionsetting)
             residual=sqrt(np.sum(clarray.vdot(snew,snew).get())/\
                 np.sum(clarray.vdot(sino,sino).get()))
+    
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
 
     return x
 
@@ -1773,7 +1790,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
     ctx=queue.context    
     my_dtype=sino.dtype
     my_dimensions=projectionsetting.img_shape
-    my_order=order={0:'F',1:'C'}[sino.flags.c_contiguous]
+    my_order={0:'F',1:'C'}[sino.flags.c_contiguous]
     
     img_shape=projectionsetting.img_shape
     if len(sino.shape)==2:
@@ -1784,46 +1801,47 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
 
     ##Definitions of suitable kernel functions for primal and dual updates
     # update dual variable to dataterm
+    
+    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_lambda_L2_float_ff,
+		    (np.dtype("float32"),'C'):projectionsetting.prg.update_lambda_L2_float_cc,
+		    (np.dtype("float"),'F'):projectionsetting.prg.update_lambda_L2_double_ff,
+		    (np.dtype("float"),'C'):projectionsetting.prg.update_lambda_L2_double_cc}
+    myfunction_lambda=myfunctions[(my_dtype,my_order)]
     def update_lambda(lamb, Ku, f, sigma,mu, normest, wait_for=None):
-        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_ff,
-		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
-		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
-		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
-		 
-		
-        return myfunction[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
+        return myfunction_lambda(lamb.queue,
             lamb.shape, None,lamb.data, Ku.data, f.data,
             float32(sigma/normest), float32(mu), wait_for=wait_for)
 
     #update v the dual of gradient of u
+    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_v_float_ff,
+        (np.dtype("float32"),'C'):projectionsetting.prg.update_v_float_cc,
+        (np.dtype("float"),'F'):projectionsetting.prg.update_v_double_ff,
+        (np.dtype("float"),'C'):projectionsetting.prg.update_v_double_cc}	
+    myfunction_v=myfunctions[my_dtype,my_order]
     def update_v(v, u,  sigma, z_distance, wait_for=None):
-        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
-        (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
-        (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
-        (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}	
-		
-        return myfunction[v.dtype,v.flags.c_contiguous](v.queue, u.shape, None,
+        return myfunction_v(v.queue, u.shape, None,
             v.data, u.data, float32(sigma),float32(z_distance), 
             wait_for=wait_for)
 
     #update primal variable u (the image)
-    def update_u(u, u_, v, Kstarlambda, tau, normest,z_distance,wait_for=None):
-        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
-        (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
-        (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
-        (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
-		
-        return myfunction[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
-            u.data, u_.data,v.data, Kstarlambda.data, float32(tau),
+    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_u_float_ff,
+        (np.dtype("float32"),'C'):projectionsetting.prg.update_u_float_cc,
+        (np.dtype("float"),'F'):projectionsetting.prg.update_u_double_ff,
+        (np.dtype("float"),'C'):projectionsetting.prg.update_u_double_cc}
+    myfunction_u=myfunctions[my_dtype,my_order]
+    def update_u(u_, u, v, Kstarlambda, tau, normest,z_distance,wait_for=None):
+        return myfunction_u(u_.queue, u_.shape, None,
+            u_.data, u.data,v.data, Kstarlambda.data, float32(tau),
             float32(1.0/normest),float32(z_distance), wait_for=wait_for)
        
     #Compute the norm of v and project (dual update)
+    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_NormV_unchor_float_ff,
+        (np.dtype("float32"),'C'):projectionsetting.prg.update_NormV_unchor_float_cc,
+        (np.dtype("float"),'F'):projectionsetting.prg.update_NormV_unchor_double_ff,
+        (np.dtype("float"),'C'):projectionsetting.prg.update_NormV_unchor_double_cc}
+    myfunction_normv=myfunctions[my_dtype,my_order]
     def update_NormV(V,normV,wait_for=None):
-        myfunction={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
-        (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_cc,
-        (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_ff,
-        (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_cc}
-        return myfunction[V.dtype,V.flags.c_contiguous](V.queue, V.shape[1:], None, 
+        return myfunction_normv(V.queue, V.shape[1:], None, 
             V.data,normV.data, wait_for=wait_for)
 
     # update of the extra gradient
@@ -1833,7 +1851,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
         'double *u_, double *u', 'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
 
 	
-	#Initialising Variables for the iteration
+    #Initialising Variables for the iteration
     U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     U_=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     V=clarray.zeros(queue, extended_img_shape, dtype=my_dtype, 
@@ -1843,11 +1861,10 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
     KU=clarray.zeros(queue, sino.shape, dtype=my_dtype, order=my_order)
     KSTARlambda=clarray.zeros(queue, img_shape, dtype=my_dtype, 
         order=my_order)
-        
     normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
 
 
-	#Computing estimates for Parameter
+    #Computing estimates for Parameter
     norm_estimate = normest(projectionsetting)
     Lsqr = 17.0
     sigma = 1.0/sqrt(Lsqr)
@@ -1857,34 +1874,34 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
 
     #Primal Dual Iterations
     for i in range(number_iterations):		
-		
         #Dual Update
         V.add_event(update_v(V, U_, sigma,z_distance,
         				 wait_for=U_.events))
 
         normV.add_event(update_NormV(V,normV,wait_for=V.events))	
 
-        forwardprojection(U_,projectionsetting,KU,wait_for=U_.events)
+        forwardprojection(U_,projectionsetting,KU)
    
         Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu,
 	                          norm_estimate,
 				  wait_for=KU.events + sino.events))
 		
         #Primal Update
-        backprojection(Lamb,projectionsetting,KSTARlambda,
-            wait_for=Lamb.events)	
+        backprojection(Lamb,projectionsetting,KSTARlambda)	
         
         U_.add_event(update_u(U_, U, V, KSTARlambda, tau, norm_estimate,
-            z_distance, wait_for=[]))
+	    z_distance, wait_for=U.events+V.events+KSTARlambda.events))
 		
-		#Extragradient update 
+	#Extragradient update 
         U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))	
-			
+	
         (U, U_) = (U_, U)
 
         sys.stdout.write('\rProgress at {:3.0%}'
                              .format(float(i)/number_iterations))
-		
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
+
     return U
 
     
