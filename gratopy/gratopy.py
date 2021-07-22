@@ -242,7 +242,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
 
 
 def radon_struct(queue, img_shape, angles, n_detectors=None,
-             detector_width=2.0, image_width=2.0,
+             detector_width=2.0, image_width=2.0, midpoint_shift=[0,0],
              detector_shift=0.0,fullangle=True):
     """
     Creates the structure of radon geometry required for the Radon transform
@@ -284,6 +284,11 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         entire object, while img_with=2 detector_width results in each
         projection capturing only half of the image.
     :type image_width: :class:`float`, default  2.0
+    
+    :param midpoint_shift: Vector of length two representing the  
+        shift of the image away from center of rotation. 
+        If not given no shift is applied.
+    :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
 			           		        
     :param detector_shift:   Physical shift of the detector along 
         the detector-line
@@ -346,7 +351,12 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     else:
         nd = n_detectors
     
-    
+    # also write basic information to gpu 
+    [Nx,Ny]=img_shape
+    [Ni,Nj]= [nd,len(angles)]
+    delta_x=image_width/float(max(Nx,Ny))
+    delta_s=float(detector_width)/nd
+
     #Extract angle information
     if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
         n_angles=0
@@ -397,7 +407,8 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             angles_diff+=list(angles_diff_temp[current_angles_index])
     
     #Compute the midpoints of geometries
-    midpoint_domain = array([img_shape[0]-1, img_shape[1]-1])/2.0
+    midpoint_domain = array([img_shape[0]-1, img_shape[1]-1])/2.0+\
+		      np.array(midpoint_shift)/delta_x
     midpoint_detectors = (nd-1.0)/2.0
 
     # direction vectors and inverse in x 
@@ -411,17 +422,12 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     #X*x+Y*y=detectorposition, ofs is error in midpoint of 
     #the image (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
-            - Y*midpoint_domain[1] + detector_shift/detector_width*nd
+            - Y*midpoint_domain[1] + detector_shift/delta_s
 
     #Angular weights
     angles_index = np.argsort(angles%(np.pi)) 
     angles_sorted=angles[angles_index]  %(np.pi)
     
-    # also write basic information to gpu 
-    [Nx,Ny]=img_shape
-    [Ni,Nj]= [nd,len(angles)]
-    delta_x=image_width/float(max(Nx,Ny))
-    delta_s=float(detector_width)/nd
 
     
     geo_dict={}
@@ -1027,7 +1033,7 @@ class ProjectionSettings():
     def __init__(self, queue,geometry, img_shape, angles, 
                     n_detectors=None, detector_width=2.0,
                     image_width=None, R=None, RE=None, 
-                    detector_shift=0.0,midpoint_shift=[0,0],
+                    detector_shift=0.0,midpoint_shift=[0.,0.],
                     fullangle=True):
                     
         """Initialize a ProjectionSettings instance.
@@ -1205,7 +1211,8 @@ class ProjectionSettings():
             self.struct=radon_struct(self.queue,self.img_shape,  
                 self.angles, n_detectors=self.n_detectors,
                 detector_width=self.detector_width, 
-                image_width= self.image_width,
+                image_width= self.image_width, 
+		midpoint_shift=self.midpoint_shift,
                 detector_shift=self.detector_shift,
                 fullangle=self.fullangle )
                 
@@ -1336,6 +1343,7 @@ class ProjectionSettings():
         if self.is_parallel:
             detector_width=self.detector_width
             image_width=self.image_width
+            midpoint_shift=self.midpoint_shift
             
             angle=-angle
             A=np.array([[cos(angle),sin(angle)],[-sin(angle),cos(angle)]])  
@@ -1371,13 +1379,14 @@ class ProjectionSettings():
             axes.plot([lower_detector[0],upper_detector[0]],
                 [lower_detector[1],upper_detector[1]],"k")
             
-            draw_circle=matplotlib.patches.Circle((0, 0),
+            draw_circle=matplotlib.patches.Circle(midpoint_shift,
                 image_width/sqrt(2), color='r')
             
             axes.add_artist(draw_circle) 
 
             color=(1,1,0)
-            draw_rectangle=matplotlib.patches.Rectangle(-0.5*np.array(
+            draw_rectangle=matplotlib.patches.Rectangle(midpoint_shift
+	        -0.5*np.array(
                 [image_width*self.img_shape[0]/np.max(self.img_shape),
                 image_width*self.img_shape[1]/np.max(self.img_shape)]),
                 image_width*self.img_shape[0]/np.max(self.img_shape),
@@ -1386,8 +1395,8 @@ class ProjectionSettings():
 
             axes.add_artist(draw_rectangle)
 
-            draw_circle=matplotlib.patches.Circle((0, 0), image_width/2,
-                color='b')
+            draw_circle=matplotlib.patches.Circle(midpoint_shift, 
+	        image_width/2, color='b')
             
             axes.add_artist(draw_circle) 
             draw_circle=matplotlib.patches.Circle((0,0), image_width/10,

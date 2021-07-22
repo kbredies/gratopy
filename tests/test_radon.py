@@ -471,7 +471,8 @@ def test_nonquadratic():
 def test_extract_sparse_matrix():
     """
     Tests the create_sparse_matrix method to create a sparse matrix
-    associated with the transform.
+    associated with the transform, and tests it by appling forward and
+    backprojection by matrix multiplication.
     """
     order="F"
     dtype=float64
@@ -531,6 +532,71 @@ def test_extract_sparse_matrix():
     evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1)
                ,exptected_result=1.0395559772,
 		precision=0.000001,classified="img",name="backprojected image")
+
+
+def test_midpointshift():
+    """ 
+    Shifted midpoint test.
+    Tests and illustrates how the sinogram changes if the midpoint of an 
+    images is shifted away from the center of rotation.
+    """
+
+    # create PyOpenCL context
+    ctx = cl.create_some_context(interactive=None)
+    queue = cl.CommandQueue(ctx)
+
+    # create phantom for test
+    dtype=float32
+    N = 1200
+    img_gpu = create_phantoms(queue, N,dtype)
+
+    # relevant quantities
+    (angles,Detector_width, image_width) = (360, 2, 1)
+    midpoint_shift=[0.,0.5]
+    Ns=int(0.5*N)
+
+    # define projectionsetting
+    PS = ProjectionSettings(queue, RADON, img_gpu.shape, angles, Ns,
+                            image_width=image_width, detector_width=Detector_width,
+                            midpoint_shift=midpoint_shift)
+    
+    # plot the geometry from various angles
+    figure(0)
+    for k in range(0,16):
+        PS.show_geometry(k*np.pi/16, axes=subplot(4,4,k+1))
+
+    # compute forward and backprojection
+    sino_gpu=forwardprojection(img_gpu, PS)    
+    backprojected_gpu=backprojection(sino_gpu, PS)
+    
+    img=img_gpu.get()
+    sino=sino_gpu.get()
+    backprojected=backprojected_gpu.get()
+
+    # plot results
+    figure(1)
+    imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=cm.gray)
+    figure(2)
+    title("Sinogram with shifted midpoint")
+    imshow(np.hstack([sino[:,:,0],sino[:,:,1]]), \
+        cmap=cm.gray)
+    figure(3)
+    title("Backprojection with shifted midpoint")
+    imshow(np.hstack([backprojected[:,:,0],backprojected[:,:,1]]),\
+        cmap=cm.gray)
+    show()
+    
+    # Computing controlnumbers to quantitatively verify correctness 
+    evaluate_control_numbers(img, (N,N,Ns,angles,2),exptected_result=2949.37386,
+		precision=0.001,classified="img",name="original image")
+
+    evaluate_control_numbers(sino, (N,N,Ns,angles,2),
+                exptected_result=-223.3301648,
+		precision=0.00001,classified="sino",name="sinogram")
+
+    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
+                exptected_result=1871.7969,
+		precision=0.001,classified="img",name="backprojected image")
 
 
 # test

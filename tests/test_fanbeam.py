@@ -757,7 +757,8 @@ def test_nonquadratic():
 def test_extract_sparse_matrix():
     """
     Tests the create_sparse_matrix method to create a sparse matrix
-    associated with the transform.
+    associated with the transform, and tests it by appling forward and
+    backprojection by matrix multiplication.
     """
 
     order="F"
