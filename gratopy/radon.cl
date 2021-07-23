@@ -160,9 +160,12 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_ty
 	  if (s_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[ pos_sino_\order2((int)s_floor,a,z,Ns,Na,Nz)];
 	  if (s_floor <= Ns-2) acc += Delta_phi*p*sino[ pos_sino_\order2((int)(s_floor+1),a,z,Ns,Na,Nz)];
 	}
+	
+
   }
   //assign value to sinogram
   img[pos_img_\order1(x,y,z,Nx,Ny,Nz)] = acc;
+
 }
 
 

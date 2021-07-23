@@ -529,8 +529,8 @@ def test_extract_sparse_matrix():
                 exptected_result=-1.061323217,
 		precision=0.000001,classified="sino",name="sinogram")
 
-    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1)
-               ,exptected_result=1.0395559772,
+    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1),
+                exptected_result=1.0395559772,
 		precision=0.000001,classified="img",name="backprojected image")
 
 
@@ -542,7 +542,7 @@ def test_midpointshift():
     """
 
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=None)
+    ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
     # create phantom for test
@@ -551,8 +551,8 @@ def test_midpointshift():
     img_gpu = create_phantoms(queue, N,dtype)
 
     # relevant quantities
-    (angles,Detector_width, image_width) = (360, 2, 1)
-    midpoint_shift=[0.,0.5]
+    (angles,Detector_width, image_width) = (360, 2, 3)
+    midpoint_shift=[0.,0.4]
     Ns=int(0.5*N)
 
     # define projectionsetting
@@ -591,11 +591,11 @@ def test_midpointshift():
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino, (N,N,Ns,angles,2),
-                exptected_result=-223.3301648,
-		precision=0.00001,classified="sino",name="sinogram")
+                exptected_result=1810.5192,
+		precision=0.001,classified="sino",name="sinogram")
 
     evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
-                exptected_result=1871.7969,
+                exptected_result=3570.1789,
 		precision=0.001,classified="img",name="backprojected image")
 
 
