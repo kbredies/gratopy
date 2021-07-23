@@ -60,7 +60,7 @@ relevant to the use of gratopy. Amongst them the most relevant ones are
 * `matplotlib>=3.2.0 <https://pypi.org/project/matplotlib/>`_
 * `Pillow>=6.0.0 <https://pypi.org/project/Pillow/>`_
 
-Most users aiming scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
+Most users aiming for scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
 Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, `<https://documen.tician.de/pyopencl/>`_.    
 
 

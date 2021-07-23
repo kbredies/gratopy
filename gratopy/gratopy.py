@@ -139,14 +139,14 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
 
 def radon(sino, img, projectionsetting, wait_for=[]):
     """
-    Performs the Radon transform of a given image using on the 
+    Performs the Radon transform of a given image using the 
     given projectionsetting.
 
     :param sino: The sinogram to be computed (in which results are saved).
-    :type sino: :class:`pyopencl.Array`
+    :type sino: :class:`pyopencl.array.Array`
     
     :param img: The image to be transformed.
-    :type img: :class:`pyopencl.Array` 
+    :type img: :class:`pyopencl.array.Array` 
     :param projectionsetting: The settings in which the backprojection 
         is to be executed. 
     :type projectionsetting: :class:`gratopy.ProjectionSettings` 
@@ -184,14 +184,14 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     
 def radon_ad(img, sino, projectionsetting, wait_for=[]):
     """
-    Performs the Radon backprojection  of a given sinogram using on 
+    Performs the Radon backprojection  of a given sinogram using 
     the given projectionsetting.
 
     :param img: The image to be computed (in which results are saved).
-    :type img: :class:`pyopencl.Array`
+    :type img: :class:`pyopencl.array.Array`
     
-    :param sino: The sinogram to be transformed .
-    :type sino: :class:`pyopencl.Array`
+    :param sino: The sinogram to be transformed.
+    :type sino: :class:`pyopencl.array.Array`
     :param projectionsetting: The settings in which the backprojection 
         is to be executed. 
     :type projectionsetting: :class:`gratopy.ProjectionSettings` 
@@ -238,15 +238,15 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
 
 
 def radon_struct(queue, img_shape, angles, n_detectors=None,
-             detector_width=2.0, image_width=2.0,
+             detector_width=2.0, image_width=2.0, midpoint_shift=[0,0],
              detector_shift=0.0,fullangle=True):
     """
-    Creates the structure of radon geometry required for radontransform
+    Creates the structure of radon geometry required for the Radon transform
     and its adjoint.
 	    
     :param queue: Opencl CommandQueue in which context the 
         computations are to be executed.
-    :type queue: :class:`pyoencl.CommandQueue`  	
+    :type queue: :class:`pyopencl.CommandQueue`  	
 	
     :param img_shape:  The number of pixels of the image in x- and 
         y-direction respectively, i.e., image resolution. It is assumed
@@ -263,11 +263,11 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type angles: :class:`int`, :class:`list[float]` or 
         :class:`list[list[float]]`
 			         
-    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors
+    :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
         pixels considered, i.e., detector
         resolution. When None is given :math:`N_s` will be chosen as
         :math:`\sqrt{N_x^2+N_y^2}`.
-    :type n_detector:  :class:`int`, default None
+    :type n_detectors:  :class:`int`, default None
 			         
     :param detector_width: Physical length of the detector. 
     :type detector_width: :class:`float`, default 2.0
@@ -275,11 +275,16 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param image_width: Size of the image (more precisely  the larger 
         side length of the rectangle image), i.e., the diameter of the 
         circular object captured by image. For the parallel beam setting 
-        chosing :math:`image_width = detector_width` results in 
+        chosing image_width = detector_width results in 
         the standard Radon transform with each projection touching the 
         entire object, while img_with=2 detector_width results in each
         projection capturing only half of the image.
     :type image_width: :class:`float`, default  2.0
+    
+    :param midpoint_shift: Vector of length two representing the  
+        shift of the image away from center of rotation. 
+        If not given no shift is applied.
+    :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
 			           		        
     :param detector_shift:   Physical shift of the detector along 
         the detector-line
@@ -289,29 +294,29 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         [-detector_width/2,detector_width/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 			        
-    :param fullangle:  True if entire :math:`[0,\pi[` is represented by 
-        the angles, False for a limited angle setting.
-        Impacts the weighting in the backprojection. If the given angles,
-        only represent a discretization of a real subset of :math:`[0,\pi[`,
-        i.e., limited angle situation. 
-    :type fullangle:  :class:`bool`, default True.
+    :param fullangle:  :obj:`True` if entire :math:`[0,\pi[` intervall 
+        is represented by 
+        the angles, :obj:`False` for a limited angle setting, i.e., 
+	the given angles
+        only represent a discretization of a real subset of :math:`[0,\pi[`.
+        Impacts the weighting in the backprojection. 
+    :type fullangle:  :class:`bool`, default :attr:`True`.
  	
 
     :return: Ofs_Dict: dict[np.dtype --> numpy.array]
         Dictionary containing the relevant angular information in 
         numpy.array form for respective data-type numpy.dtype(float32)
-        or numpy.dtype(float64)
-        
+        or numpy.dtype(float64).
         Arrays have dimension :math:`(8, N_a)` with:
-        
-        * 0 ... weighted cos()
-        * 1 ... weighted sin()
-        * 2 ... detector offset  
-        * 3 ... inverse of cos
-        * 4 ... Angular weights			
+	
+        * 0 ... weighted cos().
+        * 1 ... weighted sin().
+        * 2 ... detector offset.  
+        * 3 ... inverse of cos.
+        * 4 ... Angular weights.			
  
         shape: tuple of integers :math:`(N_x,N_y)` resolution 
-        of the image 
+        of the image.
  
         sinogram_shape: (tuple) :math:`(N_s,N_a)` resolution of the sinogram.
  
@@ -321,8 +326,8 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         angles_diff: numpy.array
         same values as in ofs_dict[4] representing the weight 
         associated to the angles (i.e., size of angle-pixels)
-    :rtype: (Ofs_Dict,shape,Geo_Dict,angles_diff) with 
-        (:class:`dict`, :class:`tuple`, :class:`dict`, :class:`list`)
+    :rtype: (Ofs_Dict,img_shape,sinogram_shape,Geo_Dict,angles_diff) with 
+        (:class:`dict`, :class:`tuple`, :class:`tuple`, :class:`dict`, :class:`list`)
     
     """
         
@@ -342,7 +347,12 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     else:
         nd = n_detectors
     
-    
+    # also write basic information to gpu 
+    [Nx,Ny]=img_shape
+    [Ni,Nj]= [nd,len(angles)]
+    delta_x=image_width/float(max(Nx,Ny))
+    delta_s=float(detector_width)/nd
+
     #Extract angle information
     if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
         n_angles=0
@@ -393,36 +403,27 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             angles_diff+=list(angles_diff_temp[current_angles_index])
     
     #Compute the midpoints of geometries
-    midpoint_domain = array([img_shape[0]-1, img_shape[1]-1])/2.0
+    midpoint_domain = array([img_shape[0]-1, img_shape[1]-1])/2.0+\
+		      np.array(midpoint_shift)/delta_x
     midpoint_detectors = (nd-1.0)/2.0
 
     # direction vectors and inverse in x 
     X = cos(angles)/relative_detector_pixel_width
     Y = sin(angles)/relative_detector_pixel_width
     Xinv = 1.0/X
-
     # set near vertical lines to vertical
-    mask = abs(Xinv) > 10*nd
-    X[mask] = 0
-    Y[mask] = sin(angles[mask]).round()/relative_detector_pixel_width
-    Xinv[mask] = 0
-
+    mask = np.where(abs(X) <= abs(Y))
+    Xinv[mask] = 1.0/Y[mask]
 
     #X*x+Y*y=detectorposition, ofs is error in midpoint of 
     #the image (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
-            - Y*midpoint_domain[1] + detector_shift/detector_width*nd
-
+            - Y*midpoint_domain[1] + detector_shift/delta_s
 
     #Angular weights
     angles_index = np.argsort(angles%(np.pi)) 
     angles_sorted=angles[angles_index]  %(np.pi)
     
-    # also write basic information to gpu 
-    [Nx,Ny]=img_shape
-    [Ni,Nj]= [nd,len(angles)]
-    delta_x=image_width/float(max(Nx,Ny))
-    delta_s=float(detector_width)/nd
 
     
     geo_dict={}
@@ -446,13 +447,13 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
 def fanbeam(sino, img, projectionsetting, wait_for=[]):
     """Performs the fanbeam transform of a given image 
-    using on the given projectionsetting.
+    using the given projectionsetting.
 
     :param sino: The sinogram to be computed (in which results are saved).
-    :type sino: :class:`pyopencl.Array`
+    :type sino: :class:`pyopencl.array.Array`
     
-    :param img: The image to be transformed .
-    :type img: :class:`pyopencl.Array`
+    :param img: The image to be transformed.
+    :type img: :class:`pyopencl.array.Array`
 
     :param projectionsetting: The settings in which the 
         fanbeam transform is to be executed. 
@@ -465,7 +466,7 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
 
     :return: Event associated to computation of fanbeam transform 
         (which is also added to the events of *sino*).
-    :rtype: `pyopencl.Event`
+    :rtype: :class:`pyopencl.Event`
     """           
     
     # ensure that all relevant arrays have common data_type
@@ -491,13 +492,13 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
 
 def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     """Performs the fanbeam backprojection  of a given sinogram using 
-    on the given projectionsetting 
+    the given projectionsetting.
 
     :param img: The image to be computed (in which results are saved).
-    :type img: :class:`pyopencl.Array`
+    :type img: :class:`pyopencl.array.Array`
     
-    :param sino: The sinogram to be transformed .
-    :type sino: :class:`pyopencl.Array` 
+    :param sino: The sinogram to be transformed.
+    :type sino: :class:`pyopencl.array.Array` 
 
     :param projectionsetting: The settings in which the fanbeam 
         backprojection is to be executed. 
@@ -510,7 +511,7 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
 
     :return: Event associated to computation of fanbeam backprojection 
         (which is also added to the events of *img*).
-    :rtype: `pyopencl.Event`
+    :rtype: :class:`pyopencl.Event`
     """
         
     # ensure that all relevant arrays have common data_type
@@ -542,7 +543,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     
     :param queue: Opencl CommandQueue in which context the computations 
         are to be executed.
-    :type queue: :class:`pyoencl.CommandQueue`  	
+    :type queue: :class:`pyopencl.CommandQueue`  	
 	
     :param img_shape:  The number of pixels of the image in x- and 
         y-direction respectively, i.e., image resolution.
@@ -561,17 +562,17 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float` 
     :param source_detector_dist:  Physical (orthogonal) distance from 
-        the source to the detector line (R). 
+        the source to the detector line (**R**). 
     :type source_detector_dist: :class:`float`
     :param source_origin_dist: Physical distance for source to the 
-        origin (center of rotation) (RE). 
+        origin (center of rotation) (**RE**). 
     :type source_origin_dist: :class:`float`     
 			         
-    :param n_detector: :math:`N_s` the number of (equi-spaced) detectors
+    :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
          pixels considered, i.e., detector resolution.
          When none is given :math:`N_s` will be chosen as 
          :math:`\sqrt{N_x^2+N_y^2}`.
-    :type n_detector:  :class:`int`, default None
+    :type n_detectors:  :class:`int`, default None
 			         
 
     :param detector_shift:   Physical shift of the detector along the 
@@ -579,30 +580,30 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         , i.e, shifting the position of the detector pixels.
         If not given no shift is applied, i.e. the detector reaches from
         [-detector_width/2,detector_width/2].
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 			          
     :param image_width: Physical size of the image (more precisely  the 
         larger side length of the rectangle image),
         i.e., the diameter of the circular object captured by image. 
         The image_width is chosen suitably to capture all rays if 
         no image_width is set.
-    :type image_width: float, default None corresponds  automatic choice
+    :type image_width: :class:`float`, default :obj:`None` corresponds  automatic choice
 			           		        
     :param midpoint_shift: Vector of length two representing the  
         shift of the image away from center of rotation. 
         If not given no shift is applied.
-    :type midpoint_shift:  :class:`list` , default [0.0,0.0]
+    :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
 
-    :param fullangle:  True if entire :math:`[0,2\pi[` is represented by 
-        the angles, False for a limited angle setting.
-        Impacts the weighting in the backprojection. If the given angles,
+    :param fullangle:  :obj:`True` if entire :math:`[0,2\pi[` is represented by 
+        the angles, :obj:`False` for a limited angle setting, i.e., the given angles
         only represent a discretization of a real subset of
-        :math:`[0,2\pi[`, i.e., limited angle situation.
+        :math:`[0,2\pi[`.
+        Impacts the weighting in the backprojection. 
     :type fullangel: :class:`bool`, default True
         
     :return: 
         img_shape: :class:`tuple`  :math:`(N_x,N_y)` resolution 
-        of the image 
+        of the image.
         
         sinogram_shape: :class:`tuple`  :math:`(N_s,N_a)` 
         resolution of the sinogram.
@@ -610,13 +611,13 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         Ofs_Dict- dict[np.dtype --> numpy.array]
         Dictionary containing the relevant angular information in 
         numpy.array form for respective data-type numpy.dtype(float32)
-        or numpy.dtype(float64)
+        or numpy.dtype(float64).
         Arrays have dimension :math:`(8, N_a)` with: 
-        
-        * 0 1 ... vector along detector-direction with length delta_s
-        * 2 3 ... vector from source vector connecting source to center of rotation
-        * 4 5 ... vector connecting the origin to the detectorline
-        * 6 ... Angular weights  
+
+        * 0 1 ... vector along detector-direction with length delta_s.
+        * 2 3 ... vector from source vector connecting source to center of rotation.
+        * 4 5 ... vector connecting the origin to the detectorline.
+        * 6 ... Angular weights.
             
         
         Sdpd_Dict: dictionary containing numpy.array with regard to  
@@ -624,8 +625,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         the weighting in the fanbeam transform (weighted by delta_ratio).
         
         image_width: Physical width of the image, is equal to the input
-        if given, or the determined suitable image_width if *None* 
-        is give (see parameter image_width).         
+        if given, or the determined suitable image_width if :obj:`None` 
+        is given (see parameter :attr:`image_width`).         
         
         geo_dict: numpy array (source_detector_dist, source_origin_dist,
         width of a detector_pixel, midpoint_x,midpoint_y,midpoint_detectors,
@@ -653,10 +654,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         angles = linspace(0,2*pi,angles+1)[:-1] + pi
 
     image_pixels = max(img_shape[0],img_shape[1])
-
     #set number of pixels same as image_resolution if not specified
     if n_detectors is None:
-        nd = image_pixels
+        nd =  int(ceil(hypot(img_shape[0],img_shape[1])))
     else:
         nd = n_detectors
     assert isinstance(nd, int), "Number of detectors must be integer"
@@ -732,7 +732,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     
     # ensure that source is outside the image domain
     # (otherwise fanbeam is not continuous in classical L2)
-    assert image_width*0.5*sqrt(1+(min(img_shape)/max(img_shape))**2)+np.linalg.norm(midpointshift) < source_origin_dist, 'the source is not outside the image domain'
+    assert image_width*0.5*sqrt(1+(min(img_shape)/max(img_shape))**2)\
+        +np.linalg.norm(midpointshift) < source_origin_dist, \
+        'the source is not outside the image domain'
     
     #Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center) 
@@ -900,7 +902,7 @@ class ProjectionSettings():
     :param image_width: Physical size of the image 
         (more precisely, the length of the longer side 
         of the rectangle defining the image domain),
-        i.e., the diameter of the object captured by image **(???)**. 
+        i.e., the longest possible diameter of an object captured by image **(???)**. 
         For parallel beam geometry, when :obj:`None`, 
         **image_width** is chosen as 2.0.
         For fanbeam geometry, when :obj:`None`, **image_width** is chosen 
@@ -947,7 +949,9 @@ class ProjectionSettings():
     These input parameters create attributes of the same name in 
     an instance of :class:`ProjectionSettings`, though the corresponding 
     values might be slightly restructured by internal processes.
-    Further useful attributes are listed below.
+    Further useful attributes are listed below. It is advised not to set
+    these attributes directly but rather choose suitable input-parameters
+    in the initialization.
     
     :ivar is_parallel: :obj:`True` if the geometry is for parallel beams, 
         :obj:`False` otherwise.
@@ -990,7 +994,7 @@ class ProjectionSettings():
         For the corresponding code, see :class:`gratopy.create_code`
     :vartype prg:  :class:`gratopy.Program`
     
-    :ivar struct: Various data used in the projection operatora.
+    :ivar struct: Various data used in the projection operator.
         Contains in particular 
         :class:`pyopencl.array.Array` 
         with the angular information necessary for computations.
@@ -1026,7 +1030,7 @@ class ProjectionSettings():
     def __init__(self, queue,geometry, img_shape, angles, 
                     n_detectors=None, detector_width=2.0,
                     image_width=None, R=None, RE=None, 
-                    detector_shift=0.0,midpoint_shift=[0,0],
+                    detector_shift=0.0,midpoint_shift=[0.,0.],
                     fullangle=True):
                     
         """Initialize a ProjectionSettings instance.
@@ -1204,7 +1208,8 @@ class ProjectionSettings():
             self.struct=radon_struct(self.queue,self.img_shape,  
                 self.angles, n_detectors=self.n_detectors,
                 detector_width=self.detector_width, 
-                image_width= self.image_width,
+                image_width= self.image_width, 
+		midpoint_shift=self.midpoint_shift,
                 detector_shift=self.detector_shift,
                 fullangle=self.fullangle )
                 
@@ -1335,6 +1340,7 @@ class ProjectionSettings():
         if self.is_parallel:
             detector_width=self.detector_width
             image_width=self.image_width
+            midpoint_shift=self.midpoint_shift
             
             angle=-angle
             A=np.array([[cos(angle),sin(angle)],[-sin(angle),cos(angle)]])  
@@ -1370,13 +1376,14 @@ class ProjectionSettings():
             axes.plot([lower_detector[0],upper_detector[0]],
                 [lower_detector[1],upper_detector[1]],"k")
             
-            draw_circle=matplotlib.patches.Circle((0, 0),
+            draw_circle=matplotlib.patches.Circle(midpoint_shift,
                 image_width/sqrt(2), color='r')
             
             axes.add_artist(draw_circle) 
 
             color=(1,1,0)
-            draw_rectangle=matplotlib.patches.Rectangle(-0.5*np.array(
+            draw_rectangle=matplotlib.patches.Rectangle(midpoint_shift
+	        -0.5*np.array(
                 [image_width*self.img_shape[0]/np.max(self.img_shape),
                 image_width*self.img_shape[1]/np.max(self.img_shape)]),
                 image_width*self.img_shape[0]/np.max(self.img_shape),
@@ -1385,8 +1392,8 @@ class ProjectionSettings():
 
             axes.add_artist(draw_rectangle)
 
-            draw_circle=matplotlib.patches.Circle((0, 0), image_width/2,
-                color='b')
+            draw_circle=matplotlib.patches.Circle(midpoint_shift, 
+	        image_width/2, color='b')
             
             axes.add_artist(draw_circle) 
             draw_circle=matplotlib.patches.Circle((0,0), image_width/10,
@@ -1402,51 +1409,89 @@ class ProjectionSettings():
 #            plt.show()
         return figure, axes
 
-    def create_sparse_matrix(self,dtype=float32,contiguity='F',
+    def create_sparse_matrix(self,dtype=float32,order='F',
                                 offset=0, outputfile=None):
         """
         Creates a sparse representation of the associated forward
-        operator. **(???) this is never tested**
+        operator. **(???) this is never tested, Done**
 		
         :param dtype: Precision to compute the sparse representation in.
         :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
 		
-        :param contiguity: Contiguity of the image and sinogram array
-            given to the transform.
-        :type contiguity: :class:`str`, default ``F``
+        :param order: Contiguity of the image and sinogram array
+	    to the transform, can be ``F`` or ``C``.
+        :type order: :class:`str`, default ``F``
 		
         :param offset: Offset of the indices (e.g., 1 for Matlab, 
             0 for Python/C++).
         :type offset: :class:`int`
 		
-        :param outputfile: Name of the file to write the sparse 
-            representation into. **(???) is this useful? users can decide
+        :param outputfile: Name of the file (.txt) to write the sparse 
+            representation into (row, col, val). **(???) is this useful? users can decide
             what to do with the output, i.e., write this as csv etc.**
-            If :obj:`None`, no output will be created.
+            If :obj:`None`, output is not be written into file.
         :type outputfile: :class:`str`
 		
-        :return:  List of tuples of the form (row, column, value)
-            sparse representation. **(???) why is this not in a common
-            format such as for scipy.sparse.coo_matrix? **
-
-        :rtype: :class:`list[tuple]`
+        :return: Sparse matrix corresponding to the 
+            forward projection. **(???) why is this not in a common format
+	    such as for scipy.sparse.coo_matrix?, DONE**
+        :rtype: :class:`scipy.sparse.coo_matrix`
         
         Note that for high resolution projection operators,
         this may require infeasibly much time and memory.
+	
         """
+        
+        if self.is_parallel:
+            functions={(float32,0): self.prg.single_line_radon_float_ff,
+                (float32,1): self.prg.single_line_radon_float_cc,
+                (float64,0): self.prg.single_line_radon_double_ff,
+                (float64,1): self.prg.single_line_radon_double_cc}
+        elif self.is_fan:
+              functions={(float32,0): self.prg.single_line_fan_float_ff,
+                  (float32,1): self.prg.single_line_fan_float_cc,
+	          (float64,0): self.prg.single_line_fan_double_ff,
+                  (float64,1): self.prg.single_line_fan_double_cc}
+
+	    
+        function=functions[dtype,order=='C']
+        dtype=np.dtype(dtype)
+        self.ensure_dtype(dtype)
+        ofs_buf=self.ofs_buf[dtype]
+        if self.is_fan:
+            sdpd_buf=self.sdpd_buf[dtype] 
+        geometry_information=self.geometry_information[dtype]
+	
+        def projection_from_single_pixel(x,y, sino=None, wait_for=[]):
+            if self.is_parallel:
+                myevent=function(sino.queue, sino.shape, None,
+                         sino.data, int32(x),int32(y), ofs_buf, 
+			 geometry_information,
+                         wait_for=sino.events+wait_for)
+            else:
+                 myevent=function(sino.queue, sino.shape, None,
+                        sino.data, int32(x),int32(y), ofs_buf, sdpd_buf,
+                        geometry_information,
+                        wait_for=img.events+sino.events+wait_for)
+
+
+            
+            sino.add_event(myevent)
+
+	
         epsilon=0
-        if contiguity=="F":
+        if order=="F":
             def pos_1(x,y):
             	return x+Nx*y+offset
             def pos_2(s,phi):
             	return s+Ns*phi+offset
-        elif contiguity=="C":
+        elif order=="C":
         	def pos_1(x,y):
         		return x*Ny+y+offset
         	def pos_2(s,phi):
         		return s*Na+phi+offset
         else:
-        	print("contiguity not recognized, suitable choices are\
+        	print("Order (contiguity) not recognized, suitable choices are\
                   'F' or 'C'")
         	raise
         mylist=[]
@@ -1456,29 +1501,53 @@ class ProjectionSettings():
         Ny=self.img_shape[1]
         Ns=self.sinogram_shape[0]
         Na=self.sinogram_shape[1]
+	
+        img=clarray.zeros(self.queue, self.img_shape, dtype=dtype,
+                               order=order)
+	
+        rows=[]
+        cols=[]
+        vals=[]
+        sino=forwardprojection(img,self)
+	
+	
         for x in range(Nx):
+            if x % int(Nx/100.)==0:
+                sys.stdout.write('\rProgress at {:3.0%}'
+                   .format(float(x)/Nx))
+	    
+
             for y in range(Ny):
-                img=np.zeros(self.img_shape)
-                img[x,y]=1
-                img=cl.array.to_device(self.queue, require(img, dtype, 'C'))
-                sino=forwardprojection(img,self,wait_for=img.events)
-                sino=sino.get()
+                projection_from_single_pixel(x,y,sino)
+                sinonew=sino.get()
                 pos=pos_1(x,y)
 				    
-                index=np.where(sino>epsilon)
+                index=np.where(sinonew>epsilon)
                 for i in range(len(index[0])):
                     s=index[0][i]
                     phi=index[1][i]
                     pos2=pos_2(s,phi)
                     mylist.append(str(pos2)+" "+str(pos)+" "+
-                                  str(sino[s,phi])+"\n")
-                    mylist2.append((pos2,pos,sino[s,phi]))			                          
+                                  str(sinonew[s,phi])+"\n")
+                    rows.append(pos2)
+                    cols.append(pos)
+                    vals.append(sinonew[s,phi])
+		    
+        sys.stdout.write('\rProgress at {:3.0%}'
+                   .format(float(x)/Nx))
+        sys.stdout.flush()									
         if outputfile!=None:
             txt=open(outputfile,"w")	
             for a in mylist:
                 txt.writelines(a)
             txt.close()
-        return mylist2
+	    
+        import scipy
+        from scipy import sparse
+        sparsematrix=scipy.sparse.coo_matrix((vals, (rows, cols)),
+	                                      shape=(Ns*Na, Nx*Ny))
+        
+        return sparsematrix
 
 
 
@@ -1517,7 +1586,6 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
     #power_iteration
     for i in range(number_of_iterations):
         normsqr = float(clarray.sum(img).get())
-    
         img /= normsqr
         forwardprojection(img, projectionsetting, sino=sino)
         backprojection(sino, projectionsetting, img=img) 
@@ -1550,20 +1618,27 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
     """    
 
+    # Set relaxation parameter
     norm_estimate=normest(projectionsetting, allocator=sino.allocator)
     w=sino.dtype.type(w/norm_estimate**2)   
 
     sinonew=sino.copy()
+    
     U=w*backprojection(sinonew, projectionsetting)
     Unew=clarray.zeros(projectionsetting.queue, U.shape, dtype=sino.dtype,
         order='F', allocator=sino.allocator)
     
+    #Poweriteration
     for i in range(number_iterations):
-        print(np.linalg.norm(sinonew.get())) # TODO: do we need this?
+        sys.stdout.write('\rProgress at {:3.0%}'
+                             .format(float(i)/number_iterations))
+			    
         sinonew=forwardprojection(Unew, projectionsetting, sino=sinonew)\
             -sino
-            
-        Unew=Unew-w*backprojection(sinonew, projectionsetting, img=U) 
+        Unew=Unew-w*backprojection(sinonew, projectionsetting, img=U)
+    
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
     return Unew
 
 def conjugate_gradients(sino, projectionsetting, epsilon=0.01, 
@@ -1588,7 +1663,7 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
         to be performed.
     :type number_iterations: :class:`float`, default 20
     
-    :param x0: Initial guess for iteration (defaults for zeros if 
+    :param x0: Initial guess for iteration (defaults to zeros if 
         :obj:`None`).
     :type x0: :class:`pyopencl.array.Array`, default :obj:`None`
 
@@ -1599,7 +1674,8 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.array.Array`
     """
-    
+
+    #Determine suitable dimensions    
     dimensions=projectionsetting.img_shape
     dimensions2=(1,projectionsetting.n_angles)
     if len(sino.shape)>2:
@@ -1630,7 +1706,9 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
         allocator=sino.allocator)
 
     for k in range(0,number_iterations):    
-        print(k) # TODO wouldn't be a MATLAB-style output make more sense?
+        sys.stdout.write('\rProgress at {:3.0%}'
+                             .format(float(k)/number_iterations))
+
         forwardprojection(p, projectionsetting, sino=q)
         alpha=x.dtype.type(projectionsetting.delta_x**2/
             (projectionsetting.delta_s)*(clarray.vdot(sold,sold)
@@ -1645,15 +1723,23 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
         residual=sqrt(np.sum(clarray.vdot(sold,sold).get())\
           /np.sum(clarray.vdot(sino,sino).get()))
         if  residual<epsilon:
+            sys.stdout.write('\rProgress aborted prematurely as desired'
+	              +'precision is reached')
+	    
             break
 
         if beta>1 and restart==True:
-            print("restart at iteration step", k)
+            sys.stdout.write('\r')
+            sys.stdout.flush()
+            print("restart at", k,"\n")
             d=sino-forwardprojection(x, projectionsetting)
             backprojection(d, projectionsetting, img=p)
             snew=backprojection(d, projectionsetting, img=snew)
             residual=sqrt(np.sum(clarray.vdot(snew,snew).get())/\
                 np.sum(clarray.vdot(sino,sino).get()))
+    
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
 
     return x
 
@@ -1685,7 +1771,7 @@ def total_variation(sino, projectionsetting, mu,
     
     :param z_distance: When 3-dimensional datasets are considered,  
         regularization is also applied in z-dimension,
-        but we allow unisotropic discretizationsize in z-direction.
+        but we allow unisotropic discretization-size in z-direction.
         The parameter represents the ratio of the z-height to the  
         xy-pixel width and length. If no coupling in z-direction is 
         desired, choose z_distance=0.
@@ -1693,7 +1779,7 @@ def total_variation(sino, projectionsetting, mu,
    
     :return: Reconstruction gained via primal dual iteration for the 
         total variation penalized inversion problem.
-    :rtype:  :class:`pyopencl.Array`
+    :rtype:  :class:`pyopencl.array.Array`
 
     """
     #Establish queue and context
@@ -1703,7 +1789,7 @@ def total_variation(sino, projectionsetting, mu,
     ctx=queue.context    
     my_dtype=sino.dtype
     my_dimensions=projectionsetting.img_shape
-    my_order=order={0:'F',1:'C'}[sino.flags.c_contiguous]
+    my_order={0:'F',1:'C'}[sino.flags.c_contiguous]
     
     img_shape=projectionsetting.img_shape
     if len(sino.shape)==2:
@@ -1772,7 +1858,6 @@ def total_variation(sino, projectionsetting, mu,
     KU=clarray.zeros(queue, sino.shape, dtype=my_dtype, order=my_order)
     KSTARlambda=clarray.zeros(queue, img_shape, dtype=my_dtype, 
         order=my_order)
-        
     normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
 
 	# Compute estimates for step-size parameters
@@ -1784,7 +1869,6 @@ def total_variation(sino, projectionsetting, mu,
 	
     # Primal-dual iteration
     for i in range(number_iterations):		
-		
         # Dual update
         V.add_event(update_v(V, U_, sigma, z_distance))
         normV.add_event(update_NormV(V, normV))	
@@ -1804,7 +1888,7 @@ def total_variation(sino, projectionsetting, mu,
 
         sys.stdout.write('\rProgress at {:3.0%}'
                              .format(float(i)/number_iterations))
-		
-    return U
+    sys.stdout.write('\rProgress complete')
+    sys.stdout.flush()
 
-    
+    return U

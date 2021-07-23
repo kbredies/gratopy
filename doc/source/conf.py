@@ -60,5 +60,6 @@ intersphinx_mapping = {
     "https://docs.python.org/dev": None,
     "https://numpy.org/doc/stable/": None,
     "https://documen.tician.de/pyopencl/": None,
-    "https://matplotlib.org/stable/": None
+    "https://matplotlib.org/stable/": None,
+    "https://docs.scipy.org/doc/scipy/": None
 }
