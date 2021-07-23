@@ -201,9 +201,11 @@ def test_weighting():
     """ Mass preservation test. Checks whether the total mass of an image 
     is correctly transported into the total mass of a projection. 
     Due to the fan geometry the width of a projected object on the detector is 
-    wider than the original object was, as the width of the fan grows linearly with the distance it travels. Consequently, also the total mass on the detector is rougly 
-    the multiplication of the total mass in the object by the ratio of 
-    **R** and **RE**. This test indicates that the scaling of the transform 
+    wider than the original object was, as the width of the fan grows linearly
+    with the distance it travels. Consequently, also the total mass on the
+    detector is rougly the multiplication of the total mass in the 
+    object by the ratio of **R** and **RE**. This test indicates that 
+    the scaling of the transform 
     is suitable. (???)
     """
     print("Weighting;")
@@ -483,7 +485,8 @@ def test_landweber():
     to compute a reconstruction from a sinogram contained in 
     the walnut data set of [1]_, testing the implementation.
 
-    .. [1] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and Antti Kujanpää and Esa Niemi and Samuli Siltanen.
+    .. [1] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and 
+           Antti Kujanpää and Esa Niemi and Samuli Siltanen.
            "Tomographic X-ray data of a walnut". 
            https://arxiv.org/abs/1502.04064
            **(???) Is this really the right reference?**
@@ -561,9 +564,11 @@ def test_landweber():
     show()
     
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(ULW, (ULW.shape[0],ULW.shape[0],number_detectors,len(angles),2),
+    [Nx,Ny]=img_shape
+    evaluate_control_numbers(ULW, (Nx,Ny,number_detectors,len(angles),2),
                 expected_result=0.782582206,
-		precision=0.000001,classified="img",name=" Landweber-reconstruction")
+		precision=0.000001,classified="img",
+		name=" Landweber-reconstruction")
 
     
 
@@ -617,7 +622,8 @@ def test_conjugate_gradients():
     show()
 
     # Compute control numbers to quantitatively verify correctness
-    evaluate_control_numbers(UCG, (UCG.shape[0],UCG.shape[0],number_detectors,len(angles),2),
+    [Nx,Ny]=img_shape
+    evaluate_control_numbers(UCG, (Nx,Ny,number_detectors,len(angles),2),
                 expected_result=0.99194361,
 		precision=0.000001,classified="img",
 		name=" conjugate gradients reconstruction")
@@ -679,7 +685,8 @@ def test_total_variation():
     show()
     
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(UTV, (UTV.shape[0],UTV.shape[0],number_detectors,numberofangles,1),
+    [Nx,Ny]=img_shape
+    evaluate_control_numbers(UTV, (Nx,Ny,number_detectors,numberofangles,1),
                 expected_result=0.93240546,
 		precision=0.000001,classified="img",
 		name="total-variation reconstruction")

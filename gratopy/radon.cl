@@ -139,19 +139,20 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_ty
   for (int a=0; a < Na; a++) {
     \my_variable_type Delta_phi=ofs[a].s4; //angle_width asociated to the angle
     
-    // Compute detector position associated to (x,y) and phi=a
+    //compute detector position associated to (x,y) and phi=a
     \my_variable_type s = dot(c, ofs[a].s0123);
     
-    // Make sure detector position is inside range
+    //make sure detector position is inside range
     if ((s > -1) && (s < Ns)) {
       \my_variable_type s_floor;
       \my_variable_type p = fract(s, &s_floor);
       if (s_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[ pos_sino_\order2((int)s_floor,a,z,Ns,Na,Nz)];
       if (s_floor <= Ns-2) acc += Delta_phi*p*sino[ pos_sino_\order2((int)(s_floor+1),a,z,Ns,Na,Nz)];
-    }
+    } 
   }
   // Assign value to img
   img[pos_img_\order1(x,y,z,Nx,Ny,Nz)] = acc;
+  
 }
 
 // Single Line of Radon Transform: Computes the Fanbeam transform of an image with delta peak in (x,y) 

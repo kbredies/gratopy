@@ -347,11 +347,6 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     else:
         nd = n_detectors
     
-    # also write basic information to gpu 
-    [Nx,Ny]=img_shape
-    [Ni,Nj]= [nd,len(angles)]
-    delta_x=image_width/float(max(Nx,Ny))
-    delta_s=float(detector_width)/nd
 
     #Extract angle information
     if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
@@ -369,6 +364,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     else:
         n_angles=len(angles)
         angles_section=[0,n_angles]
+        angles=np.array(angles)
     
     sinogram_shape = (nd, n_angles)
     
@@ -401,6 +397,12 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                 [2:len(angles_sorted_temp)]
                 -angles_sorted_temp[0:len(angles_sorted_temp)-2]))
             angles_diff+=list(angles_diff_temp[current_angles_index])
+    
+    # also write basic information to gpu 
+    
+    delta_x=image_width/float(max(img_shape))
+    delta_s=float(detector_width)/nd
+
     
     #Compute the midpoints of geometries
     midpoint_domain = array([img_shape[0]-1, img_shape[1]-1])/2.0+\
@@ -435,13 +437,13 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         ofs[4,:]=angles_diff
         ofs_dict[dtype]=ofs
         
-        geometry_info = np.array([delta_x,delta_s,Nx,Ny,Ni,Nj],
-            dtype=dtype,order='F')
+        geometry_info = np.array([delta_x,delta_s,img_shape[0],img_shape[1],
+	    nd,n_angles],dtype=dtype,order='F')
         geo_dict[dtype]=geometry_info
     
     
 
-    sinogram_shape = (nd, len(angles))
+    
     return (ofs_dict, img_shape, sinogram_shape, geo_dict,angles_diff)
  
 
@@ -677,6 +679,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     else:
         n_angles=len(angles)
         angles_section=[0,n_angles]
+        angles=np.array(angles)
     
     sinogram_shape = (nd, n_angles)
     

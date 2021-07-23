@@ -26,6 +26,9 @@ Radon transform
 
 .. autoclass:: tests.test_radon.test_fullangle()
 
+.. autoclass:: tests.test_radon.test_midpointshift()
+
+.. autoclass:: tests.test_radon.test_extract_sparse_matrix()
 
 
 Fanbeam transform
@@ -52,3 +55,4 @@ Fanbeam transform
 
 .. autoclass:: tests.test_fanbeam.test_nonquadratic()
 
+.. autoclass:: tests.test_fanbeam.test_extract_sparse_matrix()
