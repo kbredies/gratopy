@@ -475,7 +475,7 @@ def test_extract_sparse_matrix():
     backprojection by matrix multiplication.
     """
     order="F"
-    dtype=float64
+    dtype=np.dtype(float64)
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 

@@ -1449,18 +1449,17 @@ class ProjectionSettings():
         """
         
         if self.is_parallel:
-            functions={(float32,0): self.prg.single_line_radon_float_ff,
-                (float32,1): self.prg.single_line_radon_float_cc,
-                (float64,0): self.prg.single_line_radon_double_ff,
-                (float64,1): self.prg.single_line_radon_double_cc}
+            functions={(np.dtype(float32),0): self.prg.single_line_radon_float_ff,
+                (np.dtype(float32),1): self.prg.single_line_radon_float_cc,
+                (np.dtype(float64),0): self.prg.single_line_radon_double_ff,
+                (np.dtype(float64),1): self.prg.single_line_radon_double_cc}
         elif self.is_fan:
-              functions={(float32,0): self.prg.single_line_fan_float_ff,
-                  (float32,1): self.prg.single_line_fan_float_cc,
-	          (float64,0): self.prg.single_line_fan_double_ff,
-                  (float64,1): self.prg.single_line_fan_double_cc}
-
-	    
-        function=functions[dtype,order=='C']
+              functions={(np.dtype(float32),0): self.prg.single_line_fan_float_ff,
+                  (np.dtype(float32),1): self.prg.single_line_fan_float_cc,
+	          (np.dtype(float64),0): self.prg.single_line_fan_double_ff,
+                  (np.dtype(float64),1): self.prg.single_line_fan_double_cc}
+       
+        function=functions[np.dtype(dtype),order=='C']
         dtype=np.dtype(dtype)
         self.ensure_dtype(dtype)
         ofs_buf=self.ofs_buf[dtype]
