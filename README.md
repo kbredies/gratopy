@@ -56,44 +56,46 @@ We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/late
 
 ```python
 
-#Initial import and definitions
-from numpy import *
-import pyopencl as cl
-import gratopy
-import matplotlib.pyplot as plt
-number_angles=60
-number_detector=300
-Nx=300
-
-#create pyopencl context
-ctx = cl.create_some_context()
-queue = cl.CommandQueue(ctx)
+    # initial import
+    from numpy import *
+    import pyopencl as cl
+    import gratopy
+    import matplotlib.pyplot as plt
     
-#create phantom as testimage
-phantom=gratopy.phantom(queue,Nx)
+    # discretization parameters
+    number_angles=60
+    number_detector=300
+    Nx=300
+
+    # create pyopencl context
+    ctx = cl.create_some_context()
+    queue = cl.CommandQueue(ctx)
+	
+    # create phantom as test image (a pyopencl.array.Array of dimensions (Nx,Nx))
+    phantom=gratopy.phantom(queue,Nx)
+	
+    # create suitable projectionsettings
+    PS=gratopy.ProjectionSettings(queue, gratopy.RADON, phantom.shape,
+                                  number_angles, number_detector)
+		
+    # compute forward projection and backprojection of created sinogram
+    # results are pyopencl arrays	
+    sino = gratopy.forwardprojection(phantom, PS)
+    backproj = gratopy.backprojection(sino, PS)
+
+    # plot results
+    plt.figure()
+    plt.title("Generated Phantom")
+    plt.imshow(phantom.get(),cmap="gray")
     
-#create suitable ProjectionSettings
-PS=gratopy.ProjectionSettings(queue,gratopy.RADON,phantom.shape,
-                               number_angles,number_detector)
-	    
-#Compute forward projection and backprojection of created sinogram	
-sino=gratopy.forwardprojection(phantom,PS)
-backproj=gratopy.backprojection(sino,PS)
+    plt.figure()
+    plt.title("Sinogram")
+    plt.imshow(sino.get(),cmap="gray")
 
-#Plot results
-plt.figure()
-plt.title("Generated Phantom")
-plt.imshow(phantom.get(),cmap="gray")
-
-plt.figure()
-plt.title("Sinogram")
-plt.imshow(sino.get(),cmap="gray")
-
-plt.figure()
-plt.title("Backprojection")
-plt.imshow(backproj.get(),cmap="gray")
-plt.show()
-
+    plt.figure()
+    plt.title("Backprojection")
+    plt.imshow(backproj.get(),cmap="gray")
+    plt.show()
 ```
 
 
