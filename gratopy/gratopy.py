@@ -7,7 +7,7 @@ import matplotlib.patches
 import pyopencl as cl
 import pyopencl.array as clarray
 
-CL_FILES = ["radon.cl", "fanbeam.cl","total_variation.cl"]
+CL_FILES = ["radon.cl", "fanbeam.cl", "total_variation.cl"]
 
 PARALLEL = 1
 RADON = 1
@@ -34,27 +34,26 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     :param img: The image to be transformed.
     :type img: :class:`pyopencl.array.Array` with 
         `compatible  <getting_started.html>`_ dimensions
-    :param projectionsetting: The settings in which the forward 
-        transform is to be executed.
+    :param projectionsetting: The geometry settings for which the forward 
+        transform is computed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
     :param sino: The array in which the result of transformation
-        will be saved. If ``None`` is given, a new array 
+        is saved. If :obj:`None` (per default) is given, a new array 
         will be created and returned.
     :type sino: :class:`pyopencl.array.Array` with `compatible`_ dimensions, 
         default :obj:`None`
     :param wait_for: The events to wait for before performing the 
-        computation in order to avoid race conditions, see 
-        `PyopenCL.events  <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
-        The events of **img** and **sino** are automatically added to wait_for.
-    :type wait_for: :class:`list[pyopencl.Event]`, default []
+        computation in order to avoid, e.g., race conditions, see 
+        :class:`pyopencl.Event`.
+    :type wait_for: :class:`list[pyopencl.Event]`, default :attr:`[]`
     
-    :return: The sinogram created by the projection of the image. 
-        If the sinogram input is given, the same pyopencl array will be 
-        returned, though the values in its data are overwritten.
+    :return: The sinogram associated with the projection of the image. 
+        If the **sino** is not :obj:`None`, the same :mod:`pyopencl` array 
+        is returned with the values in its data overwritten.
     :rtype: :class:`pyopencl.array.Array`
 
     The forward projection can be performed for single or double
-    precision arrays. The dtype (precision) of *img* and *sino* (if given)
+    precision arrays. The dtype (precision) of **img** and **sino** (if given)
     have to coincide and the output will be of the same precision.
     It respects any combination of *C* and *F* contiguous arrays where
     output will be of the same contiguity as img if no sino is given.
@@ -90,39 +89,36 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     :param sino: Sinogram to be backprojected.
     :type sino: :class:`pyopencl.array.Array` with `compatible`_ dimensions
     
-
-    :param projectionsetting: The settings in which the backprojection 
-        is to be executed.
+    :param projectionsetting: The geometry settings for which the forward 
+        transform is computed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 		
-    :param  img: The array in which the result of backprojection will 
-        be saved.
-        If ``None`` is given, a new array will be created and returned.
+    :param  img: The array in which the result of backprojection is saved.
+        If :obj:`None` is given, a new array will be created and returned.
     :type img: :class:`pyopencl.array.Array`  with `compatible`_ dimensions,
-        default :attr:`None`
+        default :obj:`None`
     
     :param wait_for: The events to wait for before performing the 
-        computation in order to avoid race conditions, see 
-        `PyopenCL.events  <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
-        The events of **img** and **sino** are automatically added to wait_for.
-    :type wait_for: :class:`list[pyopencl.Event]`, default []
+        computation in order to avoid, e.g., race conditions, see 
+        :class:`pyopencl.Event`.
+    :type wait_for: :class:`list[pyopencl.Event]`, default :attr:`[]`
         
-    :return: The image associated to the backprojected sinogram,
-        coinciding with the **img** input if given, though the values 
-        in its data are overwriten.
+    :return: The image associated with the backprojected sinogram,
+        coinciding with the **img** if not :obj:`None`, with the values 
+        in its data overwritten.
     :rtype:  :class:`pyopencl.array.Array` 
 
     The backprojection can be performed for single or double
-    precision arrays. The dtype (precision) of *img* and *sino* have
-    to coincide, if no img is given the output precision coincides
-    with sino's. It respects any combination of *C* and *F* contiguous 
-    arrays, where if no img is given the results contiguity coincides
-    with sino's. The OpenCL events associated with the transform will be
+    precision arrays. The dtype (precision) of **img** and **sino** have
+    to coincide. If no **img** is given, the output precision coincides
+    with **sino**'s. The operation respects any combination of 
+    *C* and *F* contiguous 
+    arrays, where if **img** is :obj:`None`, the result's contiguity coincides
+    with **sino**'s. The OpenCL events associated with the transform will be
     added to the output's events.
     In case the output array is created, it will
     use the allocator of sino. If the sinogram and image have a third 
-    dimension (z-direction) the operator is applied slicewise.
-		  
+    dimension (z-direction), the operator is applied slicewise.
     """        
         
     # initialize new img (to save backprojection in) if none is yet given
@@ -818,9 +814,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
 def create_code():
     """ 
-    Reads c-code for opencl execution from the gratopy toolbox.
+    Reads and creates CL code containing all OpenCL kernels 
+    of the gratopy toolbox.
 	
-    :return: code for the gratopy toolbox
+    :return: The toolbox's CL code
     :rtype:  :class:`str`
 	
 	
@@ -1599,23 +1596,22 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
         
 def landweber(sino, projectionsetting, number_iterations=100, w=1):
     """ 
-    Executes Landweber iteration for projection methods to approximate 
-    a solution to the
-    projection inversion problem. This method is also known as SIRT to
-    some communities.
+    Performs a Landweber iteration to approximate 
+    a solution to the image reconstruction problem associated
+    with a projection and sinogram. This method is also known as SIRT.
 
-    :param sino: Sinogram data to inverte.
+    :param sino: Sinogram data to reconstruct from.
     :type sino: :class:`pyopencl.array.Array`
 					
-    :param projectionsetting: The settings in which the projection 
-        inversion is considered.
+    :param projectionsetting: The geometry settings for which the projection 
+        is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 	
-    :param number_iterations: Number of Landweber iterations to be executed.
+    :param number_iterations: Number of iteration steps to be performed.
     :type number_iterations: :class:`int`, default 100
 
     :param w: Relaxation parameter weighted by the norm of the projection
-        operator (w<1 garanties convergence).
+        operator (w<1 guarantees convergence).
     :type w:  :class:`float`, default 1
 				
     :return: Reconstruction from given sinogram gained via Landweber 
@@ -1650,28 +1646,32 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 def conjugate_gradients(sino, projectionsetting, epsilon=0.01, 
     number_iterations=20, x0=None, restart=True):
     """
-    Executes conjugate gradients iteration for projection methods in 
-    order to approximate the solution of the projection inversion problem.
+    Performs a conjugate gradients iteration to approximate 
+    a solution to the image reconstruction problem associated
+    with a projection and sinogram.
 
-    :param sino: Sinogram data to inverte.
+    :param sino: Sinogram data to invert.
     :type sino: :class:`pyopencl.array.Array`
-			            
-    :param projectionsetting: The settings in which the projection 
-        inversion is considered.
-    :type projectionsetting: :class:`gratopy.ProjectionSettings`		            
-
-    :param epsilon: Stopping criteria when relative residual<epsilon.
+	
+    :param projectionsetting: The geometry settings for which the projection 
+        is considered.
+    :type projectionsetting: :class:`gratopy.ProjectionSettings`
+    
+    :param epsilon: Tolerance parameter, the iteration stops if
+        relative residual<epsilon.
     :type epsilon: :class:`float`, default 0.01
     
-    :param number_iterations: Number of iterations to be executed.
+    :param number_iterations: Maximal number of iteration steps 
+        to be performed.
     :type number_iterations: :class:`float`, default 20
     
-    :param x0: Startingpoint for iteration (zeros by default).
-    :type x0: :class:`pyopencl.array.Array`, default None
+    :param x0: Initial guess for iteration (defaults to zeros if 
+        :obj:`None`).
+    :type x0: :class:`pyopencl.array.Array`, default :obj:`None`
 
-    :param restart: The algorithm is relaunched when sanity check fails 
-        (for numerical reasons).
-    :type restart: :class:`bool`		      
+    :param restart: Determines whether the iteration is restarted
+        when numerical convergence fails (determined by sanity checks).
+    :type restart: :class:`bool`, default :obj:`True`		      
    
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.array.Array`
@@ -1683,24 +1683,21 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
     if len(sino.shape)>2:
         dimensions=dimensions+tuple([sino.shape[2]])
         dimensions2=dimensions2+tuple([1])
-    
-    
-    #Default zeros guess
-    if x0==None:
+           
+    if x0 is None:
         x0=clarray.zeros(projectionsetting.queue,dimensions,
             sino.dtype,order={0:'F',1:'C'}[sino.flags.c_contiguous])
     assert(x0.flags.c_contiguous==sino.flags.c_contiguous),\
-        ("Error, please make sure both the data sino and your \
-        guess x0 have the same contiguity")
-    x=x0
+        ("The data sino and initial \
+        guess x0 must have the same contiguity")
+    x=x0.copy()
 
     d=sino-forwardprojection(x, projectionsetting)
     p=backprojection(d, projectionsetting)
     q=clarray.empty_like(d, projectionsetting.queue)
     snew=backprojection(d, projectionsetting)
-    sold=backprojection(d, projectionsetting)
-        
-  
+    sold=snew.copy()
+          
     angle_weights=clarray.reshape(projectionsetting.angle_weights,
         dimensions2)
         
@@ -1710,23 +1707,22 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
         order={0:'F',1:'C'}[sino.flags.c_contiguous]), sino.dtype),
         allocator=sino.allocator)
 
-
     for k in range(0,number_iterations):    
         sys.stdout.write('\rProgress at {:3.0%}'
                              .format(float(k)/number_iterations))
 
         forwardprojection(p, projectionsetting, sino=q)
         alpha=x.dtype.type(projectionsetting.delta_x**2/
-            (projectionsetting.delta_s) *(clarray.vdot(sold,sold)
+            (projectionsetting.delta_s)*(clarray.vdot(sold,sold)
            /clarray.vdot(q*angle_weights,q)).get())
            
-        x=x+alpha*p
-        d=d-alpha*q
+        x+=alpha*p
+        d-=alpha*q
         backprojection(d, projectionsetting, img=snew)
-        beta= (clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
-        sold=snew+0.
-        p=beta*p+snew
-        residual=sqrt(np.sum(clarray.vdot(snew,snew).get())\
+        beta=(clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
+        (sold, snew) = (snew, sold)
+        p=beta*p+sold
+        residual=sqrt(np.sum(clarray.vdot(sold,sold).get())\
           /np.sum(clarray.vdot(sino,sino).get()))
         if  residual<epsilon:
             sys.stdout.write('\rProgress aborted prematurely as desired'
@@ -1739,10 +1735,8 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
             sys.stdout.flush()
             print("restart at", k,"\n")
             d=sino-forwardprojection(x, projectionsetting)
-                
-            p=backprojection(d, projectionsetting)
-            q=clarray.empty_like(d, projectionsetting.queue)            
-            snew=backprojection(d, projectionsetting)
+            backprojection(d, projectionsetting, img=p)
+            snew=backprojection(d, projectionsetting, img=snew)
             residual=sqrt(np.sum(clarray.vdot(snew,snew).get())/\
                 np.sum(clarray.vdot(sino,sino).get()))
     
@@ -1751,23 +1745,26 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
 
     return x
 
-def total_variation_reconstruction(sino, projectionsetting,mu,
-    number_iterations=1000,z_distance=1):
+def total_variation(sino, projectionsetting, mu,
+    number_iterations=1000, z_distance=1):
     """
-    Executes primal-dual algorithm projection methods to solve 
-    :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+{TV}(u)` 
-    for :math:`\mathcal{P}` the projection operator in question, i.e. 
-    an :math:`L^2 - TV` reconstruction approach.
-    This is an approximation approach for the projection inversion.
+    Peforms a primal-dual algorithm to solve a total-variation
+    regularized reconstruction problem associated with a given
+    projection operator and sinogram. This corresponds to the approximate
+    solution of
+    :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)` 
+    for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
+    and :math:`\mu` a positive regluarization parameter (i.e., 
+    an :math:`L^2-\mathrm{TV}` reconstruction approach).
 
-    :param sino: Sinogram data to inverte.
+    :param sino: Sinogram data to invert.
     :type sino: :class:`pyopencl.array.Array`
 			            
     :param projectionsetting: The settings in which the projection 
         inversion is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`		            
 
-    :param mu: Weight parameter, the smaller the stronger the 
+    :param mu: Regularization parameter, the smaller the stronger the 
         applied regularization.
     :type epsilon: :class:`float`
     
@@ -1788,9 +1785,7 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
 
     """
     #Establish queue and context
-    
-    
-    
+
     #preliminary definitions and parameters
     queue=projectionsetting.queue
     ctx=queue.context    
@@ -1805,59 +1800,57 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
         img_shape=img_shape+tuple([sino.shape[2]])
     extended_img_shape=tuple([4])+img_shape
 
-    ##Definitions of suitable kernel functions for primal and dual updates
-    # update dual variable to dataterm
+    # Definitions of suitable kernel functions for primal and dual updates
     
-    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_lambda_L2_float_ff,
-		    (np.dtype("float32"),'C'):projectionsetting.prg.update_lambda_L2_float_cc,
-		    (np.dtype("float"),'F'):projectionsetting.prg.update_lambda_L2_double_ff,
-		    (np.dtype("float"),'C'):projectionsetting.prg.update_lambda_L2_double_cc}
-    myfunction_lambda=myfunctions[(my_dtype,my_order)]
-    def update_lambda(lamb, Ku, f, sigma,mu, normest, wait_for=None):
-        return myfunction_lambda(lamb.queue,
+    # update dual variable to data term
+    update_lambda_={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_ff,
+		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
+		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
+		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
+    update_lambda = lambda lamb, Ku, f, sigma, mu, normest, wait_for=[]: \
+            update_lambda_[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
             lamb.shape, None,lamb.data, Ku.data, f.data,
-            float32(sigma/normest), float32(mu), wait_for=wait_for)
+            float32(sigma/normest), float32(mu),
+            wait_for=lamb.events+Ku.events+f.events+wait_for)
 
-    #update v the dual of gradient of u
-    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_v_float_ff,
-        (np.dtype("float32"),'C'):projectionsetting.prg.update_v_float_cc,
-        (np.dtype("float"),'F'):projectionsetting.prg.update_v_double_ff,
-        (np.dtype("float"),'C'):projectionsetting.prg.update_v_double_cc}	
-    myfunction_v=myfunctions[my_dtype,my_order]
-    def update_v(v, u,  sigma, z_distance, wait_for=None):
-        return myfunction_v(v.queue, u.shape, None,
-            v.data, u.data, float32(sigma),float32(z_distance), 
-            wait_for=wait_for)
-
-    #update primal variable u (the image)
-    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_u_float_ff,
-        (np.dtype("float32"),'C'):projectionsetting.prg.update_u_float_cc,
-        (np.dtype("float"),'F'):projectionsetting.prg.update_u_double_ff,
-        (np.dtype("float"),'C'):projectionsetting.prg.update_u_double_cc}
-    myfunction_u=myfunctions[my_dtype,my_order]
-    def update_u(u_, u, v, Kstarlambda, tau, normest,z_distance,wait_for=None):
-        return myfunction_u(u_.queue, u_.shape, None,
-            u_.data, u.data,v.data, Kstarlambda.data, float32(tau),
-            float32(1.0/normest),float32(z_distance), wait_for=wait_for)
+    # Update v the dual of gradient of u
+    update_v_={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
+            (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
+            (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
+            (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}
+    update_v = lambda v, u, sigma, z_distance, wait_for=[]: \
+            update_v_[v.dtype,v.flags.c_contiguous](v.queue, u.shape, None,
+            v.data, u.data, float32(sigma), float32(z_distance), 
+            wait_for=v.events+u.events+wait_for)
+    
+    # Update primal variable u (the image)
+    update_u_={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
+            (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
+            (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
+            (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
+    update_u = lambda u, u_, v, Kstarlambda, tau, normest, z_distance, wait_for=[]: \
+            update_u_[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
+            u.data, u_.data, v.data, Kstarlambda.data, float32(tau),
+            float32(1.0/normest), float32(z_distance),
+            wait_for=u.events+u_.events+v.events+wait_for)
        
-    #Compute the norm of v and project (dual update)
-    myfunctions={(np.dtype("float32"),'F'):projectionsetting.prg.update_NormV_unchor_float_ff,
-        (np.dtype("float32"),'C'):projectionsetting.prg.update_NormV_unchor_float_cc,
-        (np.dtype("float"),'F'):projectionsetting.prg.update_NormV_unchor_double_ff,
-        (np.dtype("float"),'C'):projectionsetting.prg.update_NormV_unchor_double_cc}
-    myfunction_normv=myfunctions[my_dtype,my_order]
-    def update_NormV(V,normV,wait_for=None):
-        return myfunction_normv(V.queue, V.shape[1:], None, 
-            V.data,normV.data, wait_for=wait_for)
+    # Compute the norm of v and project (dual update)
+    update_NormV_={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
+            (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_cc,
+            (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_ff,
+            (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_cc}
+    update_NormV = lambda V, normV, wait_for=[]: \
+            update_NormV_[V.dtype,V.flags.c_contiguous](V.queue, V.shape[1:], None, 
+            V.data, normV.data,
+            wait_for=V.events+normV.events+wait_for)
 
     # update of the extra gradient
-    update_extra = {np.dtype(float32):cl.elementwise.ElementwiseKernel(
+    update_extra = {np.dtype(float32): cl.elementwise.ElementwiseKernel(
         ctx, 'float *u_, float *u', 'u[i] = 2.0f*u_[i] - u[i]'),
-        np.dtype(float):cl.elementwise.ElementwiseKernel(ctx, 
+        np.dtype(float): cl.elementwise.ElementwiseKernel(ctx, 
         'double *u_, double *u', 'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
-
 	
-    #Initialising Variables for the iteration
+	# Initialize variables for the iteration
     U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     U_=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
     V=clarray.zeros(queue, extended_img_shape, dtype=my_dtype, 
@@ -1869,38 +1862,30 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
         order=my_order)
     normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
 
-
-    #Computing estimates for Parameter
+	# Compute estimates for step-size parameters
     norm_estimate = normest(projectionsetting)
     Lsqr = 17.0
     sigma = 1.0/sqrt(Lsqr)
     tau = 1.0/sqrt(Lsqr)
     mu=mu/(sigma+mu)
 	
-
-    #Primal Dual Iterations
+    # Primal-dual iteration
     for i in range(number_iterations):		
-        #Dual Update
-        V.add_event(update_v(V, U_, sigma,z_distance,
-        				 wait_for=U_.events))
-
-        normV.add_event(update_NormV(V,normV,wait_for=V.events))	
-
-        forwardprojection(U_,projectionsetting,KU)
-   
+        # Dual update
+        V.add_event(update_v(V, U_, sigma, z_distance))
+        normV.add_event(update_NormV(V, normV))	
+        forwardprojection(U_, projectionsetting, sino=KU)
         Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu,
-	                          norm_estimate,
-				  wait_for=KU.events + sino.events))
+	                          norm_estimate))
 		
-        #Primal Update
-        backprojection(Lamb,projectionsetting,KSTARlambda)	
-        
+        # Primal update
+        backprojection(Lamb, projectionsetting, img=KSTARlambda)	
         U_.add_event(update_u(U_, U, V, KSTARlambda, tau, norm_estimate,
-	    z_distance, wait_for=U.events+V.events+KSTARlambda.events))
+            z_distance))
 		
-	#Extragradient update 
-        U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))	
-	
+		# Extragradient update 
+        U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))
+			
         (U, U_) = (U_, U)
 
         sys.stdout.write('\rProgress at {:3.0%}'
@@ -1909,5 +1894,3 @@ def total_variation_reconstruction(sino, projectionsetting,mu,
     sys.stdout.flush()
 
     return U
-
-    

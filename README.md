@@ -127,6 +127,8 @@ The walnut data set included in this toolbox is licenced under [CC BY 4.0](https
 
 * Keijo Hämäläinen, Lauri Harhanen, Aki Kallonen, Antti Kujanpää, Esa Niemi and Samuli Siltanen. (2015). *Tomographic X-ray data of a walnut* (Version 1.0.0) [Data set]. Zenodo. http://doi.org/10.5281/zenodo.1254206
 
+The phantom creation code is based on [Phantominator](https://github.com/mckib2/phantominator), copyright by its contributors and licenced under [GPLv3](https://github.com/mckib2/phantominator/blob/master/LICENSE). See https://github.com/mckib2/phantominator.
+
 ## License
 
-This project is licensed under the GPLv3 license - see the [LICENSE](LICENSE) file for details.
+This project is licenced under the GPLv3 license - see [LICENSE](LICENSE) for details.

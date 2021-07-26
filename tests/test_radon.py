@@ -17,7 +17,7 @@ TESTRNG=curdir("rng.txt")
 ctx = None
 queue = None
 
-def evaluate_control_numbers(data, dimensions,exptected_result,precision,classified,name):
+def evaluate_control_numbers(data, dimensions,expected_result,precision,classified,name):
     [Nx,Ny,Ns,Na,Nz]=dimensions
     
     test_s,test_phi,test_z,factors,test_x,test_y=read_control_numbers(
@@ -38,9 +38,9 @@ def evaluate_control_numbers(data, dimensions,exptected_result,precision,classif
     for i in range(0,m):    
         mysum+=factors[i]*data[var1[i],var2[i],var3[i]]
     
-    assert(abs(mysum-exptected_result)<precision),\
+    assert(abs(mysum-expected_result)<precision),\
         "A control-sum for the "+name+ " did not match the expected value,"\
-        +"expected: "+str(exptected_result) +", received: "+str(mysum)+\
+        +"expected: "+str(expected_result) +", received: "+str(mysum)+\
         ". Please consider the visual results to check whether this is "+\
         "a numerical issue or a more fundamental error."  
 
@@ -190,15 +190,15 @@ def test_projection():
     
     # Computing controlnumbers to quantitatively verify correctness     
     evaluate_control_numbers(img, (N,N,Ns,angles,2),
-                exptected_result=2949.3738,
+                expected_result=2949.3738,
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino, (N,N,Ns,angles,2),
-                exptected_result=1221.2257,
+                expected_result=1221.2257,
 		precision=0.001,classified="sino",name="sinogram")
 
     evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
-                exptected_result=7427.7049,
+                expected_result=7427.7049,
 		precision=0.001,classified="img",name="backprojected image")
 		
  
@@ -384,23 +384,23 @@ def test_fullangle():
     
     # Computing controlnumbers to quantitatively verify correctness 
     evaluate_control_numbers(img, (N,N,Ns,len(angles),2),
-                exptected_result=2949.3738,
+                expected_result=2949.3738,
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino_correct, (N,N,Ns,len(angles),2),
-                exptected_result=990.3170,precision=0.001,classified="sino",
+                expected_result=990.3170,precision=0.001,classified="sino",
 		name="sinogram with correct fullangle setting")
 
     evaluate_control_numbers(sino_incorrect, (N,N,Ns,len(angles),2),
-		exptected_result=990.3170,precision=0.001,classified="sino",
+		expected_result=990.3170,precision=0.001,classified="sino",
 		name="sinogram with incorrect fullangle setting")
 
     evaluate_control_numbers(backprojected_correct, (N,N,Ns,len(angles),2),
-		exptected_result=1357.2650, precision=0.001,classified="img",
+		expected_result=1357.2650, precision=0.001,classified="img",
 		name="backprojected image with correct fullangle setting")
 
     evaluate_control_numbers(backprojected_incorrect, (N,N,Ns,len(angles),2),
-		exptected_result=2409.5415,precision=0.001,classified="img",
+		expected_result=2409.5415,precision=0.001,classified="img",
 		name="backprojected image with incorrect fullangle setting")
 
     
@@ -454,15 +454,15 @@ def test_nonquadratic():
     
     # Computing a controlnumbers to quantitatively verify correctness 
     evaluate_control_numbers(img, (N1,N2,Ns,angles,2),
-                exptected_result=999.4965,
+                expected_result=999.4965,
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino, (N1,N2,Ns,angles,2),
-                exptected_result=-782.3489,
+                expected_result=-782.3489,
 		precision=0.001,classified="sino",name="sinogram")
 
     evaluate_control_numbers(backprojected, (N1,N2,Ns,angles,2),
-                exptected_result=3310.3464,
+                expected_result=3310.3464,
 		precision=0.001,classified="img",name="backprojected image")
 
 
@@ -512,25 +512,25 @@ def test_extract_sparse_matrix():
     imshow(img,cmap=cm.gray)
 
     figure(2)
-    title("projection via spase Matrix")
+    title("projection via sparse matrix")
     imshow(sino,cmap=cm.gray)
     
     figure(3)
-    title("backprojection via spase Matrix")
+    title("backprojection via sparse matrix")
     imshow(backproj,cmap=cm.gray)
     show()
     
     # Computing a controlnumbers to quantitatively verify correctness 
     evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,1),
-                exptected_result=7.1182017,
+                expected_result=7.1182017,
 		precision=0.000001,classified="img",name="original image")
 
     evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,1),
-                exptected_result=-1.061323217,
+                expected_result=-1.061323217,
 		precision=0.000001,classified="sino",name="sinogram")
 
     evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1),
-                exptected_result=1.0395559772,
+               expected_result=1.0395559772,
 		precision=0.000001,classified="img",name="backprojected image")
 
 
@@ -587,15 +587,15 @@ def test_midpointshift():
     show()
     
     # Computing controlnumbers to quantitatively verify correctness 
-    evaluate_control_numbers(img, (N,N,Ns,angles,2),exptected_result=2949.37386,
+    evaluate_control_numbers(img, (N,N,Ns,angles,2),expected_result=2949.37386,
 		precision=0.001,classified="img",name="original image")
 
     evaluate_control_numbers(sino, (N,N,Ns,angles,2),
-                exptected_result=1810.5192,
+                expected_result=1810.5192,
 		precision=0.001,classified="sino",name="sinogram")
 
     evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
-                exptected_result=3570.1789,
+                expected_result=3570.1789,
 		precision=0.001,classified="img",name="backprojected image")
 
 
