@@ -1553,28 +1553,27 @@ class ProjectionSettings():
 
 
 
-def normest(projectionsetting, number_of_iterations=50, dtype='float32',
+def normest(projectionsetting, number_iterations=50, dtype='float32',
             allocator=None):
     """
-    Determine the operator norm of the projection method via power 
-    iteration. This the norm with respect to the standard :math:`l^2`
-    norms as sum of squares. This is not a solver itself, but
-    can prove useful for many iterative methods, as convergence of such
-    methods usually depends on 
-    the choosing a parameter suitably with respect to the operator norm. 
-   
-    :param projectionsetting: The settings in which to 
-        compute operatornorm.
+    Estimate the spectral norm of the projection operator via power 
+    iteration, i.e., the operator norm with respect to the standard 
+    Euclidean or :math:`\ell^2`
+    norms. Useful for iterative methods that require such an estimate,
+    e.g., :func:`landweber` or :func:`total_variation`.
+
+    :param projectionsetting: The geometry settings for which the projection 
+        is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 
-    :param number_of_iterations:  The number of iterations to 
+    :param number_iterations:  The number of iterations to 
         terminate after.
-    :type number_of_iterations: :class:`int`, default 50 
+    :type number_iterations: :class:`int`, default 50 
     :param dtype:  Precision for which to apply the projection operator
         (which is not supposed to impact the estimate significantly).
-    :type dtype: :class:`numpy.dtype`, default numpy.dtype(float32)
+    :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
          
-    :return: An estimate of the operator norm for the projection  operator.
+    :return: An estimate of the spectral norm for the projection operator.
     :rtype: :class:`float`    
     """    
     queue=projectionsetting.queue
@@ -1586,7 +1585,7 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
     sino=forwardprojection(img, projectionsetting)
     
     #power_iteration
-    for i in range(number_of_iterations):
+    for i in range(number_iterations):
         normsqr = float(clarray.sum(img).get())
         img /= normsqr
         forwardprojection(img, projectionsetting, sino=sino)
@@ -1596,7 +1595,7 @@ def normest(projectionsetting, number_of_iterations=50, dtype='float32',
         
 def landweber(sino, projectionsetting, number_iterations=100, w=1):
     """ 
-    Performs a Landweber iteration to approximate 
+    Performs a Landweber iteration [1]_ to approximate 
     a solution to the image reconstruction problem associated
     with a projection and sinogram. This method is also known as SIRT.
 
@@ -1618,6 +1617,10 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
         iteration.
     :rtype: :class:`pyopencl.array.Array`
 
+    .. [1] Landweber, L. "An iteration formula for Fredholm integral 
+           equations of the first kind." Amer. J. Math. 73, 615–624
+           (1951). 
+           https://doi.org/10.2307/2372313 
     """    
 
     # Set relaxation parameter
@@ -1646,7 +1649,7 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 def conjugate_gradients(sino, projectionsetting, epsilon=0.01, 
     number_iterations=20, x0=None, restart=True):
     """
-    Performs a conjugate gradients iteration to approximate 
+    Performs a conjugate gradients iteration [2]_ to approximate 
     a solution to the image reconstruction problem associated
     with a projection and sinogram.
 
@@ -1675,6 +1678,11 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
    
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.array.Array`
+
+    .. [2] Hestenes, M. R., Stiefel, E. "Methods of Conjugate Gradients 
+           for Solving Linear Systems." Journal of Research of the National 
+           Bureau of Standards, 49:409–436 (1952). 
+           https://doi.org/10.6028/jres.049.044
     """
 
     #Determine suitable dimensions    
@@ -1746,13 +1754,12 @@ def conjugate_gradients(sino, projectionsetting, epsilon=0.01,
     return x
 
 def total_variation(sino, projectionsetting, mu,
-    number_iterations=1000, z_distance=1):
+    number_iterations=1000, slice_thickness=1):
     """
-    Peforms a primal-dual algorithm to solve a total-variation
+    Peforms a primal-dual algorithm [3]_ to solve a total-variation
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
-    solution of
-    :math:`\min_{u} \mu\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)` 
+    solution of :math:`\min_{u} {\mu \over 2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)` 
     for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
     and :math:`\mu` a positive regluarization parameter (i.e., 
     an :math:`L^2-\mathrm{TV}` reconstruction approach).
@@ -1760,29 +1767,32 @@ def total_variation(sino, projectionsetting, mu,
     :param sino: Sinogram data to invert.
     :type sino: :class:`pyopencl.array.Array`
 			            
-    :param projectionsetting: The settings in which the projection 
-        inversion is considered.
+    :param projectionsetting: The geometry settings for which the projection 
+        is considered.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`		            
 
     :param mu: Regularization parameter, the smaller the stronger the 
         applied regularization.
     :type epsilon: :class:`float`
     
-    :param number_iterations: Number of iterations to be executed.
+    :param number_iterations: Number of iterations to be performed.
     :type number_iterations: :class:`float`, default 1000
     
-    :param z_distance: When 3-dimensional datasets are considered,  
-        regularization is also applied in z-dimension,
-        but we allow unisotropic discretization-size in z-direction.
-        The parameter represents the ratio of the z-height to the  
-        xy-pixel width and length. If no coupling in z-direction is 
-        desired, choose z_distance=0.
-    :type z_distance: :class:`float`, default 1 i.e. isotropic pixels
+    :param slice_thickness: When 3-dimensional data sets are considered,  
+        regularization is also applied across slices.
+        This parameter represents the ratio of the slice thickness to the  
+        length of one pixel within a slice. The choice slice_thickness=0 
+        results in no coupling across slices.
+    :type slice_thickness: :class:`float`, default 1.0, i.e., isotropic voxels
    
-    :return: Reconstruction gained via primal dual iteration for the 
-        total variation penalized inversion problem.
+    :return: Reconstruction gained via primal-dual iteration for the 
+        total-variation regularized reconstruction problem.
     :rtype:  :class:`pyopencl.array.Array`
 
+    .. [3] Chambolle, A., Pock, T. "A First-Order Primal-Dual Algorithm 
+           for Convex Problems with Applications to Imaging." J Math 
+           Imaging Vis 40, 120–145 (2011). 
+           https://doi.org/10.1007/s10851-010-0251-1
     """
     #Establish queue and context
 
@@ -1795,7 +1805,7 @@ def total_variation(sino, projectionsetting, mu,
     
     img_shape=projectionsetting.img_shape
     if len(sino.shape)==2:
-        z_distance=0
+        slice_thickness=0
     else:
         img_shape=img_shape+tuple([sino.shape[2]])
     extended_img_shape=tuple([4])+img_shape
@@ -1808,31 +1818,33 @@ def total_variation(sino, projectionsetting, mu,
 		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
 		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
     update_lambda = lambda lamb, Ku, f, sigma, mu, normest, wait_for=[]: \
-            update_lambda_[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
-            lamb.shape, None,lamb.data, Ku.data, f.data,
-            float32(sigma/normest), float32(mu),
-            wait_for=lamb.events+Ku.events+f.events+wait_for)
+            lamb.add_event(update_lambda_[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
+                lamb.shape, None, lamb.data, Ku.data, f.data,
+                float32(sigma/normest), float32(mu),
+                wait_for=lamb.events+Ku.events+f.events+wait_for))
 
     # Update v the dual of gradient of u
     update_v_={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
             (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
             (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
             (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}
-    update_v = lambda v, u, sigma, z_distance, wait_for=[]: \
-            update_v_[v.dtype,v.flags.c_contiguous](v.queue, u.shape, None,
-            v.data, u.data, float32(sigma), float32(z_distance), 
-            wait_for=v.events+u.events+wait_for)
+    update_v = lambda v, u, sigma, slice_thickness, wait_for=[]: \
+            v.add_event(update_v_[v.dtype,v.flags.c_contiguous](v.queue, u.shape,
+                None, v.data, u.data, float32(sigma), float32(slice_thickness), 
+                wait_for=v.events+u.events+wait_for))
     
     # Update primal variable u (the image)
     update_u_={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
             (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
             (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
             (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
-    update_u = lambda u, u_, v, Kstarlambda, tau, normest, z_distance, wait_for=[]: \
-            update_u_[u.dtype,u.flags.c_contiguous](u.queue, u.shape, None,
-            u.data, u_.data, v.data, Kstarlambda.data, float32(tau),
-            float32(1.0/normest), float32(z_distance),
-            wait_for=u.events+u_.events+v.events+wait_for)
+    update_u = lambda u, u_, v, Kstarlambda, tau, normest, slice_thickness, \
+            wait_for=[]: \
+                u_.add_event(update_u_[u.dtype,u.flags.c_contiguous](u.queue,
+                        u.shape, None, u.data, u_.data, v.data,
+                        Kstarlambda.data, float32(tau),
+                        float32(1.0/normest), float32(slice_thickness),
+                        wait_for=u.events+u_.events+v.events+wait_for))
        
     # Compute the norm of v and project (dual update)
     update_NormV_={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
@@ -1840,15 +1852,18 @@ def total_variation(sino, projectionsetting, mu,
             (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_ff,
             (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_cc}
     update_NormV = lambda V, normV, wait_for=[]: \
-            update_NormV_[V.dtype,V.flags.c_contiguous](V.queue, V.shape[1:], None, 
-            V.data, normV.data,
-            wait_for=V.events+normV.events+wait_for)
+            normV.add_event(update_NormV_[V.dtype,V.flags.c_contiguous](V.queue,
+                V.shape[1:], None, V.data, normV.data,
+                wait_for=V.events+normV.events+wait_for))
 
     # update of the extra gradient
-    update_extra = {np.dtype(float32): cl.elementwise.ElementwiseKernel(
+    update_extra_ = {np.dtype(float32): cl.elementwise.ElementwiseKernel(
         ctx, 'float *u_, float *u', 'u[i] = 2.0f*u_[i] - u[i]'),
         np.dtype(float): cl.elementwise.ElementwiseKernel(ctx, 
         'double *u_, double *u', 'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
+    update_extra = lambda u_, u: \
+            u.add_event(update_extra_(u_, u, wait_for=u.events + u_.events))
+ 
 	
 	# Initialize variables for the iteration
     U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
@@ -1867,25 +1882,24 @@ def total_variation(sino, projectionsetting, mu,
     Lsqr = 17.0
     sigma = 1.0/sqrt(Lsqr)
     tau = 1.0/sqrt(Lsqr)
+    assert mu > 0, "Regularization parameter mu must be positive"
     mu=mu/(sigma+mu)
 	
     # Primal-dual iteration
     for i in range(number_iterations):		
         # Dual update
-        V.add_event(update_v(V, U_, sigma, z_distance))
-        normV.add_event(update_NormV(V, normV))	
+        update_v(V, U_, sigma, slice_thickness)
+        update_NormV(V, normV)
         forwardprojection(U_, projectionsetting, sino=KU)
-        Lamb.add_event(update_lambda(Lamb, KU, sino, sigma,mu,
-	                          norm_estimate))
+        update_lambda(Lamb, KU, sino, sigma, mu, norm_estimate)
 		
         # Primal update
         backprojection(Lamb, projectionsetting, img=KSTARlambda)	
-        U_.add_event(update_u(U_, U, V, KSTARlambda, tau, norm_estimate,
-            z_distance))
+        update_u(U_, U, V, KSTARlambda, tau, norm_estimate,
+            slice_thickness)
 		
 		# Extragradient update 
-        U.add_event(update_extra(U_, U, wait_for=U.events + U_.events))
-			
+        update_extra(U_, U)
         (U, U_) = (U_, U)
 
         sys.stdout.write('\rProgress at {:3.0%}'

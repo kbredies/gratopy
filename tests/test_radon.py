@@ -492,7 +492,7 @@ def test_extract_sparse_matrix():
     #Create corresponding sparse matrix
     sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order)
     
-    #Testimage
+    # Test image
     img=phantom(queue, Nx, dtype)
     
     img=img.get()
@@ -508,7 +508,7 @@ def test_extract_sparse_matrix():
 
     #plot results
     figure(1)
-    title("Testimage")
+    title("test image")
     imshow(img,cmap=cm.gray)
 
     figure(2)

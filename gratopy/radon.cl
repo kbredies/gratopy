@@ -91,11 +91,12 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
     for(int x = x_low; x <= x_high; x++) {
       //anterpolation weight via normal distance
       \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
-      if (weight > 0.0f) 
+      if (weight > 0.0f) {
 	if (horizontal==1)
 	  {acc += weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];}
 	else
 	  {acc += weight*img[pos_img_\order2(y,x,z,Nx,Ny,Nz)];}
+      }
     }
   }
   //assign value to sinogram
@@ -243,11 +244,12 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
   if((x_low<=x) && (x<=x_high)){
     //anterpolation weight via normal distance
     \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
-    if (weight > 0.0f) 
+    if (weight > 0.0f) {
       if (horizontal==1)
 	{acc += weight*1;}
       else
 	{acc += weight*1;}
+    }
   }
   
   //assign value to sinogram

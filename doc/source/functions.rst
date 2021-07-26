@@ -37,7 +37,7 @@ The following constitute a few easy-to-use examples which also serve as illustra
 Data generation
 ---------------
 
-For convinient testing we also include a phantom generator which creates a modified phantom of arbitrary dimension.
+For convenient testing, a phantom generator is included which creates a modified two-dimensional phantom of arbitrary size.
 
 .. autofunction:: gratopy.phantom
 

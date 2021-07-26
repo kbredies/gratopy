@@ -9,11 +9,11 @@ __kernel void empty_test_\my_variable_type_\order1\order2()
 {
   size_t Nx = get_global_size(0);
   size_t Ny = get_global_size(1);
-  size_t Nz=get_global_size(2);
+  size_t Nz = get_global_size(2);
   size_t x = get_global_id(0), y = get_global_id(1);
-  size_t z=get_global_id(2);
+  size_t z = get_global_id(2);
   
-  size_t i =pos_img_\order1(x,y,z,Nx,Ny,Nz);
+  size_t i = pos_img_\order1(x,y,z,Nx,Ny,Nz);
 }
 
   
@@ -35,25 +35,27 @@ __kernel void update_v_\my_variable_type_\order1\order2(__global \my_variable_ty
   
   // gradient 
   \my_variable_type3 val = -u[i];
-  if (x < Nx-1) val.s0 += u[pos_img_\order1(xx,y,z,Nx,Ny,Nz)];
-  else val.s0 = 0.0f;
-  if (y < Ny-1) val.s1 += u[pos_img_\order1(x,yy,z,Nx,Ny,Nz)];
-  else val.s1 = 0.0f;
-  if (z < Nz-1)	  val.s2 += u[pos_img_\order1(x,y,zz,Nx,Ny,Nz)];
-  else val.s2=0.0f;
+  if (x < Nx-1) {val.s0 += u[pos_img_\order1(xx,y,z,Nx,Ny,Nz)];}
+  else {val.s0 = 0.0f;}
+  if (y < Ny-1) {val.s1 += u[pos_img_\order1(x,yy,z,Nx,Ny,Nz)];}
+  else {val.s1 = 0.0f;}
+  if (z < Nz-1)	{val.s2 += u[pos_img_\order1(x,y,zz,Nx,Ny,Nz)];}
+  else {val.s2=0.0f;}
   
-  if (z_distance>0){
+  if (z_distance>0) {
     val.s2/=z_distance; //adjust to further Jump
   }
-  else{
+  else {
     val.s2=0;
   }
   // step
   v[i] = v[i] + sigma*(val);
 }
     
-__kernel void update_lambda_L2_\my_variable_type_\order1\order2(__global \my_variable_type *lambda, __global \my_variable_type *Ku,__global \my_variable_type *f, const float sigma,
-							const float sigmap1inv) {
+__kernel void update_lambda_L2_\my_variable_type_\order1\order2(__global \my_variable_type *lambda,
+								__global \my_variable_type *Ku,
+								__global \my_variable_type *f, const float sigma,
+								const float sigmap1inv) {
 		 
   size_t Ns = get_global_size(0), Na = get_global_size(1), Nz=get_global_size(2);
   size_t s = get_global_id(0), a = get_global_id(1);
@@ -92,13 +94,13 @@ __kernel void update_u_\my_variable_type_\order1\order2(__global \my_variable_ty
   if (z > 0) val.s2-=v[pos_img_\order1(x,y,z-1,Nx,Ny,Nz)].s2;
 
   if (z_distance>0)
-    { val.s2/=z_distance;} //adjust for further step
+    { val.s2/=z_distance; } //adjust for further step
   else
-   {val.s2=0;}
+    { val.s2=0; }
 
   // linear step
   u[i] = u_[i] + tau*(val.s0 + val.s1 + val.s2 - norming*Kstarlambda[i]);
-  if(u[i]<0){u[i]=0.;}
+  if (u[i]<0) {u[i]=0.;}
 }
 
 
@@ -111,9 +113,8 @@ __kernel void update_NormV_unchor_\my_variable_type_\order1\order2(__global \my_
   size_t i = pos_img_\order1(x,y,z,Nx,Ny,Nz);
   
   // Compute norm
-  \my_variable_type norm=0;	
-  norm= hypot(hypot(V[i].s0,V[i].s1),V[i].s2);
-  if (norm > 1.0f) {
-    V[i]/=norm;}
+  \my_variable_type norm;	
+  norm = hypot(hypot(V[i].s0,V[i].s1),V[i].s2);
+  if (norm > 1.0f) { V[i]/=norm; }
 }
           

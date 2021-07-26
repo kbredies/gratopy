@@ -646,12 +646,13 @@ def test_total_variation():
     dtype=float32
     number_detectors=328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
+    angles = linspace(0,2*pi,121)[:-1] + pi/2
     img_shape=(328,328)
 
     # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape,
-    	                    angles = numberofangles, 
-			    detector_width=Detectorwidth,
+    	                    angles = angles, 
+                            detector_width=Detectorwidth,
     	                    R=FDD, RE=FOD, n_detectors=number_detectors)
 
     # load and rescale sinogram
@@ -668,7 +669,7 @@ def test_total_variation():
     walnut_gpu2new=clarray.to_device(queue,require(sinonew,dtype,'C'))
 
     UTV=total_variation(walnut_gpu2new,PS,mu=1000,
-                        number_iterations=4000,z_distance=0)
+                        number_iterations=4000,slice_thickness=0)
     
     sinoreprojected=forwardprojection(UTV,PS)
     
@@ -787,23 +788,23 @@ def test_extract_sparse_matrix():
      #Create corresponding sparse matrix
     sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order,outputfile=None)
     
-    #Testimage
+    # Test image
     img=phantom(queue, Nx, dtype)
     img=img.get()
     img=img.reshape(Nx**2,order=order)
     
-    #Compute forward and backprojection
+    # Compute forward and backprojection
     sino=sparsematrix*img
     backproj=sparsematrix.T*sino
 
-    #reshape
+    # reshape
     img=img.reshape(Nx,Nx,order=order)
     sino=sino.reshape(number_detectors,angles,order=order)
     backproj=backproj.reshape(Nx,Nx,order=order)
 
 
     figure(1)
-    title("Testimage")
+    title("test image")
     imshow(img,cmap=cm.gray)
 
 

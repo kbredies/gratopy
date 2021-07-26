@@ -9,14 +9,17 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
                    dtype='double', allocator=None):
     '''Generate an OpenCL Shepp-Logan phantom of size (N, N).
 
-    :param queue: The *OpenCL* command queue.
+    :param queue: The OpenCL command queue.
     :type queue: :class:`pyopencl.CommandQueue`
+
     :param N: Matrix size, (N, N) or (M, N).
-    :type N: int or array_like
-    :param modified: Use original grey-scale values as given in [1]_.  Most
+    :type N: :class:`int` or :class:`array_like`
+
+    :param modified: Use original grey-scale values as given in [10]_.  Most
         implementations use modified values for better contrast (for
-        example, see [3]_ and [4]_).
-    :type modified: bool
+        example, see [12]_ and [13]_).
+    :type modified: :class:`bool`
+
     :param E: e times 6 numeric matrix defining e ellipses.  
         The six columns of E are:
 
@@ -26,33 +29,39 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
         - x-coordinate of the center of the ellipse (in [-1, 1])
         - y-coordinate of the center of the ellipse (in [-1, 1])
         - Angle between the horizontal semiaxis of the ellipse
-            and the x-axis of the image (in rad)
-    :type E: array_like or None
-    :param ret_E: Return the matrix E used to generate the phantom.
-    :type ret_E: bool
-    :param dtype: The *PyOpenCL* data-type in which the phantom is created.
-    :type dtype: str or dtype
-    :param allocator: The *PyOpenCL* allocator used for memory allocation.
-    :type allocator: :class:`pyopencl.Allocator` or None
-    :returns: Phantom/parameter pair *(ph[, E])*. 
-    :var ph: The Shepp-Logan phantom.
-    :vartype ph: :class:`pyopencl.Array`
-    :var E: The ellipse parameters used to generate ph.
-    :vartype E: array_like, optional
-    
-    This much abused phantom is due to [1]_.  The tabulated values in
-    the paper are reproduced in the Wikipedia entry [2]_.  The
-    original values do not produce great contrast, so modified values
-    are used by default (see Table B.1 in [5]_ or implementations
-    [3]_ and [4]_).
+          and the x-axis of the image (in rad)
 
-    .. [1] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
+    :type E: :class:`array_like` or :obj:`None`
+
+    :param ret_E: Return the matrix E used to generate the phantom.
+    :type ret_E: :class:`bool`
+
+    :param dtype: The :mod:`pyopencl` data type in which the phantom is created.
+    :type dtype: :class:`str` or :class:`numpy.dtype`
+
+    :param allocator: The :mod:`pyopencl` allocator used for memory allocation.
+    :type allocator: An implementation of :class:`pyopencl.tools.AllocatorInterface` or :obj:`None`
+
+    :returns: Phantom/parameter pair (**ph** [, **E**]). 
+    :var ph: The Shepp-Logan phantom.
+    :vartype ph: :class:`pyopencl.array.Array`
+
+    :var E: The ellipse parameters used to generate **ph**.
+    :vartype E: :class:`array_like`, optional
+    
+    This much abused phantom is due to [10]_.  The tabulated values in
+    the paper are reproduced in the Wikipedia entry [11]_.  The
+    original values do not produce great contrast, so modified values
+    are used by default (see Table B.1 in [14]_ or implementations
+    [12]_ and [13]_).
+
+    .. [10] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
         reconstruction of a head section." IEEE Transactions on
         nuclear science 21.3 (1974): 21-43.
-    .. [2] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
-    .. [3] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
-    .. [4] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
-    .. [5] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
+    .. [11] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
+    .. [12] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
+    .. [13] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
+    .. [14] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
                transform-theory and implementation." (1996).
     '''
 
