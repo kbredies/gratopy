@@ -1,15 +1,15 @@
 
-     
+
 Test examples
 ==================
 
-In the following you find a number of references to the additional 
+In the following you find a number of references to the additional
 functions contained in the package. These functions
-serve the double purpose of showing that the package 
+serve the double purpose of showing that the package
 is indeed working as desired (via ``pytest`` or ``nosetests``, see `installation <installation.html>`_),
-and illustrating to users how to set various parameters of the 
-gratopy toolbox and what their effect are. 
-  
+and illustrating to users how to set various parameters of the
+gratopy toolbox and what their effect are.
+
 
 Radon transform
 ---------------------
@@ -17,7 +17,7 @@ Radon transform
 .. module:: tests.test_radon
 
 .. autoclass:: tests.test_radon.test_projection()
-	
+
 .. autoclass:: tests.test_radon.test_weighting()
 
 .. autoclass:: tests.test_radon.test_adjointness()
@@ -46,6 +46,8 @@ Fanbeam transform
 .. autoclass:: tests.test_fanbeam.test_fullangle()
 
 .. autoclass:: tests.test_fanbeam.test_midpointshift()
+
+.. autoclass:: tests.test_fanbeam.test_range_check_walnut()
 
 .. autoclass:: tests.test_fanbeam.test_landweber()
 
