@@ -254,7 +254,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image size. It is assumed
         that the center of rotation is in the middle
-        of the grid of quadratic pixels. **(???) is this still valid?
+        of the grid of quadratic pixels. ** (???) is this still valid?
         there is a midpoint shift. **
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
 
@@ -1902,10 +1902,17 @@ def total_variation(sino, projectionsetting, mu,
 
 	# Compute estimates for step-size parameters
     norm_estimate = normest(projectionsetting)
-    Lsqr = 17.0
+
+    #Estimat of the operator [Grad,Proj] when Proj possesses norm 1
+    Lsqr = 13
     sigma = 1.0/sqrt(Lsqr)*stepsize_weighting
     tau = 1.0/sqrt(Lsqr)/stepsize_weighting
+
+    # Modifie mu for internal uses
     assert mu > 0, "Regularization parameter mu must be positive"
+    # To counteract normalizing the operator, and delta_x comes Frobeniusnorm
+    # the gradient
+    mu*=norm_estimate**2*projectionsetting.delta_x
     mu=mu/(sigma+mu)
 
     # Primal-dual iteration

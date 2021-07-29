@@ -558,7 +558,7 @@ def test_range_check_walnut():
     colorbar()
 
     suptitle("Sinogram associated to reconstruction with shift correction, i.e.,"\
-                "best possible approximation with given operator")
+                " best possible approximation with given operator")
 
 
     figure(3)
@@ -574,7 +574,7 @@ def test_range_check_walnut():
     imshow(abs(sino_gpu.get()-best_approximation_incorrect.get()))
     colorbar()
     suptitle("Sinogram associated to reconstruction without shift correction, i.e.,"\
-                "best possible approximation with given operator")
+                " best possible approximation with given operator")
 
     show()
 
@@ -713,7 +713,7 @@ def test_total_variation():
     dtype=float32
     number_detectors=328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    img_shape=(328,328)
+    img_shape=(400,400)
 
     # create projectionsetting
     PS = ProjectionSettings(queue, FANBEAM, img_shape=img_shape,
@@ -739,11 +739,11 @@ def test_total_variation():
 
     number_iterations=2000
     stepsize_weighting=10
-    UTV=total_variation(walnut_gpu,PS,mu=10000000000,
+    UTV=total_variation(walnut_gpu,PS,mu=100000000,
                         number_iterations=number_iterations,
                         slice_thickness=0,stepsize_weighting=stepsize_weighting)
 
-    UTV2=total_variation(walnut_gpu2,PS,mu=1000,
+    UTV2=total_variation(walnut_gpu2,PS,mu=20,
                         number_iterations=number_iterations,
                         slice_thickness=0,stepsize_weighting=stepsize_weighting)
 
@@ -779,11 +779,11 @@ def test_total_variation():
     [Nx,Ny]=img_shape
 
     evaluate_control_numbers(UTV, (Nx,Ny,number_detectors,numberofangles,1),
-                expected_result=0.68931, classified="img",
+                expected_result=-0.31175, classified="img",
 		name="total-variation reconstruction with true data")
 
     evaluate_control_numbers(UTV2, (Nx,Ny,number_detectors,numberofangles,1),
-                expected_result=0.86472, classified="img",
+                expected_result=0.02784277, classified="img",
 		name="total-variation reconstruction with noisy data")
 
 
