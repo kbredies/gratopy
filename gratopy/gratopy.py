@@ -7,7 +7,8 @@ import matplotlib.patches
 import pyopencl as cl
 import pyopencl.array as clarray
 
-CL_FILES = ["radon.cl", "fanbeam.cl", "total_variation.cl"]
+CL_FILES1 = ["radon.cl", "fanbeam.cl"]
+CL_FILES2=["total_variation.cl"]
 
 PARALLEL = 1
 RADON = 1
@@ -148,7 +149,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :param img: The image to transform.
     :type img: :class:`pyopencl.array.Array`
 
-    :param projectionsetting: The geometry settings for which the 
+    :param projectionsetting: The geometry settings for which the
         Radon transform is performed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 
@@ -194,7 +195,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     :param sino: The sinogram to transform.
     :type sino: :class:`pyopencl.array.Array`
 
-    :param projectionsetting: The geometry settings for which the 
+    :param projectionsetting: The geometry settings for which the
         Radon backprojection is performed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 
@@ -202,7 +203,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
         in order to avoid, e.g., race conditions, see :class:`pyopencl.Event`.
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
-    :return: Event associated with the computation of the Radon 
+    :return: Event associated with the computation of the Radon
         backprojection
         (which is also added to the events of **img**).
     :rtype: :class:`pyopencl.Event`
@@ -243,7 +244,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
              detector_width=2.0, image_width=2.0, midpoint_shift=[0,0],
              detector_shift=0.0,fullangle=True):
     """
-    Creates the structure storing geometry information required for 
+    Creates the structure storing geometry information required for
     the Radon transform and its adjoint.
 
     :param queue: OpenCL command queue in which context the
@@ -253,21 +254,21 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image size. It is assumed
         that the center of rotation is in the middle
-        of the grid of quadratic pixels. **(???) is this still valid? 
+        of the grid of quadratic pixels. **(???) is this still valid?
         there is a midpoint shift. **
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
 
     :param angles:  Determines which angles are considered for the
-        projection. Either the integer :math:`N_a` representing the 
-        number of uniformly distributed angles in the angular range 
-        :math:`[0,\pi[`, a list containing all angles considered for 
-        the projection, or a list of lists containing angles for 
-        multiple limited angle segments, also see the 
+        projection. Either the integer :math:`N_a` representing the
+        number of uniformly distributed angles in the angular range
+        :math:`[0,\pi[`, a list containing all angles considered for
+        the projection, or a list of lists containing angles for
+        multiple limited angle segments, also see the
         **fullangle** parameter.
     :type angles: :class:`int`, :class:`list[float]` or
         :class:`list[list[float]]`
 
-    :param n_detectors: The number :math:`N_s` of considered (equi-spaced) 
+    :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as
         :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
@@ -276,13 +277,13 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type detector_width: :class:`float`, default 2.0
 
     :param image_width: Size of the image (more precisely, the larger
-        side length of the rectangle representing the image domain), i.e., 
+        side length of the rectangle representing the image domain), i.e.,
         the diameter of the
-        circular object captured by image **(???) this is contradictory**. 
-        Choosing 
+        circular object captured by image **(???) this is contradictory**.
+        Choosing
         **image_width** = **detector_width** results in
         the standard Radon transform with each projection touching the
-        entire object, while **img_width** = 2 **detector_width** results 
+        entire object, while **img_width** = 2 **detector_width** results
         in each projection capturing only half of the image.
     :type image_width: :class:`float`, default 2.0
 
@@ -300,16 +301,16 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param fullangle: If :obj:`True`, the angles are interpreted to
         represent the whole interval :math:`[0,\pi[`.
         If :obj:`False`, a limited angle setting is considered, i.e.,
-        the given angles represent a discretization of a 
+        the given angles represent a discretization of a
         proper subset of :math:`[0,\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`.
 
-    :return: 
+    :return:
         Tuple (**ofs_dict**, **img_shape**, **sinogram_shape**,
         **geo_dict**, **angles_diff**).
 
-    :var ofs_dict: 
+    :var ofs_dict:
         Dictionary containing the relevant angular information as
         :class:`numpy.ndarray` for the data types :attr:`numpy.float32`
         and :attr:`numpy.float64`.
@@ -330,23 +331,23 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         The remaining columns are unused.
     :vartype ofs_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-    :var shape: 
+    :var shape:
         Tuple of integers :math:`(N_x,N_y)` representing the size
         of the image.
     :vartype shape: :class:`tuple`
 
-    :var sinogram_shape: 
+    :var sinogram_shape:
         Tuple of integers :math:`(N_s,N_a)` representing the size
         of the sinogram.
     :vartype sinogram_shape: :class:`tuple`
 
-    :var geo_dict: 
-        Array containing information 
-        [:math:`\delta_x,\delta_s,N_x,N_y,N_s,N_a`]. 
+    :var geo_dict:
+        Array containing information
+        [:math:`\delta_x,\delta_s,N_x,N_y,N_s,N_a`].
         **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-    :var angles_diff: 
+    :var angles_diff:
         Same values as in **ofs_dict** [4] representing the weights
         associated with the angles (i.e., the length of sinogram
         pixels in the angular direction).
@@ -846,7 +847,7 @@ def create_code():
     """
 
     total_code=""
-    for file in CL_FILES:
+    for file in CL_FILES1:
         textfile=open(os.path.join(os.path.abspath(
             os.path.dirname(__file__)), file))
         code_template=textfile.read()
@@ -859,6 +860,18 @@ def create_code():
                         "\my_variable_type",dtype)\
                         .replace("\order1",order1)\
                         .replace("\order2",order2)
+
+    for file in CL_FILES2:
+        textfile=open(os.path.join(os.path.abspath(
+            os.path.dirname(__file__)), file))
+        code_template=textfile.read()
+        textfile.close()
+
+        for dtype in ["float","double"]:
+            for order1 in ["f","c"]:
+                total_code+=code_template.replace(\
+                    "\my_variable_type",dtype)\
+                    .replace("\order1",order1)\
 
     return total_code
 
@@ -1823,10 +1836,10 @@ def total_variation(sino, projectionsetting, mu,
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    update_lambda_={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_ff,
-		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_cc,
-		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_ff,
-		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_cc}
+    update_lambda_={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_f,
+		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_c,
+		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_f,
+		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_c}
     update_lambda = lambda lamb, Ku, f, sigma, mu, normest, wait_for=[]: \
             lamb.add_event(update_lambda_[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
                 lamb.shape, None, lamb.data, Ku.data, f.data,
@@ -1834,20 +1847,20 @@ def total_variation(sino, projectionsetting, mu,
                 wait_for=lamb.events+Ku.events+f.events+wait_for))
 
     # Update v the dual of gradient of u
-    update_v_={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_ff,
-            (np.dtype("float32"),1):projectionsetting.prg.update_v_float_cc,
-            (np.dtype("float"),0):projectionsetting.prg.update_v_double_ff,
-            (np.dtype("float"),1):projectionsetting.prg.update_v_double_cc}
+    update_v_={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_f,
+            (np.dtype("float32"),1):projectionsetting.prg.update_v_float_c,
+            (np.dtype("float"),0):projectionsetting.prg.update_v_double_f,
+            (np.dtype("float"),1):projectionsetting.prg.update_v_double_c}
     update_v = lambda v, u, sigma, slice_thickness, wait_for=[]: \
             v.add_event(update_v_[v.dtype,v.flags.c_contiguous](v.queue, u.shape,
                 None, v.data, u.data, float32(sigma), float32(slice_thickness),
                 wait_for=v.events+u.events+wait_for))
 
     # Update primal variable u (the image)
-    update_u_={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_ff,
-            (np.dtype("float32"),1):projectionsetting.prg.update_u_float_cc,
-            (np.dtype("float"),0):projectionsetting.prg.update_u_double_ff,
-            (np.dtype("float"),1):projectionsetting.prg.update_u_double_cc}
+    update_u_={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_f,
+            (np.dtype("float32"),1):projectionsetting.prg.update_u_float_c,
+            (np.dtype("float"),0):projectionsetting.prg.update_u_double_f,
+            (np.dtype("float"),1):projectionsetting.prg.update_u_double_c}
     update_u = lambda u, u_, v, Kstarlambda, tau, normest, slice_thickness, \
             wait_for=[]: \
                 u_.add_event(update_u_[u.dtype,u.flags.c_contiguous](u.queue,
@@ -1857,10 +1870,10 @@ def total_variation(sino, projectionsetting, mu,
                         wait_for=u.events+u_.events+v.events+wait_for))
 
     # Compute the norm of v and project (dual update)
-    update_NormV_={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_ff,
-            (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_cc,
-            (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_ff,
-            (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_cc}
+    update_NormV_={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_f,
+            (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_c,
+            (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_f,
+            (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_c}
     update_NormV = lambda V, normV, wait_for=[]: \
             normV.add_event(update_NormV_[V.dtype,V.flags.c_contiguous](V.queue,
                 V.shape[1:], None, V.data, normV.data,
