@@ -1,111 +1,111 @@
-import os, pkgutil
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pyopencl as cl
-import matplotlib.image as mpimg
 import time
 import gratopy
+
 
 def curdir(filename):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
 
 
-TESTRNG=curdir("rng.txt")
+TESTRNG = curdir("rng.txt")
 
 ctx = None
 queue = None
 
-def evaluate_control_numbers(data, dimensions,expected_result,classified,name):
-    [Nx,Ny,Ns,Na,Nz]=dimensions
 
-    test_s,test_phi,test_z,factors,test_x,test_y=read_control_numbers(
-                                                     Nx,Ny,Ns,Na,Nz)
-    m=1000
-    mysum=0
-    if classified=="img":
-        var1=test_x
-        var2=test_y
-        var3=test_z
+def evaluate_control_numbers(data, dimensions,
+                             expected_result, classified, name):
+    [Nx, Ny, Ns, Na, Nz] = dimensions
+
+    test_s, test_phi, test_z, factors, test_x, test_y = read_control_numbers(
+                                                     Nx, Ny, Ns, Na, Nz)
+    m = 1000
+    mysum = 0
+    if classified == "img":
+        var1 = test_x
+        var2 = test_y
+        var3 = test_z
     else:
-        var1=test_s
-        var2=test_phi
-        var3=test_z
+        var1 = test_s
+        var2 = test_phi
+        var3 = test_z
 
-    if Nz==1:
-        data=data.reshape(data.shape[0],data.shape[1],1)
-    for i in range(0,m):
-        mysum+=factors[i]*data[var1[i],var2[i],var3[i]]
-    precision=abs(expected_result)/(10.**3)
-    assert(abs(mysum-expected_result)<precision),\
-        "A control-sum for the "+name+ " did not match the expected value,"\
-        +"expected: "+str(expected_result) +", received: "+str(mysum)\
-        +". Please consider the visual results to check whether this is "\
-        +"a numerical issue or a more fundamental error."
-
-
+    if Nz == 1:
+        data = data.reshape(data.shape[0], data.shape[1], 1)
+    for i in range(0, m):
+        mysum += factors[i]*data[var1[i], var2[i], var3[i]]
+    precision = abs(expected_result)/(10.**3)
+    assert(abs(mysum-expected_result) < precision),\
+        "A control-sum for the "+name + " did not match the expected value,"\
+        + "expected: "+str(expected_result) + ", received: "+str(mysum)\
+        + ". Please consider the visual results to check whether this is "\
+        + "a numerical issue or a more fundamental error."
 
 
 def create_control_numbers():
-    m=1000
-    M=2000
-    rng=np.random.default_rng(1)
-    mylist=[]
+    m = 1000
+    M = 2000
+    rng = np.random.default_rng(1)
+    mylist = []
 
-    mylist.append(rng.integers(0,M,m))#s
-    mylist.append(rng.integers(0,M,m))#phi
-    mylist.append(rng.integers(0,M,m))#z
-    mylist.append(rng.normal(0,1,m)) #factors
+    mylist.append(rng.integers(0, M, m))  # s
+    mylist.append(rng.integers(0, M, m))  # phi
+    mylist.append(rng.integers(0, M, m))  # z
+    mylist.append(rng.normal(0, 1, m))  # factors
 
-    mylist.append(rng.integers(0,M,m))#
-    mylist.append(rng.integers(0,M,m))
+    mylist.append(rng.integers(0, M, m))
+    mylist.append(rng.integers(0, M, m))
 
-    myfile=open(TESTRNG,"w")
+    myfile = open(TESTRNG, "w")
 
     for j in range(6):
         for i in range(m):
-             myfile.write(str(mylist[j][i])+"\n")
+            myfile.write(str(mylist[j][i])+"\n")
     myfile.close()
 
 
+def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
 
-def read_control_numbers(Nx,Ny,Ns,Na, Nz=1):
-
-    myfile=open(TESTRNG,"r")
+    myfile = open(TESTRNG, "r")
     m = 1000
-    test_s=[]
-    test_phi=[]
-    test_z=[]
-    factors=[]
-    test_x=[]
-    test_y=[]
+    test_s = []
+    test_phi = []
+    test_z = []
+    factors = []
+    test_x = []
+    test_y = []
 
-    text=myfile.readlines()
+    text = myfile.readlines()
 
     for i in range(m):
-        test_s.append(int(text[i])%Ns)
-        test_phi.append(int(text[i+m])%Na)
-        test_z.append(int(text[i+2*m])%Nz)
+        test_s.append(int(text[i]) % Ns)
+        test_phi.append(int(text[i+m]) % Na)
+        test_z.append(int(text[i+2*m]) % Nz)
         factors.append(float(text[i+3*m]))
-        test_x.append(int(text[i+4*m])%Nx)
-        test_y.append(int(text[i+5*m])%Ny)
+        test_x.append(int(text[i+4*m]) % Nx)
+        test_y.append(int(text[i+5*m]) % Ny)
     myfile.close()
-    return test_s,test_phi,test_z,factors,test_x,test_y
+    return test_s, test_phi, test_z, factors, test_x, test_y
 
 
 def create_phantoms(queue, N, dtype='double'):
     # use gratopy phantom method to create Shepp-Logan phantom
-    A=gratopy.phantom(queue, N, dtype=dtype)
+    A = gratopy.phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
 
     # second test image consisting of 2 horizontal bars
-    B=cl.array.empty(queue, A.shape, dtype=dtype)
+    B = cl.array.empty(queue, A.shape, dtype=dtype)
     B[:] = 255-120
-    B[int(N/3):int(2*N/3)]=0
-    B[0:int(N/4)]=0
-    B[int(N-N/4):N]=0
+    B[int(N/3):int(2*N/3)] = 0
+    B[0:int(N/4)] = 0
+    B[int(N-N/4):N] = 0
 
-    img=cl.array.to_device(queue, np.stack([A.get(), B.get()], axis=-1))
+    img = cl.array.to_device(queue, np.stack([A.get(), B.get()], axis=-1))
     return img
+
 
 def test_projection():
     """  Basic projection test. Simply computes forward and backprojection
@@ -119,21 +119,22 @@ def test_projection():
     queue = cl.CommandQueue(ctx)
 
     # create test image
-    dtype=np.dtype("float32")
+    dtype = np.dtype("float32")
     N = 1200
     img_gpu = create_phantoms(queue, N, dtype=dtype)
 
     # define relevant quantities to determine the geometry
-    angles=360
-    detector_width=4
-    image_width=4
-    Ns=int(0.5*N)
+    angles = 360
+    detector_width = 4
+    image_width = 4
+    Ns = int(0.5*N)
 
     # create projectionsetting with parallel beam setting with 360
     # equi-distant angles, the detector has a width of 4 and the observed
     # object has a diameter of 4 (i.e. is captured by the detector), we
     # consider half the amount of detector pixels as image pixels
-    PS=gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape, angles,
+    PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
+                                    angles,
                                     Ns, image_width=image_width,
                                     detector_width=detector_width,
                                     detector_shift=0,
@@ -141,10 +142,10 @@ def test_projection():
 
     # plot geometry via show_geometry method to visualize geometry
     plt.figure(0)
-    PS.show_geometry(0, axes=plt.subplot(2,2,1))
-    PS.show_geometry(np.pi/8, axes=plt.subplot(2,2,2))
-    PS.show_geometry(np.pi/4, axes=plt.subplot(2,2,3))
-    PS.show_geometry(np.pi*3/8., axes=plt.subplot(2,2,4))
+    PS.show_geometry(0, axes=plt.subplot(2, 2, 1))
+    PS.show_geometry(np.pi/8, axes=plt.subplot(2, 2, 2))
+    PS.show_geometry(np.pi/4, axes=plt.subplot(2, 2, 3))
+    PS.show_geometry(np.pi*3/8., axes=plt.subplot(2, 2, 4))
 
     # compute Radon transform for given test images
     sino_gpu = gratopy.forwardprojection(img_gpu, PS)
@@ -152,55 +153,49 @@ def test_projection():
     # compute backprojection of computed sinogram
     backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
 
-    img=img_gpu.get()
-    sino=sino_gpu.get()
-    backprojected=backprojected_gpu.get()
-
+    img = img_gpu.get()
+    sino = sino_gpu.get()
+    backprojected = backprojected_gpu.get()
 
     # plot results
     plt.figure(1)
-    plt.imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
     plt.figure(2)
-    plt.imshow(np.hstack([sino[:,:,0],sino[:,:,1]]),
-        cmap=plt.cm.gray)
+    plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
+               cmap=plt.cm.gray)
     plt.figure(3)
-    plt.imshow(np.hstack([backprojected[:,:,0],
-        backprojected[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([backprojected[:, :, 0],
+                          backprojected[:, :, 1]]), cmap=plt.cm.gray)
 
     plt.show()
 
-   # test speed of implementation for forward projection
-    M=10
-    a=time.perf_counter()
+    # test speed of implementation for forward projection
+    M = 10
+    a = time.perf_counter()
     for i in range(M):
         gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
     img_gpu.get()
-    print ('Average time required Forward',(time.perf_counter()-a)/M)
+    print('Average time required Forward', (time.perf_counter()-a)/M)
 
-
-    a=time.perf_counter()
+    a = time.perf_counter()
     for i in range(M):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
     sino_gpu.get()
-    print ('Average time required Backprojection',\
-        (time.perf_counter()-a)/M)
-
+    print('Average time required Backprojection',
+          (time.perf_counter()-a)/M)
 
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (N,N,Ns,angles,2),
-                expected_result=2949.3738,
-		classified="img",name="original image")
+    evaluate_control_numbers(img, (N, N, Ns, angles, 2),
+                             expected_result=2949.3738,
+                             classified="img", name="original image")
 
-    evaluate_control_numbers(sino, (N,N,Ns,angles,2),
-                expected_result=1221.2257,
-		classified="sino",name="sinogram")
+    evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
+                             expected_result=1221.2257,
+                             classified="sino", name="sinogram")
 
-    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
-                expected_result=7427.7049,
-		classified="img",name="backprojected image")
-
-
-
+    evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
+                             expected_result=7427.7049,
+                             classified="img", name="backprojected image")
 
 
 def test_weighting():
@@ -216,43 +211,43 @@ def test_weighting():
     queue = cl.CommandQueue(ctx)
 
     # relevant quantities
-    dtype=np.dtype("float32")
-    N=900
-    img_shape=(N,N)
-    angles=30
-    detector_width=4
-    image_width=4
-    Ns=500
+    dtype = np.dtype("float32")
+    N = 900
+    img_shape = (N, N)
+    angles = 30
+    detector_width = 4
+    image_width = 4
+    Ns = 500
 
     # define projectionsetting
-    PS=gratopy.ProjectionSettings(queue, gratopy.PARALLEL,img_shape,angles,Ns,
-                                    detector_width=detector_width,
+    PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_shape, angles,
+                                    Ns, detector_width=detector_width,
                                     image_width=image_width)
 
     # consider image as rectangular of side-length (4/3)
-    img=np.zeros([N,N])
-    img[int(N/3.):int(2*N/3.)][:,int(N/3.):int(2*N/3.)]=1
+    img = np.zeros([N, N])
+    img[int(N/3.):int(2*N/3.)][:, int(N/3.):int(2*N/3.)] = 1
     img_gpu = cl.array.to_device(queue, np.require(img, dtype, 'F'))
 
     # compute corresponding sinogram
-    sino_gpu = gratopy.forwardprojection(img_gpu,PS)
+    sino_gpu = gratopy.forwardprojection(img_gpu, PS)
 
     # mass inside the image must correspond to the mass any projection
-    mass_image=np.sum(img)*PS.delta_x**2
-    mass_sinogram_average=np.sum(sino_gpu.get())*PS.delta_s/PS.n_angles
-    mass_sino_rdm=np.sum(sino_gpu.get()[:, np.random.randint(0, angles) ])\
-        *PS.delta_s
+    mass_image = np.sum(img)*PS.delta_x**2
+    mass_sino_rdm = np.sum(sino_gpu.get()[:, np.random.randint(0, angles)])\
+        * PS.delta_s
 
-    print("The mass inside the image is "+str(mass_image)+
-        " was carried over in the mass inside an projection is "
-	+str(mass_sino_rdm)+" i.e. the relative error is "
-	+ str(abs(1-mass_image/mass_sino_rdm)))
+    print("The mass inside the image is "+str(mass_image)
+          + " was carried over in the mass inside an projection is "
+          + str(mass_sino_rdm)+" i.e. the relative error is "
+          + str(abs(1-mass_image/mass_sino_rdm)))
 
-    assert((abs(1-mass_image/mass_sino_rdm)<0.001)*\
-        (abs(1-mass_image/mass_sino_rdm)<0.001)),\
+    assert((abs(1-mass_image/mass_sino_rdm) < 0.001)
+           * (abs(1-mass_image/mass_sino_rdm) < 0.001)),\
         "The mass was not carried over correctly into  projections,\
         as the relative difference is "\
-	+str(abs(1-mass_image/mass_sino_rdm))
+        + str(abs(1-mass_image/mass_sino_rdm))
+
 
 def test_adjointness():
     """ Adjointness test. Creates random images
@@ -267,62 +262,68 @@ def test_adjointness():
     queue = cl.CommandQueue(ctx)
 
     # relevant quantities
-    Nx=400
-    number_detectors=230
-    img=np.zeros([Nx,Nx])
-    angles=360
+    Nx = 400
+    number_detectors = 230
+    img = np.zeros([Nx, Nx])
+    angles = 360
 
-    dtype=np.dtype("float32")
+    dtype = np.dtype("float32")
 
     # define projectionsetting
-    PS=gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img.shape, angles,
-        n_detectors=number_detectors, fullangle=True)
+    PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img.shape, angles,
+                                    n_detectors=number_detectors,
+                                    fullangle=True)
 
     # define zero images and sinograms
     sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=dtype,
-        order='F')
+                               order='F')
 
     img2_gpu = cl.array.zeros(queue, PS.img_shape, dtype=dtype, order='F')
 
-    Error=[]
-    count=0
-    eps=0.00001
+    Error = []
+    count = 0
+    eps = 0.00001
     # loop through a number of experiments
     for i in range(100):
-	# create random image and sinogram
+        # create random image and sinogram
         img1_gpu = cl.array.to_device(queue,
-            np.require(np.random.random(PS.img_shape), dtype, 'F'))
+                                      np.require(np.random.random
+                                                 (PS.img_shape),
+                                                 dtype, 'F'))
 
-        sino1_gpu = cl.array.to_device(queue,\
-            np.require(np.random.random(PS.sinogram_shape), dtype, 'F'))
+        sino1_gpu = cl.array.to_device(queue,
+                                       np.require(np.random.random(
+                                           PS.sinogram_shape), dtype, 'F')
+                                       )
 
-	# compute corresponding forward and backprojections
-        gratopy.forwardprojection(img1_gpu,PS,sino=sino2_gpu)
-        gratopy.backprojection(sino1_gpu,PS,img=img2_gpu)
+        # compute corresponding forward and backprojections
+        gratopy.forwardprojection(img1_gpu, PS, sino=sino2_gpu)
+        gratopy.backprojection(sino1_gpu, PS, img=img2_gpu)
 
         # extract suitable Information
-        sino1=sino1_gpu.get().flatten()
-        sino2=sino2_gpu.get().flatten()
-        img1=img1_gpu.get().flatten()
-        img2=img2_gpu.get().flatten()
+        sino1 = sino1_gpu.get().flatten()
+        sino2 = sino2_gpu.get().flatten()
+        img1 = img1_gpu.get().flatten()
+        img2 = img2_gpu.get().flatten()
 
-	# dual pairing in imagedomain
-        a=np.dot(img1,img2)*PS.delta_x**2
+        # dual pairing in imagedomain
+        a = np.dot(img1, img2)*PS.delta_x**2
 
-	# dual pairing in sinogram domain
-        b=np.dot(sino1,sino2)*(np.pi)/angles*(PS.delta_ratio*PS.delta_x)
+        # dual pairing in sinogram domain
+        b = np.dot(sino1, sino2)*(np.pi)/angles*(PS.delta_ratio*PS.delta_x)
 
-	# check whether an error occurred
-        if abs(a-b)/min(abs(a),abs(b))>eps:
-            count+=1
-            Error.append((a,b))
+        # check whether an error occurred
+        if abs(a-b)/min(abs(a), abs(b)) > eps:
+            count += 1
+            Error.append((a, b))
 
-    print ('Adjointness: Number of Errors: '+str(count)+' out of\
+    print('Adjointness: Number of Errors: '+str(count)+' out of\
         100 tests adjointness-errors were bigger than '+str(eps))
 
-    assert(len(Error)<10),'A large number of experiments for adjointness\
+    assert(len(Error) < 10), 'A large number of experiments for adjointness\
         turned out negative, number of errors: '+str(count)+' out of 100\
-	tests adjointness-errors were bigger than '+str(eps)
+        tests adjointness-errors were bigger than '+str(eps)
+
 
 def test_fullangle():
     """ Full-angle test. Tests and illustrates the impact of the fullangle
@@ -335,83 +336,88 @@ def test_fullangle():
     queue = cl.CommandQueue(ctx)
 
     # relevant quantities
-    dtype=np.dtype("float32")
+    dtype = np.dtype("float32")
     N = 1200
     img_gpu = create_phantoms(queue, N, dtype=dtype)
-    p=2
-    Ns=int(0.3*N)
-    shift=0
+    p = 2
+    Ns = int(0.3*N)
+    shift = 0
 
     # angles cover only a part of the angular range
-    angles=np.linspace(0,np.pi*3/4.,180)+np.pi/8
+    angles = np.linspace(0, np.pi*3/4., 180)+np.pi/8
 
     # create two projecetionsettings, one with the correct "fullangle=False"
     # parameter for limited-angle situation, incorrectly using "fullangle=True"
-    PScorrect=gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
-                                        angles, Ns, detector_width=p,
-                                        detector_shift=shift,fullangle=False)
+    PScorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
+                                           img_gpu.shape, angles, Ns,
+                                           detector_width=p,
+                                           detector_shift=shift,
+                                           fullangle=False)
 
-    PSincorrect=gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
-                                            img_gpu.shape,angles,Ns,
-                                            detector_width=p,
-                                            detector_shift=shift,fullangle=True)
+    PSincorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
+                                             img_gpu.shape, angles, Ns,
+                                             detector_width=p,
+                                             detector_shift=shift,
+                                             fullangle=True)
 
     # forward and backprojection for the two settings
-    sino_gpu_correct=gratopy.forwardprojection(img_gpu,PScorrect)
-    sino_gpu_incorrect=gratopy.forwardprojection(img_gpu,PSincorrect)
-    backprojected_gpu_correct=gratopy.backprojection(sino_gpu_correct,PScorrect)
-    backprojected_gpu_incorrect=gratopy.backprojection(sino_gpu_correct,
-                                                        PSincorrect)
+    sino_gpu_correct = gratopy.forwardprojection(img_gpu, PScorrect)
+    sino_gpu_incorrect = gratopy.forwardprojection(img_gpu, PSincorrect)
+    backprojected_gpu_correct = gratopy.backprojection(
+        sino_gpu_correct, PScorrect)
+    backprojected_gpu_incorrect = gratopy.backprojection(sino_gpu_correct,
+                                                         PSincorrect)
 
-    sino_correct=sino_gpu_correct.get()
-    sino_incorrect=sino_gpu_incorrect.get()
-    backprojected_correct=backprojected_gpu_correct.get()
-    backprojected_incorrect=backprojected_gpu_incorrect.get()
-    img=img_gpu.get()
+    sino_correct = sino_gpu_correct.get()
+    sino_incorrect = sino_gpu_incorrect.get()
+    backprojected_correct = backprojected_gpu_correct.get()
+    backprojected_incorrect = backprojected_gpu_incorrect.get()
+    img = img_gpu.get()
 
     # plot results
     plt.figure(1)
-    plt.imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
     plt.figure(2)
     plt.title("Sinograms with vs without fullangle")
-    plt.imshow(np.vstack([np.hstack([sino_correct[:,:,0],\
-        sino_correct[:,:,1]]),\
-	np.hstack([sino_incorrect[:,:,0],\
-	sino_incorrect[:,:,1]])]), cmap=plt.cm.gray)
+    plt.imshow(np.vstack([np.hstack([sino_correct[:, :, 0],
+                                     sino_correct[:, :, 1]]),
+                          np.hstack([sino_incorrect[:, :, 0],
+                                     sino_incorrect[:, :, 1]])]),
+               cmap=plt.cm.gray)
 
     plt.figure(3)
     plt.title("Backprojection with vs without fullangle")
-    plt.imshow(np.vstack([np.hstack([backprojected_correct[:,:,0],\
-        backprojected_correct[:,:,1]]),\
-	np.hstack([backprojected_incorrect[:,:,0],\
-	backprojected_incorrect[:,:,1]])]), cmap=plt.cm.gray)
+    plt.imshow(np.vstack([np.hstack([backprojected_correct[:, :, 0],
+                                     backprojected_correct[:, :, 1]]),
+                          np.hstack([backprojected_incorrect[:, :, 0],
+                                     backprojected_incorrect[:, :, 1]])]),
+               cmap=plt.cm.gray)
 
     plt.show()
 
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (N,N,Ns,len(angles),2),
-                expected_result=2949.3738,
-		classified="img",name="original image")
+    evaluate_control_numbers(img, (N, N, Ns, len(angles), 2),
+                             expected_result=2949.3738,
+                             classified="img", name="original image")
 
-    evaluate_control_numbers(sino_correct, (N,N,Ns,len(angles),2),
-                expected_result=990.3170,classified="sino",
-		name="sinogram with correct fullangle setting")
+    evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles), 2),
+                             expected_result=990.3170, classified="sino",
+                             name="sinogram with correct fullangle setting")
 
-    evaluate_control_numbers(sino_incorrect, (N,N,Ns,len(angles),2),
-		expected_result=990.3170,classified="sino",
-		name="sinogram with incorrect fullangle setting")
+    evaluate_control_numbers(sino_incorrect, (N, N, Ns, len(angles), 2),
+                             expected_result=990.3170, classified="sino",
+                             name="sinogram with incorrect fullangle setting")
 
-    evaluate_control_numbers(backprojected_correct, (N,N,Ns,len(angles),2),
-		expected_result=1357.2650,classified="img",
-		name="backprojected image with correct fullangle setting")
+    evaluate_control_numbers(backprojected_correct, (N, N, Ns, len(angles), 2),
+                             expected_result=1357.2650, classified="img",
+                             name="backprojected image"
+                             + "with correct fullangle setting")
 
-    evaluate_control_numbers(backprojected_incorrect, (N,N,Ns,len(angles),2),
-		expected_result=2409.5415,classified="img",
-		name="backprojected image with incorrect fullangle setting")
-
-
-
-
+    evaluate_control_numbers(backprojected_incorrect,
+                             (N, N, Ns, len(angles), 2),
+                             expected_result=2409.5415, classified="img",
+                             name="backprojected image with incorrect"
+                             + "fullangle setting")
 
 
 def test_nonquadratic():
@@ -423,56 +429,54 @@ def test_nonquadratic():
     queue = cl.CommandQueue(ctx)
 
     # create phantom but cut of one side
-    dtype=np.dtype("float32")
+    dtype = np.dtype("float32")
     N1 = 1200
-    img = create_phantoms(queue,N1,dtype=dtype)
-    N2=int(img.shape[0]*2/3.)
-    img_gpu=cl.array.to_device(queue, img.get()[:,0:N2,:].copy())
+    img = create_phantoms(queue, N1, dtype=dtype)
+    N2 = int(img.shape[0]*2/3.)
+    img_gpu = cl.array.to_device(queue, img.get()[:, 0:N2, :].copy())
 
     # additional quantities and setting
-    angles=360
-    Ns=int(0.5*img_gpu.shape[0])
-    PS=gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
-                                  angles,Ns)
+    angles = 360
+    Ns = int(0.5*img_gpu.shape[0])
+    PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
+                                    angles, Ns)
 
     # compute forward and backprojection
-    sino_gpu=gratopy.forwardprojection(img_gpu,PS)
-    backprojected_gpu=gratopy.backprojection(sino_gpu,PS)
+    sino_gpu = gratopy.forwardprojection(img_gpu, PS)
+    backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
 
-    img=img_gpu.get()
-    sino=sino_gpu.get()
-    backprojected=backprojected_gpu.get()
+    img = img_gpu.get()
+    sino = sino_gpu.get()
+    backprojected = backprojected_gpu.get()
 
     # plot results
     plt.figure(1)
     plt.title("original non square images")
-    plt.imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
     plt.figure(2)
     plt.title("Radon sinogram for non-square image")
-    plt.imshow(np.hstack([sino[:,:,0],sino[:,:,1]]),\
-        cmap=plt.cm.gray)
+    plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
+               cmap=plt.cm.gray)
 
     plt.figure(3)
     plt.title("backprojection for non-square image")
-    plt.imshow(np.hstack([backprojected[:,:,0],\
-        backprojected[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([backprojected[:, :, 0],
+                          backprojected[:, :, 1]]), cmap=plt.cm.gray)
 
     plt.show()
 
     # Computing a controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (N1,N2,Ns,angles,2),
-                expected_result=999.4965,
-		classified="img",name="original image")
+    evaluate_control_numbers(img, (N1, N2, Ns, angles, 2),
+                             expected_result=999.4965,
+                             classified="img", name="original image")
 
-    evaluate_control_numbers(sino, (N1,N2,Ns,angles,2),
-                expected_result=-782.3489,
-		classified="sino",name="sinogram")
+    evaluate_control_numbers(sino, (N1, N2, Ns, angles, 2),
+                             expected_result=-782.3489,
+                             classified="sino", name="sinogram")
 
-    evaluate_control_numbers(backprojected, (N1,N2,Ns,angles,2),
-                expected_result=3310.3464,
-		classified="img",name="backprojected image")
-
-
+    evaluate_control_numbers(backprojected, (N1, N2, Ns, angles, 2),
+                             expected_result=3310.3464,
+                             classified="img", name="backprojected image")
 
 
 def test_extract_sparse_matrix():
@@ -481,64 +485,66 @@ def test_extract_sparse_matrix():
     associated with the transform, and tests it by appling forward and
     backprojection by matrix multiplication.
     """
-    order="F"
-    dtype=np.dtype("float")
+    order = "F"
+    dtype = np.dtype("float")
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
     # relevant quantities
-    Nx=150
-    number_detectors=100
-    img=np.zeros([Nx,Nx])
-    angles=30
+    Nx = 150
+    number_detectors = 100
+    img = np.zeros([Nx, Nx])
+    angles = 30
 
     # define projectionsetting
-    PS=gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img.shape, angles,
-                          n_detectors=number_detectors, fullangle=True)
+    PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img.shape, angles,
+                                    n_detectors=number_detectors,
+                                    fullangle=True)
 
-    #Create corresponding sparse matrix
-    sparsematrix=PS.create_sparse_matrix(dtype=dtype,order=order)
+    # Create corresponding sparse matrix
+    sparsematrix = PS.create_sparse_matrix(dtype=dtype, order=order)
 
     # Test image
-    img=gratopy.phantom(queue, Nx, dtype)
+    img = gratopy.phantom(queue, Nx, dtype)
 
-    img=img.get()
-    img=img.reshape(Nx**2,order=order)
-    #Compute forward and backprojection
-    sino=sparsematrix*img
-    backproj=sparsematrix.T*sino
+    img = img.get()
+    img = img.reshape(Nx**2, order=order)
 
-    #reshape
-    img=img.reshape(Nx,Nx,order=order)
-    sino=sino.reshape(number_detectors,angles,order=order)
-    backproj=backproj.reshape(Nx,Nx,order=order)
+    # Compute forward and backprojection
+    sino = sparsematrix*img
+    backproj = sparsematrix.T*sino
 
-    #plot results
+    # reshape
+    img = img.reshape(Nx, Nx, order=order)
+    sino = sino.reshape(number_detectors, angles, order=order)
+    backproj = backproj.reshape(Nx, Nx, order=order)
+
+    # plot results
     plt.figure(1)
     plt.title("test image")
-    plt.imshow(img,cmap=plt.cm.gray)
+    plt.imshow(img, cmap=plt.cm.gray)
 
     plt.figure(2)
     plt.title("projection via sparse matrix")
-    plt.imshow(sino,cmap=plt.cm.gray)
+    plt.imshow(sino, cmap=plt.cm.gray)
 
     plt.figure(3)
     plt.title("backprojection via sparse matrix")
-    plt.imshow(backproj,cmap=plt.cm.gray)
+    plt.imshow(backproj, cmap=plt.cm.gray)
     plt.show()
 
     # Computing a controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (Nx,Nx,number_detectors,angles,1),
-                expected_result=7.1182017,
-		classified="img",name="original image")
+    evaluate_control_numbers(img, (Nx, Nx, number_detectors, angles, 1),
+                             expected_result=7.1182017,
+                             classified="img", name="original image")
 
-    evaluate_control_numbers(sino, (Nx,Nx,number_detectors,angles,1),
-                expected_result=-1.061323217,
-		classified="sino",name="sinogram")
+    evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 1),
+                             expected_result=-1.061323217,
+                             classified="sino", name="sinogram")
 
-    evaluate_control_numbers(backproj, (Nx,Nx,number_detectors,angles,1),
-               expected_result=1.0395559772,
-		classified="img",name="backprojected image")
+    evaluate_control_numbers(backproj, (Nx, Nx, number_detectors, angles, 1),
+                             expected_result=1.0395559772,
+                             classified="img", name="backprojected image")
 
 
 def test_midpointshift():
@@ -553,58 +559,58 @@ def test_midpointshift():
     queue = cl.CommandQueue(ctx)
 
     # create phantom for test
-    dtype=np.dtype("float32")
+    dtype = np.dtype("float32")
     N = 1200
-    img_gpu = create_phantoms(queue, N,dtype)
+    img_gpu = create_phantoms(queue, N, dtype)
 
     # relevant quantities
-    (angles,Detector_width, image_width) = (360, 2, 3)
-    midpoint_shift=[0.,0.4]
-    Ns=int(0.5*N)
+    (angles, Detector_width, image_width) = (360, 2, 3)
+    midpoint_shift = [0., 0.4]
+    Ns = int(0.5*N)
 
     # define projectionsetting
     PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
-                            angles, Ns, image_width=image_width,
-                            detector_width=Detector_width,
-                            midpoint_shift=midpoint_shift)
+                                    angles, Ns, image_width=image_width,
+                                    detector_width=Detector_width,
+                                    midpoint_shift=midpoint_shift)
 
     # plot the geometry from various angles
     plt.figure(0)
-    for k in range(0,16):
-        PS.show_geometry(k*np.pi/16, axes=plt.subplot(4,4,k+1))
+    for k in range(0, 16):
+        PS.show_geometry(k*np.pi/16, axes=plt.subplot(4, 4, k+1))
 
     # compute forward and backprojection
-    sino_gpu=gratopy.forwardprojection(img_gpu, PS)
-    backprojected_gpu=gratopy.backprojection(sino_gpu, PS)
+    sino_gpu = gratopy.forwardprojection(img_gpu, PS)
+    backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
 
-    img=img_gpu.get()
-    sino=sino_gpu.get()
-    backprojected=backprojected_gpu.get()
+    img = img_gpu.get()
+    sino = sino_gpu.get()
+    backprojected = backprojected_gpu.get()
 
     # plot results
     plt.figure(1)
-    plt.imshow(np.hstack([img[:,:,0],img[:,:,1]]), cmap=plt.cm.gray)
+    plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
     plt.figure(2)
     plt.title("Sinogram with shifted midpoint")
-    plt.imshow(np.hstack([sino[:,:,0],sino[:,:,1]]), \
-        cmap=plt.cm.gray)
+    plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
+               cmap=plt.cm.gray)
     plt.figure(3)
     plt.title("Backprojection with shifted midpoint")
-    plt.imshow(np.hstack([backprojected[:,:,0],backprojected[:,:,1]]),\
-        cmap=plt.cm.gray)
+    plt.imshow(np.hstack([backprojected[:, :, 0], backprojected[:, :, 1]]),
+               cmap=plt.cm.gray)
     plt.show()
 
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (N,N,Ns,angles,2),expected_result=2949.37386,
-		classified="img",name="original image")
+    evaluate_control_numbers(img, (N, N, Ns, angles, 2), expected_result=2949.,
+                             classified="img", name="original image")
 
-    evaluate_control_numbers(sino, (N,N,Ns,angles,2),
-                expected_result=1810.5192,
-		classified="sino",name="sinogram")
+    evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
+                             expected_result=1810.5192,
+                             classified="sino", name="sinogram")
 
-    evaluate_control_numbers(backprojected, (N,N,Ns,angles,2),
-                expected_result=3570.1789,
-		classified="img",name="backprojected image")
+    evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
+                             expected_result=3570.1789,
+                             classified="img", name="backprojected image")
 
 
 # test

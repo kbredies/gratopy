@@ -5,9 +5,11 @@ import matplotlib.pyplot as plt
 import matplotlib.patches
 import pyopencl as cl
 import pyopencl.array as clarray
+import scipy
+import scipy.sparse
 
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
-CL_FILES2=["total_variation.cl"]
+CL_FILES2 = ["total_variation.cl"]
 
 PARALLEL = 1
 RADON = 1
@@ -16,7 +18,7 @@ FAN = 2
 
 
 ###########
-## Programm created from the gpu_code
+# Programm created from the gpu_code
 class Program(object):
     def __init__(self, ctx, code):
         self._cl_prg = cl.Program(ctx, code)
@@ -24,6 +26,7 @@ class Program(object):
         self._cl_kernels = self._cl_prg.all_kernels()
         for kernel in self._cl_kernels:
             self.__dict__[kernel.function_name] = kernel
+
 
 def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     """
@@ -66,13 +69,14 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
 
     # initialize new sinogram if no sinogram is yet given
     if sino is None:
-        z_dimension=tuple()
-        if len(img.shape)>2:
-            z_dimension=(img.shape[2],)
+        z_dimension = tuple()
+        if len(img.shape) > 2:
+            z_dimension = (img.shape[2],)
         sino = clarray.zeros(projectionsetting.queue,
-            projectionsetting.sinogram_shape+z_dimension, dtype=img.dtype,
-            order={0:'F',1:'C'}[img.flags.c_contiguous],
-                allocator=img.allocator)
+                             projectionsetting.sinogram_shape+z_dimension,
+                             dtype=img.dtype,
+                             order={0: 'F', 1: 'C'}[img.flags.c_contiguous],
+                             allocator=img.allocator)
 
     # perform projection operation
     function = projectionsetting.forwardprojection
@@ -123,15 +127,16 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
 
     # initialize new img (to save backprojection in) if none is yet given
     if img is None:
-        z_dimension=tuple()
-        if len(sino.shape)>2:
-            z_dimension=(sino.shape[2],)
+        z_dimension = tuple()
+        if len(sino.shape) > 2:
+            z_dimension = (sino.shape[2],)
         img = clarray.zeros(projectionsetting.queue,
-            projectionsetting.img_shape+z_dimension,
-            dtype=sino.dtype, order={0:'F',1:'C'}[sino.flags.c_contiguous],
-            allocator=sino.allocator)
+                            projectionsetting.img_shape+z_dimension,
+                            dtype=sino.dtype, order={0: 'F', 1: 'C'}[
+                                sino.flags.c_contiguous],
+                            allocator=sino.allocator)
 
-    #execute corresponding backprojection operation
+    # execute corresponding backprojection operation
     function = projectionsetting.backprojection
     function(img, sino, projectionsetting, wait_for=wait_for)
     return img
@@ -163,24 +168,27 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     """
 
     # ensure that all relevant arrays have common data_type
-    assert (sino.dtype==img.dtype), ("sinogram and image do not share\
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
         common data type: "+str(sino.dtype)+" and "+str(img.dtype))
 
-    dtype=sino.dtype
+    dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
-    ofs_buf=projectionsetting.ofs_buf[dtype]
-    geometry_information=projectionsetting.geometry_information[dtype]
+    ofs_buf = projectionsetting.ofs_buf[dtype]
+    geometry_information = projectionsetting.geometry_information[dtype]
 
     # choose function with approrpiate dtype
     function = projectionsetting.functions[(dtype,
-        sino.flags.c_contiguous,img.flags.c_contiguous)]
-    myevent=function(sino.queue, sino.shape, None,
-                     sino.data, img.data, ofs_buf,
-                     geometry_information,
-                     wait_for=img.events+sino.events+wait_for)
+                                            sino.flags.c_contiguous,
+                                            img.flags.c_contiguous)]
+
+    myevent = function(sino.queue, sino.shape, None,
+                       sino.data, img.data, ofs_buf,
+                       geometry_information,
+                       wait_for=img.events+sino.events+wait_for)
 
     sino.add_event(myevent)
     return myevent
+
 
 def radon_ad(img, sino, projectionsetting, wait_for=[]):
     """
@@ -209,39 +217,31 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
 
     """
 
-    my_function={(np.dtype('float32'),0,0):projectionsetting.prg.radon_ad_float_ff,
-            (np.dtype('float32'),1,0):projectionsetting.prg.radon_ad_float_cf,
-            (np.dtype('float32'),0,1):projectionsetting.prg.radon_ad_float_fc,
-            (np.dtype('float32'),1,1):projectionsetting.prg.radon_ad_float_cc,
-            (np.dtype('float'),0,0):projectionsetting.prg.radon_ad_double_ff,
-            (np.dtype('float'),1,0):projectionsetting.prg.radon_ad_double_cf,
-            (np.dtype('float'),0,1):projectionsetting.prg.radon_ad_double_fc,
-            (np.dtype('float'),1,1):projectionsetting.prg.radon_ad_double_cc}
-
-
     # ensure that all relevant arrays have common data_type
-    assert (sino.dtype==img.dtype), ("sinogram and image do not share \
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
         common data type: "+str(sino.dtype)+" and "+str(img.dtype))
 
-    dtype=sino.dtype
+    dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
-    ofs_buf=projectionsetting.ofs_buf[dtype]
-    geometry_information=projectionsetting.geometry_information[dtype]
+    ofs_buf = projectionsetting.ofs_buf[dtype]
+    geometry_information = projectionsetting.geometry_information[dtype]
 
     # choose function with approrpiate dtype
     function = projectionsetting.functions_ad[(dtype,
-        img.flags.c_contiguous,sino.flags.c_contiguous)]
+                                               img.flags.c_contiguous,
+                                               sino.flags.c_contiguous)]
+
     myevent = function(img.queue, img.shape, None,
-                        img.data, sino.data, ofs_buf,
-                        geometry_information,
-                        wait_for=img.events+sino.events+wait_for)
+                       img.data, sino.data, ofs_buf,
+                       geometry_information,
+                       wait_for=img.events+sino.events+wait_for)
     img.add_event(myevent)
     return myevent
 
 
 def radon_struct(queue, img_shape, angles, n_detectors=None,
-             detector_width=2.0, image_width=2.0, midpoint_shift=[0,0],
-             detector_shift=0.0,fullangle=True):
+                 detector_width=2.0, image_width=2.0, midpoint_shift=[0, 0],
+                 detector_shift=0.0, fullangle=True):
     """
     Creates the structure storing geometry information np.required for
     the Radon transform and its adjoint.
@@ -353,82 +353,88 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :vartype angles_diff: :class:`numpy.ndarray`
     """
 
-    #relative_detector_pixel_width is delta_s/delta_x
-    relative_detector_pixel_width=detector_width/float(image_width)\
-        *max(img_shape)/n_detectors
+    # relative_detector_pixel_width is delta_s/delta_x
+    relative_detector_pixel_width = detector_width/float(image_width)\
+        * max(img_shape)/n_detectors
 
-    #When angles are None, understand as number of angles
-    #discretizing [0,pi]
+    # When angles are None, understand as number of angles
+    # discretizing [0,pi]
     if np.isscalar(angles):
-        angles = np.linspace(0,pi,angles+1)[:-1]
+        angles = np.linspace(0, np.pi, angles+1)[:-1]
 
-    #Choosing the number of detectors as the half of the diagonal
-    #through the the image (in image_pixel scale)
+    # Choosing the number of detectors as the half of the diagonal
+    # through the the image (in image_pixel scale)
     if n_detectors is None:
-        nd = int(ceil(hypot(img_shape[0],img_shape[1])))
+        nd = int(np.ceil(np.hypot(img_shape[0], img_shape[1])))
     else:
         nd = n_detectors
 
-
-    #Extract angle information
-    if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
-        n_angles=0
-        angles_new=[]
-        angles_section=[0]
-        count=0
+    # Extract angle information
+    if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
+        n_angles = 0
+        angles_new = []
+        angles_section = [0]
+        count = 0
         for j in range(len(angles)):
-            n_angles+=len(angles[j])
+            n_angles += len(angles[j])
             for k in range(len(angles[j])):
                 angles_new.append(angles[j][k])
-                count+=1
+                count += 1
             angles_section.append(count)
-        angles=np.array(angles_new)
+        angles = np.array(angles_new)
     else:
-        n_angles=len(angles)
-        angles_section=[0,n_angles]
-        angles=np.array(angles)
+        n_angles = len(angles)
+        angles_section = [0, n_angles]
+        angles = np.array(angles)
 
     sinogram_shape = (nd, n_angles)
 
-    #Angular weights (resolution associated to angles)
-    #If fullangle is activated, the angles partion [0,pi] completely and
+    # Angular weights (resolution associated to angles)
+    # If fullangle is activated, the angles partion [0,pi] completely and
     # choose the first /last width appropriately
-    if fullangle==True:
-        angles_index = np.argsort(angles%(np.pi))
-        angles_sorted=angles[angles_index]  %(np.pi)
-        angles_sorted=np.array(np.hstack([-np.pi+angles_sorted[-1],
-            angles_sorted, angles_sorted[0]+np.pi]))
-        angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]
-            -angles_sorted[0:len(angles_sorted)-2]))
-        angles_diff=np.array(angles_diff)
-        angles_diff=angles_diff[angles_index]
-    else:##Act as though first/last angles width is equal to the
-		# distance from the second/second to last angle
-        angles_diff=[]
+    if fullangle:
+        angles_index = np.argsort(angles % (np.pi))
+        angles_sorted = angles[angles_index] % (np.pi)
+        angles_sorted = np.array(np.hstack([-np.pi+angles_sorted[-1],
+                                            angles_sorted, angles_sorted[0]
+                                            + np.pi]))
+        angles_diff = 0.5*(abs(angles_sorted[2:len(angles_sorted)]
+                               - angles_sorted[0:len(angles_sorted)-2]))
+        angles_diff = np.array(angles_diff)
+        angles_diff = angles_diff[angles_index]
+    else:  # Act as though first/last angles width is equal to the
+        # distance from the second/second to last angle
+        angles_diff = []
         for j in range(len(angles_section)-1):
-            current_angles=angles[angles_section[j]:angles_section[j+1]]
-            current_angles_index = np.argsort(current_angles%(np.pi))
-            current_angles=current_angles[current_angles_index] %(np.pi)
+            current_angles = angles[angles_section[j]:angles_section[j+1]]
+            current_angles_index = np.argsort(current_angles % (np.pi))
+            current_angles = current_angles[current_angles_index] % (np.pi)
 
-            angles_sorted_temp=np.array(np.hstack([2*current_angles[0]
-                -current_angles[1],current_angles,
-                2*current_angles[len(current_angles)-1]
-                -current_angles[len(current_angles)-2]]))
+            angles_sorted_temp = np.array(
+                                    np.hstack([2*current_angles[0]
+                                               - current_angles[1],
+                                               current_angles,
+                                               2*current_angles
+                                               [len(current_angles)-1]
+                                               - current_angles
+                                               [len(current_angles)-2]]
+                                              ))
 
-            angles_diff_temp= 0.5*(abs(angles_sorted_temp
-                [2:len(angles_sorted_temp)]
-                -angles_sorted_temp[0:len(angles_sorted_temp)-2]))
-            angles_diff+=list(angles_diff_temp[current_angles_index])
+            angles_diff_temp = 0.5*(abs(angles_sorted_temp
+                                        [2:len(angles_sorted_temp)]
+                                        - angles_sorted_temp
+                                        [0:len(angles_sorted_temp)-2]))
+
+            angles_diff += list(angles_diff_temp[current_angles_index])
 
     # also write basic information to gpu
 
-    delta_x=image_width/float(max(img_shape))
-    delta_s=float(detector_width)/nd
+    delta_x = image_width/float(max(img_shape))
+    delta_s = float(detector_width)/nd
 
-
-    #Compute the midpoints of geometries
-    midpoint_domain = np.array([img_shape[0]-1, img_shape[1]-1])/2.0+\
-		      np.array(midpoint_shift)/delta_x
+    # Compute the midpoints of geometries
+    midpoint_domain = np.array([img_shape[0]-1, img_shape[1]-1])/2.0 +\
+        np.array(midpoint_shift)/delta_x
     midpoint_detectors = (nd-1.0)/2.0
 
     # direction vectors and inverse in x
@@ -439,34 +445,32 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     mask = np.where(abs(X) <= abs(Y))
     Xinv[mask] = 1.0/Y[mask]
 
-    #X*x+Y*y=detectorposition, ofs is error in midpoint of
-    #the image (in shifted detector setting)
+    # X*x+Y*y=detectorposition, ofs is error in midpoint of
+    # the image (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
-            - Y*midpoint_domain[1] + detector_shift/delta_s
+        - Y*midpoint_domain[1] + detector_shift/delta_s
 
-    #Angular weights
-    angles_index = np.argsort(angles%(np.pi))
-    angles_sorted=angles[angles_index]  %(np.pi)
+    # Angular weights
+    angles_index = np.argsort(angles % (np.pi))
+    angles_sorted = angles[angles_index] % (np.pi)
 
-
-
-    geo_dict={}
-    ofs_dict={}
-    for dtype in [np.dtype('float64'),np.dtype('float32')]:
+    geo_dict = {}
+    ofs_dict = {}
+    for dtype in [np.dtype('float64'), np.dtype('float32')]:
         # save angular information into the ofs buffer
         ofs = np.zeros((8, len(angles)), dtype=dtype, order='F')
-        ofs[0,:] = X; ofs[1,:] = Y; ofs[2,:] = offset; ofs[3,:] = Xinv
-        ofs[4,:]=angles_diff
-        ofs_dict[dtype]=ofs
+        ofs[0, :] = X
+        ofs[1, :] = Y
+        ofs[2, :] = offset
+        ofs[3, :] = Xinv
+        ofs[4, :] = angles_diff
+        ofs_dict[dtype] = ofs
 
-        geometry_info = np.array([delta_x,delta_s,img_shape[0],img_shape[1],
-	    nd,n_angles],dtype=dtype,order='F')
-        geo_dict[dtype]=geometry_info
+        geometry_info = np.array([delta_x, delta_s, img_shape[0], img_shape[1],
+                                  nd, n_angles], dtype=dtype, order='F')
+        geo_dict[dtype] = geometry_info
 
-
-
-
-    return (ofs_dict, img_shape, sinogram_shape, geo_dict,angles_diff)
+    return (ofs_dict, img_shape, sinogram_shape, geo_dict, angles_diff)
 
 
 def fanbeam(sino, img, projectionsetting, wait_for=[]):
@@ -485,7 +489,8 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
 
     :param wait_for: The events to wait for before performing
         the computation in order to avoid race conditions, see
-        `PyopenCL.events  <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
+        `PyopenCL.events
+        <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of fanbeam transform
@@ -494,25 +499,26 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     """
 
     # ensure that all relevant arrays have common data_type
-    assert (sino.dtype==img.dtype),("sinogram and image do not share \
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
         common data type: "+str(sino.dtype)+" and "+str(img.dtype))
 
-    dtype=sino.dtype
+    dtype = sino.dtype
 
     projectionsetting.ensure_dtype(dtype)
-    ofs_buf=projectionsetting.ofs_buf[dtype]
-    sdpd_buf=projectionsetting.sdpd_buf[dtype]
-    geometry_information=projectionsetting.geometry_information[dtype]
+    ofs_buf = projectionsetting.ofs_buf[dtype]
+    sdpd_buf = projectionsetting.sdpd_buf[dtype]
+    geometry_information = projectionsetting.geometry_information[dtype]
 
     # choose function with approrpiate dtype
-    function = projectionsetting.functions[(dtype,sino.flags.c_contiguous,
-        img.flags.c_contiguous)]
-    myevent=function(sino.queue, sino.shape, None,
-                        sino.data, img.data, ofs_buf, sdpd_buf,
-                        geometry_information,
-                        wait_for=img.events+sino.events+wait_for)
+    function = projectionsetting.functions[(dtype, sino.flags.c_contiguous,
+                                            img.flags.c_contiguous)]
+    myevent = function(sino.queue, sino.shape, None,
+                       sino.data, img.data, ofs_buf, sdpd_buf,
+                       geometry_information,
+                       wait_for=img.events+sino.events+wait_for)
     sino.add_event(myevent)
     return myevent
+
 
 def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     """Performs the fanbeam backprojection  of a given sinogram using
@@ -530,7 +536,8 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
 
     :param wait_for: The events to wait for before performing
         the computation in order to avoid race conditions, see
-        `PyopenCL.events  <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
+        `PyopenCL.events
+         <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
     :return: Event associated to computation of fanbeam backprojection
@@ -539,29 +546,31 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     """
 
     # ensure that all relevant arrays have common data_type
-    assert (sino.dtype==img.dtype), ("sinogram and image do not share\
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
         common data type: "+str(sino.dtype)+" and "+str(img.dtype))
 
-    dtype=sino.dtype
+    dtype = sino.dtype
 
     projectionsetting.ensure_dtype(dtype)
-    ofs_buf=projectionsetting.ofs_buf[dtype];
-    sdpd_buf=projectionsetting.sdpd_buf[dtype]
-    geometry_information=projectionsetting.geometry_information[dtype]
+    ofs_buf = projectionsetting.ofs_buf[dtype]
+    sdpd_buf = projectionsetting.sdpd_buf[dtype]
+    geometry_information = projectionsetting.geometry_information[dtype]
 
     function = projectionsetting.functions_ad[(dtype,
-        img.flags.c_contiguous,sino.flags.c_contiguous)]
+                                               img.flags.c_contiguous,
+                                               sino.flags.c_contiguous)]
     myevent = function(img.queue, img.shape, None,
-                       img.data,sino.data, ofs_buf,sdpd_buf,
+                       img.data, sino.data, ofs_buf, sdpd_buf,
                        geometry_information,
                        wait_for=img.events+sino.events+wait_for)
     img.add_event(myevent)
     return myevent
 
+
 def fanbeam_struct(queue, img_shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
-                   n_detectors=None, detector_shift = 0.0,
-                   image_width=None, midpointshift=[0,0], fullangle=True):
+                   n_detectors=None, detector_shift=0.0,
+                   image_width=None, midpointshift=[0, 0], fullangle=True):
     """Creates the structure of fanbeam geometry np.required for
     fanbeam transform and its adjoint.
 
@@ -611,7 +620,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         i.e., the diameter of the circular object captured by image.
         The image_width is chosen suitably to capture all rays if
         no image_width is set.
-    :type image_width: :class:`float`, default :obj:`None` corresponds  automatic choice
+    :type image_width: :class:`float`, default :obj:`None` corresponds
+        automatic choice
 
     :param midpoint_shift: Vector of length two representing the
         shift of the image away from center of rotation.
@@ -619,8 +629,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
 
     :param fullangle:  :obj:`True` if entire :math:`[0,2\pi[` is represented by
-        the angles, :obj:`False` for a limited angle setting, i.e., the given angles
-        only represent a discretization of a real subset of
+        the angles, :obj:`False` for a limited angle setting, i.e., the given
+        angles only represent a discretization of a real subset of
         :math:`[0,2\pi[`.
         Impacts the weighting in the backprojection.
     :type fullangel: :class:`bool`, default True
@@ -639,7 +649,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         Arrays have dimension :math:`(8, N_a)` with:
 
         * 0 1 ... vector along detector-direction with length delta_s.
-        * 2 3 ... vector from source vector connecting source to center of rotation.
+        * 2 3 ... vector from source vector connecting source to center of
+        rotation.
         * 4 5 ... vector connecting the origin to the detectorline.
         * 6 ... Angular weights.
 
@@ -667,107 +678,110 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         :class:`dict`, :class:`float`, :class:`dict`, :class:`list`)
     """
 
-    detector_width=float(detector_width)
-    source_detector_dist=float(source_detector_dist)
-    source_origin_dist=float(source_origin_dist)
-    midpointshift=np.array(midpointshift)
+    detector_width = float(detector_width)
+    source_detector_dist = float(source_detector_dist)
+    source_origin_dist = float(source_origin_dist)
+    midpointshift = np.array(midpointshift)
 
     # choose equidistant angles in (0,2pi] if no specific angles are
     # given.
     if np.isscalar(angles):
-        angles = np.linspace(0,2*np.pi,angles+1)[:-1] + np.pi
+        angles = np.linspace(0, 2*np.pi, angles+1)[:-1] + np.pi
 
-    image_pixels = max(img_shape[0],img_shape[1])
-    #set number of pixels same as image_resolution if not specified
+    image_pixels = max(img_shape[0], img_shape[1])
+    # set number of pixels same as image_resolution if not specified
     if n_detectors is None:
-        nd =  int(ceil(hypot(img_shape[0],img_shape[1])))
+        nd = int(np.ceil(np.hypot(img_shape[0], img_shape[1])))
     else:
         nd = n_detectors
     assert isinstance(nd, int), "Number of detectors must be integer"
 
-    #Extract angle information
-    if isinstance(angles[0], list) or  isinstance(angles[0], np.ndarray):
-        n_angles=0
-        angles_new=[]
-        angles_section=[0]
-        count=0
+    # Extract angle information
+    if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
+        n_angles = 0
+        angles_new = []
+        angles_section = [0]
+        count = 0
         for j in range(len(angles)):
-            n_angles+=len(angles[j])
+            n_angles += len(angles[j])
             for k in range(len(angles[j])):
                 angles_new.append(angles[j][k])
-                count+=1
+                count += 1
             angles_section.append(count)
-        angles=np.array(angles_new)
+        angles = np.array(angles_new)
     else:
-        n_angles=len(angles)
-        angles_section=[0,n_angles]
-        angles=np.array(angles)
+        n_angles = len(angles)
+        angles_section = [0, n_angles]
+        angles = np.array(angles)
 
     sinogram_shape = (nd, n_angles)
 
-    #Angular weights (resolution associated to angles)
-    #If fullangle is activated, the angles partion [0,2pi] completely and
+    # Angular weights (resolution associated to angles)
+    # If fullangle is activated, the angles partion [0,2pi] completely and
     # choose the first /last width appropriately
-    if fullangle==True:
-        angles_index = np.argsort(angles%(2*np.pi))
-        angles_sorted=angles[angles_index]  %(2*np.pi)
-        angles_sorted=np.array(np.hstack([-2*np.pi+angles_sorted[-1],
-            angles_sorted,angles_sorted[0]+2*np.pi]))
-        angles_diff= 0.5*(abs(angles_sorted[2:len(angles_sorted)]
-            -angles_sorted[0:len(angles_sorted)-2]))
-        angles_diff=np.array(angles_diff)
-        angles_diff=angles_diff[angles_index]
-    else:##Act as though first/last angles width is equal to the distance
-		 #from the second/second to last angle
-        angles_diff=[]
+    if fullangle:
+        angles_index = np.argsort(angles % (2*np.pi))
+        angles_sorted = angles[angles_index] % (2*np.pi)
+        angles_sorted = np.array(np.hstack([-2*np.pi+angles_sorted[-1],
+                                           angles_sorted, angles_sorted[0]
+                                           + 2*np.pi]))
+        angles_diff = 0.5*(abs(angles_sorted[2:len(angles_sorted)]
+                               - angles_sorted[0:len(angles_sorted)-2]))
+        angles_diff = np.array(angles_diff)
+        angles_diff = angles_diff[angles_index]
+    else:  # Act as though first/last angles width is equal to the distance
+        # from the second/second to last angle
+        angles_diff = []
         for j in range(len(angles_section)-1):
-            current_angles=angles[angles_section[j]:angles_section[j+1]]
-            current_angles_index = np.argsort(current_angles%(2*np.pi))
-            current_angles=current_angles[current_angles_index] %(2*np.pi)
+            current_angles = angles[angles_section[j]:angles_section[j+1]]
+            current_angles_index = np.argsort(current_angles % (2*np.pi))
+            current_angles = current_angles[current_angles_index] % (2*np.pi)
 
-            angles_sorted_temp=np.array(np.hstack([2*current_angles[0]\
-                -current_angles[1],
-                current_angles,2*current_angles[len(current_angles)-1]\
-                -current_angles[len(current_angles)-2]]))
+            angles_sorted_temp = np.array(np.hstack([2*current_angles[0]
+                                                    - current_angles[1],
+                                                     current_angles, 2
+                                                     * current_angles[len(
+                                                         current_angles)-1]
+                                                     - current_angles
+                                                     [len(current_angles)-2]]))
 
-            angles_diff_temp= 0.5*(abs(angles_sorted_temp\
-                [2:len(angles_sorted_temp)]
-                -angles_sorted_temp[0:len(angles_sorted_temp)-2]))
-            angles_diff+=list(angles_diff_temp[current_angles_index])
+            angles_diff_temp = 0.5*(abs(angles_sorted_temp
+                                        [2:len(angles_sorted_temp)]
+                                        - angles_sorted_temp
+                                        [0:len(angles_sorted_temp)-2]))
+            angles_diff += list(angles_diff_temp[current_angles_index])
 
     # compute midpoints for orientation
-    midpoint_domain = np.array([img_shape[0]-1, img_shape[1]-1])/2.0
     midpoint_detectors = (nd-1.0)/2.0
     midpoint_detectors = midpoint_detectors+detector_shift*nd\
-        /detector_width
+        / detector_width
 
     # ensure that indeed detector on the opposite side of the source
-    assert source_detector_dist>source_origin_dist, 'Origin not \
+    assert source_detector_dist > source_origin_dist, 'Origin not \
         between detector and source'
 
-    #In case no image_width is predetermined, image_width is chosen in
-    #a way that the (square) image is always contained inside
-    #the fan between source and detector
-    if image_width==None:
-        dd=(0.5*detector_width-abs(detector_shift))/source_detector_dist
+    # In case no image_width is predetermined, image_width is chosen in
+    # a way that the (square) image is always contained inside
+    # the fan between source and detector
+    if image_width is None:
+        dd = (0.5*detector_width-abs(detector_shift))/source_detector_dist
         image_width = 2*dd*source_origin_dist/np.sqrt(1+dd**2)
         # Projection to compute distance
         # via projectionvector (1,dd) after normalization,
-        #is equal to delta_x*N_x
+        # is equal to delta_x*N_x
 
     # ensure that source is outside the image domain
     # (otherwise fanbeam is not continuous in classical L2)
     assert image_width*0.5*np.sqrt(1+(min(img_shape)/max(img_shape))**2)\
-        +np.linalg.norm(midpointshift) < source_origin_dist, \
+        + np.linalg.norm(midpointshift) < source_origin_dist, \
         'the source is not outside the image domain'
 
-    #Determine midpoint (in scaling 1 = 1 pixelwidth,
+    # Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center)
-    midpoint_x=midpointshift[0]*image_pixels/\
+    midpoint_x = midpointshift[0]*image_pixels /\
         float(image_width)+(img_shape[0]-1)/2.
-    midpoint_y=midpointshift[1]*image_pixels/\
+    midpoint_y = midpointshift[1]*image_pixels /\
         float(image_width)+(img_shape[1]-1)/2.
-
 
     # adjust distances to pixel units, i.e. 1 unit corresponds
     # to the length of one image pixel
@@ -776,62 +790,64 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     detector_width *= image_pixels/float(image_width)
 
     # unit vector associated to the angle
-    #(vector showing along the detector)
+    # (vector showing along the detector)
     thetaX = -np.cos(angles)
     thetaY = np.sin(angles)
 
-    #Direction vector of detector direction normed to the length of a
-    #single detector pixel (i.e. delta_s (in the scale of delta_x=1))
-    XD=thetaX*detector_width/nd
-    YD=thetaY*detector_width/nd
+    # Direction vector of detector direction normed to the length of a
+    # single detector pixel (i.e. delta_s (in the scale of delta_x=1))
+    XD = thetaX*detector_width/nd
+    YD = thetaY*detector_width/nd
 
-    #Direction vector leading to from source to origin (with proper length)
-    Qx=-thetaY*source_origin_dist
-    Qy=thetaX*source_origin_dist
+    # Direction vector leading to from source to origin (with proper length)
+    Qx = -thetaY*source_origin_dist
+    Qy = thetaX*source_origin_dist
 
-    #Direction vector from origin to the detector center
-    Dx0= thetaY*(source_detector_dist-source_origin_dist)
-    Dy0= -thetaX*(source_detector_dist-source_origin_dist)
+    # Direction vector from origin to the detector center
+    Dx0 = thetaY*(source_detector_dist-source_origin_dist)
+    Dy0 = -thetaX*(source_detector_dist-source_origin_dist)
 
-
-    #Save relevant information
-    ofs_dict={}
-    sdpd_dict={}
-    geo_dict={}
-    for dtype in [np.dtype('float64'),np.dtype('float32')]:
-        #Angular Information
+    # Save relevant information
+    ofs_dict = {}
+    sdpd_dict = {}
+    geo_dict = {}
+    for dtype in [np.dtype('float64'), np.dtype('float32')]:
+        # Angular Information
         ofs = np.zeros((8, len(angles)), dtype=dtype, order='F')
-        ofs[0,:] = XD; ofs[1,:] = YD
-        ofs[2,:]=Qx; ofs[3,:]=Qy
-        ofs[4,:]=Dx0; ofs[5]=Dy0
-        ofs[6]=angles_diff
-        ofs_dict[dtype]=ofs
-
+        ofs[0, :] = XD
+        ofs[1, :] = YD
+        ofs[2, :] = Qx
+        ofs[3, :] = Qy
+        ofs[4, :] = Dx0
+        ofs[5] = Dy0
+        ofs[6] = angles_diff
+        ofs_dict[dtype] = ofs
 
         # determine source detectorpixel-distance (=sqrt(R+xi**2))
         # for scaling
-        xi=(np.arange(0,nd)- midpoint_detectors)*detector_width/nd
-        source_detectorpixel_distance= np.sqrt((xi)**2\
-            +source_detector_dist**2)
-        source_detectorpixel_distance=np.array(
-            source_detectorpixel_distance,dtype=dtype,order='F')
-        sdpd = np.zeros(( 1,len(source_detectorpixel_distance)),
-            dtype=dtype, order='F')
-        sdpd[0,:]=source_detectorpixel_distance[:]
-        sdpd_dict[dtype]=sdpd
+        xi = (np.arange(0, nd) - midpoint_detectors)*detector_width/nd
+        source_detectorpixel_distance = np.sqrt((xi)**2
+                                                + source_detector_dist**2)
+        source_detectorpixel_distance = np.array(
+            source_detectorpixel_distance, dtype=dtype, order='F')
+        sdpd = np.zeros((1, len(source_detectorpixel_distance)),
+                        dtype=dtype, order='F')
+        sdpd[0, :] = source_detectorpixel_distance[:]
+        sdpd_dict[dtype] = sdpd
 
         # collect various geometric information necessary for computations
-        geometry_info=np.array([source_detector_dist,
-            source_origin_dist,detector_width/nd,
-            midpoint_x,midpoint_y,midpoint_detectors,img_shape[0],
-            img_shape[1],sinogram_shape[0],
-            sinogram_shape[1],image_width/float(max(img_shape))],
-            dtype=dtype,order='F')
+        geometry_info = np.array([source_detector_dist,
+                                 source_origin_dist, detector_width/nd,
+                                 midpoint_x, midpoint_y, midpoint_detectors,
+                                 img_shape[0], img_shape[1], sinogram_shape[0],
+                                  sinogram_shape[1],
+                                  image_width/float(max(img_shape))],
+                                 dtype=dtype, order='F')
 
-        geo_dict[dtype]=geometry_info
+        geo_dict[dtype] = geometry_info
 
-    return (img_shape,sinogram_shape,ofs_dict,sdpd_dict,
-        image_width,geo_dict,angles_diff)
+    return (img_shape, sinogram_shape, ofs_dict, sdpd_dict,
+            image_width, geo_dict, angles_diff)
 
 
 def create_code():
@@ -845,56 +861,58 @@ def create_code():
 
     """
 
-    total_code=""
+    total_code = ""
     for file in CL_FILES1:
-        textfile=open(os.path.join(os.path.abspath(
+        textfile = open(os.path.join(os.path.abspath(
             os.path.dirname(__file__)), file))
-        code_template=textfile.read()
+        code_template = textfile.read()
         textfile.close()
 
-        for dtype in ["float","double"]:
-            for order1 in ["f","c"]:
-                for order2 in ["f","c"]:
-                    total_code+=code_template.replace(\
-                        "\my_variable_type",dtype)\
-                        .replace("\order1",order1)\
-                        .replace("\order2",order2)
+        for dtype in ["float", "double"]:
+            for order1 in ["f", "c"]:
+                for order2 in ["f", "c"]:
+                    total_code += code_template.replace(
+                        "\my_variable_type", dtype)\
+                        .replace("\order1", order1)\
+                        .replace("\order2", order2)
 
     for file in CL_FILES2:
-        textfile=open(os.path.join(os.path.abspath(
+        textfile = open(os.path.join(os.path.abspath(
             os.path.dirname(__file__)), file))
-        code_template=textfile.read()
+        code_template = textfile.read()
         textfile.close()
 
-        for dtype in ["float","double"]:
-            for order1 in ["f","c"]:
-                total_code+=code_template.replace(\
-                    "\my_variable_type",dtype)\
-                    .replace("\order1",order1)\
+        for dtype in ["float", "double"]:
+            for order1 in ["f", "c"]:
+                total_code += code_template.replace(
+                    "\my_variable_type", dtype)\
+                    .replace("\order1", order1)\
 
     return total_code
 
+
 def upload_bufs(projectionsetting, dtype):
-    ofs=projectionsetting.ofs_buf[dtype]
+    ofs = projectionsetting.ofs_buf[dtype]
     ofs_buf = cl.Buffer(projectionsetting.queue.context,
-        cl.mem_flags.READ_ONLY, ofs.nbytes)
+                        cl.mem_flags.READ_ONLY, ofs.nbytes)
     cl.enqueue_copy(projectionsetting.queue, ofs_buf, ofs.data).wait()
 
-    geometry_information=projectionsetting.geometry_information[dtype]
-    geometry_buf=cl.Buffer(projectionsetting.queue.context,
-        cl.mem_flags.READ_ONLY, ofs.nbytes)
+    geometry_information = projectionsetting.geometry_information[dtype]
+    geometry_buf = cl.Buffer(projectionsetting.queue.context,
+                             cl.mem_flags.READ_ONLY, ofs.nbytes)
     cl.enqueue_copy(projectionsetting.queue, geometry_buf,
-        geometry_information.data).wait()
+                    geometry_information.data).wait()
 
     if projectionsetting.is_fan:
-        sdpd=projectionsetting.sdpd_buf[dtype]
+        sdpd = projectionsetting.sdpd_buf[dtype]
         sdpd_buf = cl.Buffer(projectionsetting.queue.context,
-            cl.mem_flags.READ_ONLY, sdpd.nbytes)
+                             cl.mem_flags.READ_ONLY, sdpd.nbytes)
         cl.enqueue_copy(projectionsetting.queue, sdpd_buf, sdpd.data).wait()
-        projectionsetting.sdpd_buf[dtype]=sdpd_buf
+        projectionsetting.sdpd_buf[dtype] = sdpd_buf
 
-    projectionsetting.ofs_buf[dtype]=ofs_buf
-    projectionsetting.geometry_information[dtype]=geometry_buf
+    projectionsetting.ofs_buf[dtype] = ofs_buf
+    projectionsetting.geometry_information[dtype] = geometry_buf
+
 
 class ProjectionSettings():
     """ Creates and stores all relevant information concerning
@@ -939,7 +957,8 @@ class ProjectionSettings():
     :param image_width: Physical size of the image
         (more precisely, the length of the longer side
         of the rectangle defining the image domain),
-        i.e., the longest possible diameter of an object captured by image **(???)**.
+        i.e., the longest possible diameter of an object captured by image
+        **(???)**.
         For parallel beam geometry, when :obj:`None`,
         **image_width** is chosen as 2.0.
         For fanbeam geometry, when :obj:`None`, **image_width** is chosen
@@ -1035,41 +1054,42 @@ class ProjectionSettings():
         Contains in particular
         :class:`pyopencl.array.Array`
         with the angular information necessary for computations.
-    :vartype struct: :class:`list`, see :func:`radon_struct` and :func:`fanbeam_struct` returns
+    :vartype struct: :class:`list`, see :func:`radon_struct` and
+        :func:`fanbeam_struct` returns
     """
 
+    # :ivar ofs_buf:
+    # dictionary containing the relevant angular information in
+    # array form for respective data-type numpy.dtype(float32)
+    # or numpy.dtype(float64), switching from numpy to cl.array
+    # when the information is uploaded to the OpenCL device
+    # (which is done automatically when np.required)
+    # *Radon transformation*
+    # Arrays have dimension 8 x Na with
+    # 0 ... weighted cos()
+    # 1 ... weighted sin()
+    # 2 ... detector offset
+    # 3 ... inverse of cos
+    # 4 ... Angular weights
+    # *Fanbeam transform*
+    # Arrays have dimension 8 x Na with
+    # 0 1 ... vector along detector-direction with length delta_s
+    # 2 3   ... vector from source vector connecting source to
+    #    center of rotation
+    # 4 5 ... vector connecting the origin to the detectorline
+    # 6   ... Angular weights
+    # :vartype ofs_buf: dictionary  from  numpy.dtype  to  numpy.Array or
+    #    pyopencl.
+    # :ivar sdpd: representing the weight sqrt(delta_s^2+R^2) np.required for
+    # the computation of fanbeam transform
+    # :vartype sdpd: dictionary  from  numpy.dtype  to  numpy.Array or
+    #   pyopencl.
 
-     # :ivar ofs_buf:
-        # dictionary containing the relevant angular information in
-        # array form for respective data-type numpy.dtype(float32)
-        # or numpy.dtype(float64), switching from numpy to cl.array
-        # when the information is uploaded to the OpenCL device
-        # (which is done automatically when np.required)
-        # *Radon transformation*
-        # Arrays have dimension 8 x Na with
-        # 0 ... weighted cos()
-        # 1 ... weighted sin()
-        # 2 ... detector offset
-        # 3 ... inverse of cos
-        # 4 ... Angular weights
-        # *Fanbeam transform*
-        # Arrays have dimension 8 x Na with
-        # 0 1 ... vector along detector-direction with length delta_s
-        # 2 3   ... vector from source vector connecting source to center of rotation
-        # 4 5 ... vector connecting the origin to the detectorline
-        # 6   ... Angular weights
-    # :vartype ofs_buf: dictionary  from  numpy.dtype  to  numpy.Array or  pyopencl.
-    # :ivar sdpd: representing the weight sqrt(delta_s^2+R^2) np.required for the
-    # computation of fanbeam transform
-    # :vartype sdpd: dictionary  from  numpy.dtype  to  numpy.Array or  pyopencl.
-
-
-    def __init__(self, queue,geometry, img_shape, angles,
-                    n_detectors=None, detector_width=2.0,
-                    image_width=None, R=None, RE=None,
-                    detector_shift=0.0,midpoint_shift=[0.,0.],
-                    fullangle=True):
-
+    def __init__(self, queue, geometry, img_shape, angles,
+                 n_detectors=None, detector_width=2.0,
+                 image_width=None, R=None, RE=None,
+                 detector_shift=0.0, midpoint_shift=[0., 0.],
+                 fullangle=True):
         """Initialize a ProjectionSettings instance.
 
         **Parameters**
@@ -1110,157 +1130,162 @@ class ProjectionSettings():
                 ProjectionSettings with the corresponding atributes
         """
 
-        self.geometry=geometry
-        self.queue=queue
+        self.geometry = geometry
+        self.queue = queue
 
-        self.adjusted_code=create_code()
+        self.adjusted_code = create_code()
 
-        self.prg = Program(queue.context,self.adjusted_code)
-        self.image_width=image_width
+        self.prg = Program(queue.context, self.adjusted_code)
+        self.image_width = image_width
 
         if np.isscalar(img_shape):
-            img_shape=(img_shape, img_shape)
+            img_shape = (img_shape, img_shape)
 
-        if len(img_shape)>2:
-            img_shape=img_shape[0:2]
-        self.img_shape=img_shape
+        if len(img_shape) > 2:
+            img_shape = img_shape[0:2]
+        self.img_shape = img_shape
 
         if self.geometry not in [RADON, PARALLEL, FAN, FANBEAM]:
-            print("unknown projection_type, projection_type \
-                must be PARALLEL or FAN")
-            raise
+            raise ValueError("unknown projection_type, projection_type "
+                             + "must be PARALLEL or FAN")
         if self.geometry in [RADON, PARALLEL]:
-            self.is_parallel=True
-            self.is_fan=False
+            self.is_parallel = True
+            self.is_fan = False
 
             self.forwardprojection = radon
             self.backprojection = radon_ad
 
             float32 = np.dtype('float32')
             float64 = np.dtype('float64')
-            self.functions={(float32,0,0):self.prg.radon_float_ff,
-                            (float32,1,0):self.prg.radon_float_cf,
-                            (float32,0,1):self.prg.radon_float_fc,
-                            (float32,1,1):self.prg.radon_float_cc,
-                            (float64,0,0):self.prg.radon_double_ff,
-                            (float64,1,0):self.prg.radon_double_cf,
-                            (float64,0,1):self.prg.radon_double_fc,
-                            (float64,1,1):self.prg.radon_double_cc}
-            self.functions_ad={(float32,0,0):self.prg.radon_ad_float_ff,
-                               (float32,1,0):self.prg.radon_ad_float_cf,
-                               (float32,0,1):self.prg.radon_ad_float_fc,
-                               (float32,1,1):self.prg.radon_ad_float_cc,
-                               (float64,0,0):self.prg.radon_ad_double_ff,
-                               (float64,1,0):self.prg.radon_ad_double_cf,
-                               (float64,0,1):self.prg.radon_ad_double_fc,
-                               (float64,1,1):self.prg.radon_ad_double_cc}
-
+            self.functions = {(float32, 0, 0): self.prg.radon_float_ff,
+                              (float32, 1, 0): self.prg.radon_float_cf,
+                              (float32, 0, 1): self.prg.radon_float_fc,
+                              (float32, 1, 1): self.prg.radon_float_cc,
+                              (float64, 0, 0): self.prg.radon_double_ff,
+                              (float64, 1, 0): self.prg.radon_double_cf,
+                              (float64, 0, 1): self.prg.radon_double_fc,
+                              (float64, 1, 1): self.prg.radon_double_cc}
+            self.functions_ad = {(float32, 0, 0): self.prg.radon_ad_float_ff,
+                                 (float32, 1, 0): self.prg.radon_ad_float_cf,
+                                 (float32, 0, 1): self.prg.radon_ad_float_fc,
+                                 (float32, 1, 1): self.prg.radon_ad_float_cc,
+                                 (float64, 0, 0): self.prg.radon_ad_double_ff,
+                                 (float64, 1, 0): self.prg.radon_ad_double_cf,
+                                 (float64, 0, 1): self.prg.radon_ad_double_fc,
+                                 (float64, 1, 1): self.prg.radon_ad_double_cc}
 
         if self.geometry in [FAN, FANBEAM]:
-            self.is_parallel=False
-            self.is_fan=True
+            self.is_parallel = False
+            self.is_fan = True
 
             self.forwardprojection = fanbeam
             self.backprojection = fanbeam_ad
 
             float32 = np.dtype('float32')
             float64 = np.dtype('float64')
-            self.functions = {(float32,0,0):self.prg.fanbeam_float_ff,
-                              (float32,1,0):self.prg.fanbeam_float_cf,
-                              (float32,0,1):self.prg.fanbeam_float_fc,
-                              (float32,1,1):self.prg.fanbeam_float_cc,
-                              (float64,0,0):self.prg.fanbeam_double_ff,
-                              (float64,1,0):self.prg.fanbeam_double_cf,
-                              (float64,0,1):self.prg.fanbeam_double_fc,
-                              (float64,1,1):self.prg.fanbeam_double_cc}
-            self.functions_ad = {(float32,0,0):self.prg.fanbeam_ad_float_ff,
-                                 (float32,1,0):self.prg.fanbeam_ad_float_cf,
-                                 (float32,0,1):self.prg.fanbeam_ad_float_fc,
-                                 (float32,1,1):self.prg.fanbeam_ad_float_cc,
-                                 (float64,0,0):self.prg.fanbeam_ad_double_ff,
-                                 (float64,1,0):self.prg.fanbeam_ad_double_cf,
-                                 (float64,0,1):self.prg.fanbeam_ad_double_fc,
-                                 (float64,1,1):self.prg.fanbeam_ad_double_cc}
+            self.functions = {(float32, 0, 0): self.prg.fanbeam_float_ff,
+                              (float32, 1, 0): self.prg.fanbeam_float_cf,
+                              (float32, 0, 1): self.prg.fanbeam_float_fc,
+                              (float32, 1, 1): self.prg.fanbeam_float_cc,
+                              (float64, 0, 0): self.prg.fanbeam_double_ff,
+                              (float64, 1, 0): self.prg.fanbeam_double_cf,
+                              (float64, 0, 1): self.prg.fanbeam_double_fc,
+                              (float64, 1, 1): self.prg.fanbeam_double_cc}
+            self.functions_ad = {
+                (float32, 0, 0): self.prg.fanbeam_ad_float_ff,
+                (float32, 1, 0): self.prg.fanbeam_ad_float_cf,
+                (float32, 0, 1): self.prg.fanbeam_ad_float_fc,
+                (float32, 1, 1): self.prg.fanbeam_ad_float_cc,
+                (float64, 0, 0): self.prg.fanbeam_ad_double_ff,
+                (float64, 1, 0): self.prg.fanbeam_ad_double_cf,
+                (float64, 0, 1): self.prg.fanbeam_ad_double_fc,
+                (float64, 1, 1): self.prg.fanbeam_ad_double_cc}
 
         if np.isscalar(angles):
             if self.is_fan:
-                angles = np.linspace(0,2*np.pi,angles+1)[:-1] + np.pi
+                angles = np.linspace(0, 2*np.pi, angles+1)[:-1] + np.pi
             elif self.is_parallel:
-                angles = np.linspace(0,np.pi,angles+1)[:-1]
-        angles=angles
+                angles = np.linspace(0, np.pi, angles+1)[:-1]
+        angles = angles
 
         if n_detectors is None:
-            self.n_detectors = int(ceil(hypot(img_shape[0],img_shape[1])))
+            self.n_detectors = int(np.ceil(np.hypot(img_shape[0],
+                                                    img_shape[1])))
         else:
             self.n_detectors = n_detectors
-        detector_width=float(detector_width)
+        detector_width = float(detector_width)
 
-        if isinstance(angles[0], list) or isinstance(angles[0],np.ndarray):
-            self.n_angles=0
+        if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
+            self.n_angles = 0
             for j in range(len(angles)):
-                self.n_angles+=len(angles[j])
+                self.n_angles += len(angles[j])
         else:
-            self.n_angles=len(angles)
-        self.angles=angles
-        self.sinogram_shape=(self.n_detectors,self.n_angles)
+            self.n_angles = len(angles)
+        self.angles = angles
+        self.sinogram_shape = (self.n_detectors, self.n_angles)
 
-        self.fullangle=fullangle
+        self.fullangle = fullangle
 
         self.detector_shift = detector_shift
-        self.midpoint_shift=midpoint_shift
+        self.midpoint_shift = midpoint_shift
 
-        self.detector_width=detector_width
-        self.R=R
-        self.RE=RE
+        self.detector_width = detector_width
+        self.R = R
+        self.RE = RE
 
-        self.buf_upload={}
+        self.buf_upload = {}
 
         if self.is_fan:
-            assert( (R!=None)*(RE!=None)),"For the Fanbeam geometry \
-                you need to set R (the normal distance from source to \
-                detector) and RE (distance from source to coordinate \
-                origin which is the rotation center) "
+            parameters_available = not ((R is None) or (RE is None))
 
-            self.struct=fanbeam_struct(self.queue,self.img_shape,
-                self.angles, self.detector_width, R, self.RE,
-                self.n_detectors, self.detector_shift, image_width,
-                self.midpoint_shift, self.fullangle)
+            assert parameters_available, ("For the Fanbeam geometry "
+                                          + "you need to set R (the normal "
+                                          + "distance from source to detector)"
+                                          + " and RE (distance from source to "
+                                          + "coordinate origin which is the "
+                                          + "rotation center)")
 
-            self.ofs_buf=self.struct[2]
-            self.sdpd_buf=self.struct[3]
-            self.image_width=self.struct[4]
-            self.geometry_information=self.struct[5]
+            self.struct = fanbeam_struct(self.queue, self.img_shape,
+                                         self.angles, self.detector_width,
+                                         R, self.RE, self.n_detectors,
+                                         self.detector_shift, image_width,
+                                         self.midpoint_shift, self.fullangle)
 
-            self.angle_weights=self.struct[6]
+            self.ofs_buf = self.struct[2]
+            self.sdpd_buf = self.struct[3]
+            self.image_width = self.struct[4]
+            self.geometry_information = self.struct[5]
 
-            self.delta_x=self.image_width/max(img_shape)
-            self.delta_s=detector_width/n_detectors
-            self.delta_ratio=self.delta_s/self.delta_x
+            self.angle_weights = self.struct[6]
 
+            self.delta_x = self.image_width/max(img_shape)
+            self.delta_s = detector_width/n_detectors
+            self.delta_ratio = self.delta_s/self.delta_x
 
         if self.is_parallel:
-            if image_width==None:
-                self.image_width=2.
+            if image_width is None:
+                self.image_width = 2.
 
-            self.struct=radon_struct(self.queue,self.img_shape,
-                self.angles, n_detectors=self.n_detectors,
-                detector_width=self.detector_width,
-                image_width= self.image_width,
-		midpoint_shift=self.midpoint_shift,
-                detector_shift=self.detector_shift,
-                fullangle=self.fullangle )
+            self.struct = radon_struct(self.queue, self.img_shape,
+                                       self.angles,
+                                       n_detectors=self.n_detectors,
+                                       detector_width=self.detector_width,
+                                       image_width=self.image_width,
+                                       midpoint_shift=self.midpoint_shift,
+                                       detector_shift=self.detector_shift,
+                                       fullangle=self.fullangle)
 
-            self.ofs_buf=self.struct[0]
+            self.ofs_buf = self.struct[0]
 
-            self.delta_x=self.image_width/max(self.img_shape)
-            self.delta_s=self.detector_width/self.n_detectors
-            self.delta_ratio=self.delta_s/self.delta_x
+            self.delta_x = self.image_width/max(self.img_shape)
+            self.delta_s = self.detector_width/self.n_detectors
+            self.delta_ratio = self.delta_s/self.delta_x
 
-            self.geometry_information=self.struct[3]
-            self.angle_weights=self.struct[4]
+            self.geometry_information = self.struct[3]
+            self.angle_weights = self.struct[4]
 
     def ensure_dtype(self, dtype):
-        if not dtype in self.buf_upload:
+        if dtype not in self.buf_upload:
             upload_bufs(self, dtype)
             self.buf_upload[dtype] = 1
 
@@ -1303,153 +1328,165 @@ class ProjectionSettings():
                 axes = figure.add_subplot()
             else:
                 axes = fig_axes[0]
-        axes.clear()
+                axes.clear()
 
         if self.is_fan:
-            detector_width=self.detector_width
-            source_detector_dist=self.R
-            source_origin_dist=self.RE
-            image_width=self.image_width
-            midpoint_shift=self.midpoint_shift
+            detector_width = self.detector_width
+            source_detector_dist = self.R
+            source_origin_dist = self.RE
+            image_width = self.image_width
+            midpoint_shift = self.midpoint_shift
 
-            maxsize=max(self.RE, np.sqrt((self.R-self.RE)**2\
-                +detector_width**2/4.))
+            maxsize = max(self.RE, np.sqrt((self.R-self.RE)**2
+                                           + detector_width**2/4.))
 
+            angle = -angle
+            A = np.array([[np.cos(angle), np.sin(angle)],
+                          [-np.sin(angle), np.cos(angle)]])
+            # Plot all relevant sizes            axes
 
-            angle=-angle
-            A=np.array([[np.cos(angle),np.sin(angle)],
-                        [-np.sin(angle),np.cos(angle)]])
-            #Plot all relevant sizes            axes
+            sourceposition = [-source_origin_dist, 0]
+            upper_detector = [source_detector_dist-source_origin_dist,
+                              detector_width*0.5+self.detector_shift]
+            lower_detector = [source_detector_dist-source_origin_dist,
+                              - detector_width*0.5+self.detector_shift]
+            central_detector = [
+               source_detector_dist-source_origin_dist, 0]
 
-
-            sourceposition=[-source_origin_dist,0]
-            upper_detector=[source_detector_dist-source_origin_dist,
-                detector_width*0.5+self.detector_shift]
-            lower_detector=[source_detector_dist-source_origin_dist,
-                -detector_width*0.5+self.detector_shift]
-            central_detector=[source_detector_dist-source_origin_dist,0]
-
-            sourceposition=np.dot(A,sourceposition)
-            upper_detector=np.dot(A,upper_detector)
-            lower_detector=np.dot(A,lower_detector)
-            central_detector=np.dot(A,central_detector)
-
+            sourceposition = np.dot(A, sourceposition)
+            upper_detector = np.dot(A, upper_detector)
+            lower_detector = np.dot(A, lower_detector)
+            central_detector = np.dot(A, central_detector)
 
             axes.plot([upper_detector[0], lower_detector[0]],
-                [upper_detector[1], lower_detector[1]],"k")
+                      [upper_detector[1], lower_detector[1]], "k")
 
             axes.plot([sourceposition[0], upper_detector[0]],
-                [sourceposition[1],upper_detector[1]],"g")
+                      [sourceposition[1], upper_detector[1]], "g")
             axes.plot([sourceposition[0], lower_detector[0]],
-                [sourceposition[1],lower_detector[1]],"g")
+                      [sourceposition[1], lower_detector[1]], "g")
 
             axes.plot([sourceposition[0], central_detector[0]],
-                [sourceposition[1], central_detector[1]],"g")
+                      [sourceposition[1], central_detector[1]], "g")
 
+            # plot(x[0]+midpoint_rotation[0],x[1]+midpoint_rotation[1],"b")
 
-            #plot(x[0]+midpoint_rotation[0],x[1]+midpoint_rotation[1],"b")
+            draw_circle = matplotlib.patches.Circle(
+                midpoint_shift,
+                image_width/2 * np.sqrt(1 + (min(self.img_shape)
+                                        / max(self.img_shape))**2),
+                color='r')
 
-            draw_circle=matplotlib.patches.Circle(midpoint_shift,
-                image_width/2*np.sqrt(1+(min(self.img_shape)/
-                max(self.img_shape))**2), color='r')
             axes.add_artist(draw_circle)
 
-            color=(1,1,0)
-            rect = plt.Rectangle(midpoint_shift-0.5*
-                np.array([image_width*self.img_shape[0]/
-                np.max(self.img_shape),image_width*self.img_shape[1]/
-                    np.max(self.img_shape)]),
-                image_width*self.img_shape[0]/np.max(self.img_shape),
-                image_width*self.img_shape[1]/np.max(self.img_shape),
-                facecolor=color, edgecolor=color)
+            color = (1, 1, 0)
+            rect = plt.Rectangle(midpoint_shift-0.5
+                                 * np.array([image_width*self.img_shape[0]
+                                             / np.max(self.img_shape),
+                                             image_width*self.img_shape[1]
+                                             / np.max(self.img_shape)]),
+                                 image_width
+                                 * self.img_shape[0]
+                                 / np.max(self.img_shape),
+                                 image_width
+                                 * self.img_shape[1]
+                                 / np.max(self.img_shape),
+                                 facecolor=color, edgecolor=color)
+
             axes.add_artist(rect)
 
-            draw_circle=matplotlib.patches.Circle(midpoint_shift,
-                image_width/2, color='b')
+            draw_circle = matplotlib.patches.Circle(midpoint_shift,
+                                                    image_width/2, color='b')
             axes.add_artist(draw_circle)
 
-            draw_circle=matplotlib.patches.Circle((0,0), image_width/10,
-                color='k')
+            draw_circle = matplotlib.patches.Circle((0, 0), image_width/10,
+                                                    color='k')
             axes.add_artist(draw_circle)
-            axes.set_xlim([-maxsize,maxsize])
-            axes.set_ylim([-maxsize,maxsize])
-
+            axes.set_xlim([-maxsize, maxsize])
+            axes.set_ylim([-maxsize, maxsize])
 
         if self.is_parallel:
-            detector_width=self.detector_width
-            image_width=self.image_width
-            midpoint_shift=self.midpoint_shift
+            detector_width = self.detector_width
+            image_width = self.image_width
+            midpoint_shift = self.midpoint_shift
 
-            angle=-angle
-            A=np.array([[np.cos(angle),np.sin(angle)],
-                        [-np.sin(angle),np.cos(angle)]])
+            angle = -angle
+            A = np.array([[np.cos(angle), np.sin(angle)],
+                          [-np.sin(angle), np.cos(angle)]])
 
-            center_source=[-image_width,self.detector_shift]
-            center_detector=[image_width,self.detector_shift]
+            center_source = [-image_width, self.detector_shift]
+            center_detector = [image_width, self.detector_shift]
 
-            upper_source=[-image_width,
-                self.detector_shift+0.5*detector_width]
-            lower_source=[-image_width,
-                self.detector_shift-0.5*detector_width]
+            upper_source = [-image_width,
+                            self.detector_shift+0.5*detector_width]
+            lower_source = [-image_width,
+                            self.detector_shift-0.5*detector_width]
 
-            upper_detector=[image_width,
-                self.detector_shift+0.5*detector_width]
-            lower_detector=[image_width,
-                self.detector_shift-0.5*detector_width]
+            upper_detector = [image_width,
+                              self.detector_shift+0.5*detector_width]
+            lower_detector = [image_width,
+                              self.detector_shift-0.5*detector_width]
 
-            center_source=np.dot(A,center_source)
-            center_detector=np.dot(A,center_detector)
-            upper_source=np.dot(A,upper_source)
-            lower_source=np.dot(A,lower_source)
-            upper_detector=np.dot(A,upper_detector)
-            lower_detector=np.dot(A,lower_detector)
+            center_source = np.dot(A, center_source)
+            center_detector = np.dot(A, center_detector)
+            upper_source = np.dot(A, upper_source)
+            lower_source = np.dot(A, lower_source)
+            upper_detector = np.dot(A, upper_detector)
+            lower_detector = np.dot(A, lower_detector)
 
-            axes.plot([center_source[0],center_detector[0]],
-                [center_source[1] ,center_detector[1]],"g")
+            axes.plot([center_source[0], center_detector[0]],
+                      [center_source[1], center_detector[1]], "g")
 
-            axes.plot([lower_source[0],lower_detector[0]],
-                [lower_source[1],lower_detector[1]],"g")
-            axes.plot([upper_source[0],upper_detector[0]],
-                [upper_source[1],upper_detector[1]],"g")
+            axes.plot([lower_source[0], lower_detector[0]],
+                      [lower_source[1], lower_detector[1]], "g")
+            axes.plot([upper_source[0], upper_detector[0]],
+                      [upper_source[1], upper_detector[1]], "g")
 
-            axes.plot([lower_detector[0],upper_detector[0]],
-                [lower_detector[1],upper_detector[1]],"k")
+            axes.plot([lower_detector[0], upper_detector[0]],
+                      [lower_detector[1], upper_detector[1]], "k")
 
-            draw_circle=matplotlib.patches.Circle(midpoint_shift,
-                image_width/np.sqrt(2), color='r')
+            draw_circle = matplotlib.patches.Circle(midpoint_shift,
+                                                    image_width/np.sqrt(2),
+                                                    color='r')
 
             axes.add_artist(draw_circle)
 
-            color=(1,1,0)
-            draw_rectangle=matplotlib.patches.Rectangle(midpoint_shift
-	        -0.5*np.array(
-                [image_width*self.img_shape[0]/np.max(self.img_shape),
-                image_width*self.img_shape[1]/np.max(self.img_shape)]),
-                image_width*self.img_shape[0]/np.max(self.img_shape),
-                image_width*self.img_shape[1]/np.max(self.img_shape),
-                facecolor=color, edgecolor=color)
+            color = (1, 1, 0)
+            draw_rectangle = matplotlib.patches.Rectangle(
+                                midpoint_shift
+                                - 0.5*np.array([image_width*self.img_shape[0]
+                                                / np.max(self.img_shape),
+                                                image_width
+                                                * self.img_shape[1]
+                                                / np.max(self.img_shape)]),
+                                image_width * self.img_shape[0]
+                                / np.max(self.img_shape),
+                                image_width * self.img_shape[1]
+                                / np.max(self.img_shape),
+                                facecolor=color,
+                                edgecolor=color)
 
             axes.add_artist(draw_rectangle)
 
-            draw_circle=matplotlib.patches.Circle(midpoint_shift,
-	        image_width/2, color='b')
+            draw_circle = matplotlib.patches.Circle(midpoint_shift,
+                                                    image_width/2, color='b')
 
             axes.add_artist(draw_circle)
-            draw_circle=matplotlib.patches.Circle((0,0), image_width/10,
-                color='k')
+            draw_circle = matplotlib.patches.Circle((0, 0), image_width/10,
+                                                    color='k')
 
             axes.add_artist(draw_circle)
 
-            maxsize=np.sqrt(image_width**2+detector_width**2)
-            axes.set_xlim([-maxsize,maxsize])
-            axes.set_ylim([-maxsize,maxsize])
-        if show and (figure is not None):
-            figure.show()
-#            plt.show()
+            maxsize = np.sqrt(image_width**2+detector_width**2)
+            axes.set_xlim([-maxsize, maxsize])
+            axes.set_ylim([-maxsize, maxsize])
+            if show and (figure is not None):
+                figure.show()
+                #            plt.show()
         return figure, axes
 
-    def create_sparse_matrix(self,dtype=np.dtype('float32'),order='F',
-                                offset=0, outputfile=None):
+    def create_sparse_matrix(self, dtype=np.dtype('float32'), order='F',
+                             offset=0, outputfile=None):
         """
         Creates a sparse representation of the associated forward
         operator. **(???) this is never tested, Done**
@@ -1458,7 +1495,7 @@ class ProjectionSettings():
         :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
 
         :param order: Contiguity of the image and sinogram array
-	    to the transform, can be ``F`` or ``C``.
+            to the transform, can be ``F`` or ``C``.
         :type order: :class:`str`, default ``F``
 
         :param offset: Offset of the indices (e.g., 1 for Matlab,
@@ -1466,14 +1503,15 @@ class ProjectionSettings():
         :type offset: :class:`int`
 
         :param outputfile: Name of the file (.txt) to write the sparse
-            representation into (row, col, val). **(???) is this useful? users can decide
-            what to do with the output, i.e., write this as csv etc.**
+            representation into (row, col, val). **(???) is this useful? users
+            can decide what to do with the output, i.e., write this as csv etc.
+            **
             If :obj:`None`, output is not be written into file.
         :type outputfile: :class:`str`
 
         :return: Sparse matrix corresponding to the
             forward projection. **(???) why is this not in a common format
-	    such as for scipy.sparse.coo_matrix?, DONE**
+            such as for scipy.sparse.coo_matrix?, DONE**
         :rtype: :class:`scipy.sparse.coo_matrix`
 
         Note that for high resolution projection operators,
@@ -1481,115 +1519,112 @@ class ProjectionSettings():
 
         """
 
-        dtype=np.dtype(dtype)
+        dtype = np.dtype(dtype)
         if self.is_parallel:
-            functions={
-                (np.dtype("float32"),0): self.prg.single_line_radon_float_ff,
-                (np.dtype("float32"),1): self.prg.single_line_radon_float_cc,
-                (np.dtype("float64"),0): self.prg.single_line_radon_double_ff,
-                (np.dtype("float64"),1): self.prg.single_line_radon_double_cc
+            functions = {
+                (np.dtype("float32"), 0): self.prg.single_line_radon_float_ff,
+                (np.dtype("float32"), 1): self.prg.single_line_radon_float_cc,
+                (np.dtype("float64"), 0): self.prg.single_line_radon_double_ff,
+                (np.dtype("float64"), 1): self.prg.single_line_radon_double_cc
                 }
         elif self.is_fan:
-              functions={
-                  (np.dtype("float32"),0): self.prg.single_line_fan_float_ff,
-                  (np.dtype("float32"),1): self.prg.single_line_fan_float_cc,
-	              (np.dtype("float64"),0): self.prg.single_line_fan_double_ff,
-                  (np.dtype("float64"),1): self.prg.single_line_fan_double_cc
-                  }
+            functions = {
+              (np.dtype("float32"), 0): self.prg.single_line_fan_float_ff,
+              (np.dtype("float32"), 1): self.prg.single_line_fan_float_cc,
+              (np.dtype("float64"), 0): self.prg.single_line_fan_double_ff,
+              (np.dtype("float64"), 1): self.prg.single_line_fan_double_cc
+              }
 
-        function=functions[(np.dtype(dtype),order=='C')]
+        function = functions[(np.dtype(dtype), order == 'C')]
 
         self.ensure_dtype(dtype)
-        ofs_buf=self.ofs_buf[dtype]
+        ofs_buf = self.ofs_buf[dtype]
         if self.is_fan:
-            sdpd_buf=self.sdpd_buf[dtype]
-        geometry_information=self.geometry_information[dtype]
+            sdpd_buf = self.sdpd_buf[dtype]
 
-        def projection_from_single_pixel(x,y, sino=None, wait_for=[]):
+        geometry_information = self.geometry_information[dtype]
+
+        def projection_from_single_pixel(x, y, sino=None, wait_for=[]):
             if self.is_parallel:
-                myevent=function(sino.queue, sino.shape, None,
-                         sino.data, np.int32(x), np.int32(y), ofs_buf,
-			 geometry_information,
-                         wait_for=sino.events+wait_for)
+                myevent = function(sino.queue, sino.shape, None,
+                                   sino.data, np.int32(
+                                       x), np.int32(y), ofs_buf,
+                                   geometry_information,
+                                   wait_for=sino.events+wait_for)
             else:
-                 myevent=function(sino.queue, sino.shape, None,
-                        sino.data, np.int32(x), np.int32(y), ofs_buf, sdpd_buf,
-                        geometry_information,
-                        wait_for=img.events+sino.events+wait_for)
-
-
+                myevent = function(sino.queue, sino.shape, None,
+                                   sino.data, np.int32(x), np.int32(
+                                       y), ofs_buf, sdpd_buf,
+                                   geometry_information,
+                                   wait_for=img.events+sino.events+wait_for)
 
             sino.add_event(myevent)
 
+        epsilon = 0
+        if order == "F":
+            def pos_1(x, y):
+                return x+Nx*y+offset
 
-        epsilon=0
-        if order=="F":
-            def pos_1(x,y):
-            	return x+Nx*y+offset
-            def pos_2(s,phi):
-            	return s+Ns*phi+offset
-        elif order=="C":
-        	def pos_1(x,y):
-        		return x*Ny+y+offset
-        	def pos_2(s,phi):
-        		return s*Na+phi+offset
+            def pos_2(s, phi):
+                return s+Ns*phi+offset
+        elif order == "C":
+            def pos_1(x, y):
+                return x*Ny+y+offset
+
+            def pos_2(s, phi):
+                return s*Na+phi+offset
         else:
-        	print("Order (contiguity) not recognized, suitable choices are\
-                  'F' or 'C'")
-        	raise
-        mylist=[]
-        mylist2=[]
+            print("Order (contiguity) not recognized, suitable choices are"
+                  + "'F' or 'C'")
+            raise
 
-        Nx=self.img_shape[0]
-        Ny=self.img_shape[1]
-        Ns=self.sinogram_shape[0]
-        Na=self.sinogram_shape[1]
+        mylist = []
 
-        img=clarray.zeros(self.queue, self.img_shape, dtype=dtype,
-                               order=order)
+        Nx = self.img_shape[0]
+        Ny = self.img_shape[1]
+        Ns = self.sinogram_shape[0]
+        Na = self.sinogram_shape[1]
 
-        rows=[]
-        cols=[]
-        vals=[]
-        sino=forwardprojection(img,self)
+        img = clarray.zeros(self.queue, self.img_shape, dtype=dtype,
+                            order=order)
 
+        rows = []
+        cols = []
+        vals = []
+        sino = forwardprojection(img, self)
 
         for x in range(Nx):
-            if x % int(Nx/100.)==0:
+            if x % int(Nx/100.) == 0:
                 sys.stdout.write('\rProgress at {:3.0%}'
-                   .format(float(x)/Nx))
-
+                                 .format(float(x)/Nx))
 
             for y in range(Ny):
-                projection_from_single_pixel(x,y,sino)
-                sinonew=sino.get()
-                pos=pos_1(x,y)
+                projection_from_single_pixel(x, y, sino)
+                sinonew = sino.get()
+                pos = pos_1(x, y)
 
-                index=np.where(sinonew>epsilon)
+                index = np.where(sinonew > epsilon)
                 for i in range(len(index[0])):
-                    s=index[0][i]
-                    phi=index[1][i]
-                    pos2=pos_2(s,phi)
-                    mylist.append(str(pos2)+" "+str(pos)+" "+
-                                  str(sinonew[s,phi])+"\n")
+                    s = index[0][i]
+                    phi = index[1][i]
+                    pos2 = pos_2(s, phi)
+                    mylist.append(str(pos2)+" "+str(pos)+" "
+                                  + str(sinonew[s, phi])+"\n")
                     rows.append(pos2)
                     cols.append(pos)
-                    vals.append(sinonew[s,phi])
+                    vals.append(sinonew[s, phi])
 
         print("\rSparse matrix creation complete")
-        if outputfile!=None:
-            txt=open(outputfile,"w")
+        if outputfile:
+            txt = open(outputfile, "w")
             for a in mylist:
                 txt.writelines(a)
-            txt.close()
+                txt.close()
 
-        import scipy
-        from scipy import sparse
-        sparsematrix=scipy.sparse.coo_matrix((vals, (rows, cols)),
-	                                      shape=(Ns*Na, Nx*Ny))
+        sparsematrix = scipy.sparse.coo_matrix((vals, (rows, cols)),
+                                               shape=(Ns*Na, Nx*Ny))
 
         return sparsematrix
-
 
 
 def normest(projectionsetting, number_iterations=50, dtype='float32',
@@ -1614,16 +1649,18 @@ def normest(projectionsetting, number_iterations=50, dtype='float32',
 
     :return: An estimate of the spectral norm for the projection operator.
     :rtype: :class:`float`
+
     """
-    queue=projectionsetting.queue
 
-    #random starting point
+    queue = projectionsetting.queue
+
+    # random starting point
     img = clarray.to_device(queue, np.require((np.random.randn(
-        *projectionsetting.img_shape)), dtype, 'F')
-        , allocator=allocator)
-    sino=forwardprojection(img, projectionsetting)
+                    *projectionsetting.img_shape)), dtype, 'F'),
+                    allocator=allocator)
+    sino = forwardprojection(img, projectionsetting)
 
-    #power_iteration
+    # power_iteration
     for i in range(number_iterations):
         normsqr = float(clarray.sum(img).get())
         img /= normsqr
@@ -1663,26 +1700,28 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
     """
 
     # Set relaxation parameter
-    norm_estimate=normest(projectionsetting, allocator=sino.allocator)
-    w=sino.dtype.type(w/norm_estimate**2)
+    norm_estimate = normest(
+                projectionsetting, allocator=sino.allocator)
+    w = sino.dtype.type(w/norm_estimate**2)
 
-    sinonew=sino.copy()
+    sinonew = sino.copy()
 
-    U=w*backprojection(sinonew, projectionsetting)
-    Unew=clarray.zeros(projectionsetting.queue, U.shape, dtype=sino.dtype,
-        order='F', allocator=sino.allocator)
+    U = w*backprojection(sinonew, projectionsetting)
+    Unew = clarray.zeros(projectionsetting.queue, U.shape, dtype=sino.dtype,
+                         order='F', allocator=sino.allocator)
 
-    #Poweriteration
+    # Poweriteration
     for i in range(number_iterations):
         sys.stdout.write('\rProgress at {:3.0%}'
-                             .format(float(i)/number_iterations))
+                         .format(float(i)/number_iterations))
 
-        sinonew=forwardprojection(Unew, projectionsetting, sino=sinonew)\
-            -sino
-        Unew=Unew-w*backprojection(sinonew, projectionsetting, img=U)
+        sinonew = forwardprojection(Unew, projectionsetting, sino=sinonew)\
+            - sino
+        Unew = Unew-w*backprojection(sinonew, projectionsetting, img=U)
 
     print('\rLandweber reconstruction complete')
     return Unew
+
 
 def conjugate_gradients(sino, projectionsetting, number_iterations=20,
                         epsilon=0.0, x0=None):
@@ -1719,70 +1758,79 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
            https://doi.org/10.6028/jres.049.044
     """
 
-    #Determine suitable dimensions
-    dimensions=projectionsetting.img_shape
-    dimensions2=(1,projectionsetting.n_angles)
-    if len(sino.shape)>2:
-        dimensions=dimensions+tuple([sino.shape[2]])
-        dimensions2=dimensions2+tuple([1])
+    # Determine suitable dimensions
+    dimensions = projectionsetting.img_shape
+    dimensions2 = (1, projectionsetting.n_angles)
+    if len(sino.shape) > 2:
+        dimensions = dimensions+tuple([sino.shape[2]])
+        dimensions2 = dimensions2+tuple([1])
 
+    order=order={0: 'F', 1: 'C'}
     if x0 is None:
-        x0=clarray.zeros(projectionsetting.queue,dimensions,
-            sino.dtype,order={0:'F',1:'C'}[sino.flags.c_contiguous])
-    assert(x0.flags.c_contiguous==sino.flags.c_contiguous),\
-        ("The data sino and initial \
-        guess x0 must have the same contiguity")
-    x=x0.copy()
+        x0 = clarray.zeros(projectionsetting.queue, dimensions,
+                           sino.dtype, order[sino.flags.c_contiguous])
 
-    d=sino-forwardprojection(x, projectionsetting)
-    p=backprojection(d, projectionsetting)
-    q=clarray.empty_like(d, projectionsetting.queue)
-    snew=backprojection(d, projectionsetting)
-    sold=snew.copy()
+    if (x0.flags.c_contiguous != sino.flags.c_contiguous):
+        raise ValueError("The data sino and initial "
+                         + "guess x0 must have the same contiguity!")
+    x = x0.copy()
 
-    angle_weights=clarray.reshape(projectionsetting.angle_weights,
-        dimensions2)
+    d = sino-forwardprojection(x, projectionsetting)
+    p = backprojection(d, projectionsetting)
+    q = clarray.empty_like(d, projectionsetting.queue)
+    snew = backprojection(d, projectionsetting)
+    sold = snew.copy()
 
-    angle_weights=np.ones(sino.shape)*angle_weights
-    angle_weights=clarray.to_device(projectionsetting.queue,
-        np.require(np.array(angle_weights,
-        order={0:'F',1:'C'}[sino.flags.c_contiguous]), sino.dtype),
-        allocator=sino.allocator)
+    angle_weights = clarray.reshape(projectionsetting.angle_weights,
+                                    dimensions2)
 
-    for k in range(0,number_iterations):
+    order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
+
+    angle_weights = np.ones(sino.shape)*angle_weights
+    angle_weights = clarray.to_device(projectionsetting.queue,
+                                      np.require(np.array(angle_weights,
+                                                          order=order),
+                                                 sino.dtype),
+                                      allocator=sino.allocator)
+
+    for k in range(0, number_iterations):
         sys.stdout.write('\rProgress at {:3.0%}'
-                             .format(float(k)/number_iterations))
+                         .format(float(k)/number_iterations))
 
         forwardprojection(p, projectionsetting, sino=q)
-        alpha=x.dtype.type(projectionsetting.delta_x**2/
-            (projectionsetting.delta_s)*(clarray.vdot(sold,sold)
-           /clarray.vdot(q*angle_weights,q)).get())
+        alpha = x.dtype.type(projectionsetting.delta_x**2
+                             / (projectionsetting.delta_s)
+                             * (clarray.vdot(sold, sold)
+                                / clarray.vdot(q*angle_weights, q)).get())
 
-        x+=alpha*p
-        d-=alpha*q
+        x += alpha*p
+        d -= alpha*q
         backprojection(d, projectionsetting, img=snew)
-        beta=(clarray.vdot(snew,snew)/clarray.vdot(sold,sold)).get()
+        beta = (clarray.vdot(snew, snew)
+                / clarray.vdot(sold, sold)).get()
         (sold, snew) = (snew, sold)
-        p=beta*p+sold
-        residue = np.sqrt(np.sum(clarray.vdot(sold,sold).get())\
-          /np.sum(clarray.vdot(sino,sino).get()))
-        if  residue<epsilon:
+        p = beta*p+sold
+        residue = np.sqrt(np.sum(clarray.vdot(sold, sold).get())
+                          / np.sum(clarray.vdot(sino, sino).get()))
+        if residue < epsilon:
             sys.stdout.write('\rProgress aborted prematurely as desired'
-	              +'precision is reached')
-
+                             + 'precision is reached')
             break
 
     print("\rCG reconstruction complete")
 
     return x
 
+
 def total_variation(sino, projectionsetting, mu,
-    number_iterations=1000, slice_thickness=1,stepsize_weighting=10.):
+                    number_iterations=1000, slice_thickness=1,
+                    stepsize_weighting=10.):
     """
     Peforms a primal-dual algorithm [3]_ to solve a total-variation
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
-    solution of :math:`\min_{u} {\mu \over 2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
+    solution of
+    :math:`\min_{u} {\mu \over 2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
     for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
     and :math:`\mu` a positive regluarization parameter (i.e.,
     an :math:`L^2-\mathrm{TV}` reconstruction approach).
@@ -1809,7 +1857,8 @@ def total_variation(sino, projectionsetting, mu,
     :type slice_thickness: :class:`float`, default 1.0, i.e., isotropic voxels
 
     :param stepsize_weighting: Allows to weight the primal-dual algorithm's
-        stepsizes sigma and tau (with :math:`\sigma \tau \|\mathcal{P}\|^2\leq 1`)
+        stepsizes sigma and tau
+        (with :math:`\sigma \tau \|\mathcal{P}\|^2\leq 1`)
         by multiplication and division respectively with the given weight
     :type stepsize_weighting: :class:`float`, default 10.0
 
@@ -1823,93 +1872,116 @@ def total_variation(sino, projectionsetting, mu,
            Imaging Vis 40, 120–145 (2011).
            https://doi.org/10.1007/s10851-010-0251-1
     """
-    #Establish queue and context
+    # Establish queue and context
 
-    #preliminary definitions and parameters
-    queue=projectionsetting.queue
-    ctx=queue.context
-    my_dtype=sino.dtype
-    my_dimensions=projectionsetting.img_shape
-    my_order={0:'F',1:'C'}[sino.flags.c_contiguous]
+    # preliminary definitions and parameters
+    queue = projectionsetting.queue
+    ctx = queue.context
+    my_dtype = sino.dtype
+    my_order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
 
-    img_shape=projectionsetting.img_shape
-    if len(sino.shape)==2:
-        slice_thickness=0
+    img_shape = projectionsetting.img_shape
+    if len(sino.shape) == 2:
+        slice_thickness = 0
     else:
-        img_shape=img_shape+tuple([sino.shape[2]])
-    extended_img_shape=tuple([4])+img_shape
+        img_shape = img_shape+tuple([sino.shape[2]])
+    extended_img_shape = tuple([4])+img_shape
 
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    update_lambda_={(np.dtype("float32"),0):projectionsetting.prg.update_lambda_L2_float_f,
-		    (np.dtype("float32"),1):projectionsetting.prg.update_lambda_L2_float_c,
-		    (np.dtype("float"),0):projectionsetting.prg.update_lambda_L2_double_f,
-		    (np.dtype("float"),1):projectionsetting.prg.update_lambda_L2_double_c}
+    update_lambda_ = {
+            (np.dtype("float32"), 0):
+                projectionsetting.prg.update_lambda_L2_float_f,
+            (np.dtype("float32"), 1):
+                projectionsetting.prg.update_lambda_L2_float_c,
+            (np.dtype("float"), 0):
+                projectionsetting.prg.update_lambda_L2_double_f,
+            (np.dtype("float"), 1):
+                projectionsetting.prg.update_lambda_L2_double_c}
+
     update_lambda = lambda lamb, Ku, f, sigma, mu, normest, wait_for=[]: \
-            lamb.add_event(update_lambda_[lamb.dtype,lamb.flags.c_contiguous](lamb.queue,
-                lamb.shape, None, lamb.data, Ku.data, f.data,
-                np.float32(sigma/normest), np.float32(mu),
-                wait_for=lamb.events+Ku.events+f.events+wait_for))
+        lamb.add_event(update_lambda_[lamb.dtype, lamb.flags.c_contiguous]
+                       (lamb.queue, lamb.shape, None, lamb.data, Ku.data,
+                        f.data, np.float32(
+                                sigma/normest), np.float32(mu),
+                        wait_for=lamb.events + Ku.events + f.events+wait_for))
 
     # Update v the dual of gradient of u
-    update_v_={(np.dtype("float32"),0):projectionsetting.prg.update_v_float_f,
-            (np.dtype("float32"),1):projectionsetting.prg.update_v_float_c,
-            (np.dtype("float"),0):projectionsetting.prg.update_v_double_f,
-            (np.dtype("float"),1):projectionsetting.prg.update_v_double_c}
+    update_v_ = {
+            (np.dtype("float32"), 0): projectionsetting.prg.update_v_float_f,
+            (np.dtype("float32"), 1): projectionsetting.prg.update_v_float_c,
+            (np.dtype("float"), 0): projectionsetting.prg.update_v_double_f,
+            (np.dtype("float"), 1): projectionsetting.prg.update_v_double_c}
     update_v = lambda v, u, sigma, slice_thickness, wait_for=[]: \
-            v.add_event(update_v_[v.dtype,v.flags.c_contiguous](v.queue, u.shape,
-                None, v.data, u.data, np.float32(sigma), np.float32(slice_thickness),
-                wait_for=v.events+u.events+wait_for))
+        v.add_event(update_v_[v.dtype, v.flags.c_contiguous]
+                    (v.queue, u.shape, None, v.data, u.data, np.float32(sigma),
+                         np.float32(slice_thickness),
+                         wait_for=v.events+u.events+wait_for))
 
     # Update primal variable u (the image)
-    update_u_={(np.dtype("float32"),0):projectionsetting.prg.update_u_float_f,
-            (np.dtype("float32"),1):projectionsetting.prg.update_u_float_c,
-            (np.dtype("float"),0):projectionsetting.prg.update_u_double_f,
-            (np.dtype("float"),1):projectionsetting.prg.update_u_double_c}
+    update_u_ = {
+            (np.dtype("float32"), 0): projectionsetting.prg.update_u_float_f,
+            (np.dtype("float32"), 1): projectionsetting.prg.update_u_float_c,
+            (np.dtype("float"), 0): projectionsetting.prg.update_u_double_f,
+            (np.dtype("float"), 1): projectionsetting.prg.update_u_double_c}
     update_u = lambda u, u_, v, Kstarlambda, tau, normest, slice_thickness, \
-            wait_for=[]: \
-                u_.add_event(update_u_[u.dtype,u.flags.c_contiguous](u.queue,
-                        u.shape, None, u.data, u_.data, v.data,
-                        Kstarlambda.data, np.float32(tau),
-                        np.float32(1.0/normest), np.float32(slice_thickness),
-                        wait_for=u.events+u_.events+v.events+wait_for))
+        wait_for=[]: \
+        u_.add_event(update_u_[u.dtype, u.flags.c_contiguous]
+                     (u.queue, u.shape, None, u.data, u_.data, v.data,
+                      Kstarlambda.data, np.float32(
+                              tau), np.float32(1.0/normest),
+                      np.float32(slice_thickness),
+                      wait_for=u.events+u_.events+v.events+wait_for))
 
     # Compute the norm of v and project (dual update)
-    update_NormV_={(np.dtype("float32"),0):projectionsetting.prg.update_NormV_unchor_float_f,
-            (np.dtype("float32"),1):projectionsetting.prg.update_NormV_unchor_float_c,
-            (np.dtype("float"),0):projectionsetting.prg.update_NormV_unchor_double_f,
-            (np.dtype("float"),1):projectionsetting.prg.update_NormV_unchor_double_c}
-    update_NormV = lambda V, normV, wait_for=[]: \
-            normV.add_event(update_NormV_[V.dtype,V.flags.c_contiguous](V.queue,
-                V.shape[1:], None, V.data, normV.data,
-                wait_for=V.events+normV.events+wait_for))
+    update_NormV_ = {
+            (np.dtype("float32"), 0):
+            projectionsetting.prg.update_NormV_unchor_float_f,
+            (np.dtype("float32"), 1):
+            projectionsetting.prg.update_NormV_unchor_float_c,
+            (np.dtype("float"), 0):
+            projectionsetting.prg.update_NormV_unchor_double_f,
+            (np.dtype("float"), 1):
+            projectionsetting.prg.update_NormV_unchor_double_c}
+
+    update_NormV = lambda V, normV, wait_for=[]:\
+        normV.add_event(update_NormV_[V.dtype, V.flags.c_contiguous]
+                        (V.queue, V.shape[1:], None, V.data, normV.data,
+                         wait_for=V.events+normV.events+wait_for))
 
     # update of the extra gradient
     update_extra_ = {np.dtype("float32"): cl.elementwise.ElementwiseKernel(
-        ctx, 'float *u_, float *u', 'u[i] = 2.0f*u_[i] - u[i]'),
-        np.dtype("float"): cl.elementwise.ElementwiseKernel(ctx,
-        'double *u_, double *u', 'u[i] = 2.0f*u_[i] - u[i]')}[sino.dtype]
-    update_extra = lambda u_, u: \
-            u.add_event(update_extra_(u_, u, wait_for=u.events + u_.events))
+            ctx, 'float *u_, float *u', 'u[i] = 2.0f*u_[i] - u[i]'),
+            np.dtype("float"): cl.elementwise.ElementwiseKernel
+            (ctx, 'double *u_, double *u', 'u[i] = 2.0f*u_[i] - u[i]')}
+    update_extra_ = update_extra_[sino.dtype]
 
+    def update_extra(u_, u): return \
+        u.add_event(update_extra_(
+                u_, u, wait_for=u.events + u_.events))
 
-	# Initialize variables for the iteration
-    U=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
-    U_=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
-    V=clarray.zeros(queue, extended_img_shape, dtype=my_dtype,
-        order=my_order)
+    # Initialize variables for the iteration
+    U = clarray.zeros(queue, img_shape,
+                      dtype=my_dtype, order=my_order)
+    U_ = clarray.zeros(queue, img_shape,
+                       dtype=my_dtype, order=my_order)
+    V = clarray.zeros(queue, extended_img_shape, dtype=my_dtype,
+                      order=my_order)
 
-    Lamb=clarray.zeros(queue,sino.shape,dtype=my_dtype, order=my_order)
-    KU=clarray.zeros(queue, sino.shape, dtype=my_dtype, order=my_order)
-    KSTARlambda=clarray.zeros(queue, img_shape, dtype=my_dtype,
-        order=my_order)
-    normV=clarray.zeros(queue, img_shape, dtype=my_dtype, order=my_order)
+    Lamb = clarray.zeros(queue, sino.shape,
+                         dtype=my_dtype, order=my_order)
+    KU = clarray.zeros(queue, sino.shape,
+                       dtype=my_dtype, order=my_order)
+    KSTARlambda = clarray.zeros(queue, img_shape, dtype=my_dtype,
+                                order=my_order)
+    normV = clarray.zeros(
+            queue, img_shape, dtype=my_dtype, order=my_order)
 
-	# Compute estimates for step-size parameters
+    # Compute estimates for step-size parameters
     norm_estimate = normest(projectionsetting)
 
-    #Estimat of the operator [Grad,Proj] when Proj possesses norm 1
+    # Estimation of the operator [Grad,Proj] when Proj possesses norm 1
     Lsqr = 13
     sigma = 1.0/np.sqrt(Lsqr)*stepsize_weighting
     tau = 1.0/np.sqrt(Lsqr)/stepsize_weighting
@@ -1918,8 +1990,8 @@ def total_variation(sino, projectionsetting, mu,
     assert mu > 0, "Regularization parameter mu must be positive"
     # To counteract normalizing the operator, and delta_x comes Frobeniusnorm
     # the gradient
-    mu*=norm_estimate**2*projectionsetting.delta_x
-    mu=mu/(sigma+mu)
+    mu *= norm_estimate**2*projectionsetting.delta_x
+    mu = mu/(sigma+mu)
 
     # Primal-dual iteration
     for i in range(number_iterations):
@@ -1932,15 +2004,14 @@ def total_variation(sino, projectionsetting, mu,
         # Primal update
         backprojection(Lamb, projectionsetting, img=KSTARlambda)
         update_u(U_, U, V, KSTARlambda, tau, norm_estimate,
-            slice_thickness)
+                 slice_thickness)
 
-		# Extragradient update
+        # Extragradient update
         update_extra(U_, U)
         (U, U_) = (U_, U)
 
         sys.stdout.write('\rProgress at {:3.0%}'
-                             .format(float(i)/number_iterations))
+                         .format(float(i)/number_iterations))
+
     print("\rTV reconstruction complete")
-
-
     return U
