@@ -98,11 +98,6 @@ We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/late
     plt.show()
 ```
 
-
-
-## Known issues
-
-
 ## Authors
 
 * **Richard Huber** richard.huber@uni-graz.at
@@ -113,8 +108,8 @@ All authors are affiliated with the [Institute of Mathematics and Scientific Com
 ## Publications
 If you find this tool useful, please cite the following associated publication.
 
-*
-*
+* Kristian Bredies and Richard Huber. (2021). *Convergence analysis of pixel-driven Radon and fanbeam transforms.* SIAM Journal on Numerical Analysis 59(3), 1399–1432. https://doi.org/10.1137/20M1326635.
+* Kristian Bredies and Richard Huber. (2021). *Gratopy 0.1* [Software]. Zenodo.
 
 ## Acknowledgements
 
