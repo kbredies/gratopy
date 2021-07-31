@@ -120,13 +120,13 @@ One can start in Python via
 
 The following depicts the plots created by this example.
 
-.. image:: graphics/Phantom.png
+.. image:: graphics/phantom-1.png
     :width: 5000
 
-.. image:: graphics/Sinogram.png
+.. image:: graphics/sinogram-1.png
     :width: 5000
     
-.. image:: graphics/Backprojection.png
+.. image:: graphics/backprojection-1.png
     :width: 5000
 
 
