@@ -1580,7 +1580,7 @@ class ProjectionSettings():
                                    sino.data, np.int32(x), np.int32(
                                        y), ofs_buf, sdpd_buf,
                                    geometry_information,
-                                   wait_for=img.events+sino.events+wait_for)
+                                   wait_for=sino.events+wait_for)
 
             sino.add_event(myevent)
 

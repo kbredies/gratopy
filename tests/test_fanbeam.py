@@ -48,10 +48,10 @@ def evaluate_control_numbers(data, dimensions, expected_result,
         mysum += factors[i]*data[var1[i], var2[i], var3[i]]
     precision = abs(expected_result)/(10.**3)
     assert(abs(mysum-expected_result) < precision),\
-        "A control-sum for the "+name + " did not match the expected value,"\
-        + "expected: "+str(expected_result) + ", received: "+str(mysum) +\
-        ". Please consider the visual results to check whether this is " +\
-        "a numerical issue or a more fundamental error."
+        "A control sum for the "+name + " did not match the expected value. "\
+        + "Expected: "+str(expected_result) + ", received: "+str(mysum) +\
+        ". Please observe the visual results to check whether this is " +\
+        "a numerical issue or a fundamental error."
 
 
 def create_control_numbers():
@@ -754,11 +754,12 @@ def test_total_variation():
     dtype = np.dtype("float32")
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
+    angles = np.linspace(0,2*np.pi,121)[:-1] + np.pi/2
     img_shape = (400, 400)
 
     # create projectionsetting
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
-                                    img_shape=img_shape, angles=numberofangles,
+                                    img_shape=img_shape, angles=angles,
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
