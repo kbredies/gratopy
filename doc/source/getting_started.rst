@@ -1,4 +1,4 @@
-Getting Started
+Getting started
 ****************
 
 Basic principles of gratopy 
@@ -22,12 +22,12 @@ the geometry, see the figures below.
 
 Moreover, the projection requires discretization parameters, i.e., the shape of the image to project from and the number of detector pixels to map to. Note that these transforms are scaling-invariant in the sense that
 rescaling all *physical* quantities by the same factor creates operators which are rescaled versions of the original ones. On the other hand, changing the number of pixels leaves the 
-physical system intact and simply reflects a finer/coarser discretization.
+physical system invariant and simply reflects a finer/coarser discretization.
 
 The angular range for the parallel beam setting is :math:`[0,\pi[`, while for the fanbeam setting, it is :math:`[0,2\pi[`. 
 By default, it is assumed that the given angles completely partition the angular range. In case this is not desired  and a limited-angle situation
 is considered, the **fullangle** parameter of :py:class:`gratopy.ProjectionSettings` can be adapted, impacting for instance the backprojection operator.
-Note also, that the projections considered are rotation-invariant in the sense, that projection of a rotated image yields a sinogram with translation in the angular dimension.
+Note also that the projections considered are rotation-invariant in the sense, that projection of a rotated image yields a sinogram which is translated in the angular dimension.
 
 
 .. image:: graphics/radon-1.png
@@ -58,7 +58,7 @@ the rectangular image domain of **img**. More generally, **image_width** corresp
 which allow to consider *slim* objects.  
 In any case the object should be contained in the rectangular image-domain (with sides parallel to the x and y axes), in particular slim in vertical or horizontal direction in case of non-square images.  **(???)**.  
 When using an image together with **projectionsetting** -- an instance of :class:`gratopy.ProjectionSettings` --  the values :math:`(N_x,N_y)` have to coincide with the attribute **img_shape** of **projectionsetting**, we say they need to be **compatible**. The data type
-of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F `contiguity <https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array>`_. 
+of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* `contiguity <https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array>`_. 
  
 Sinograms in gratopy
 ------------------------
@@ -66,8 +66,8 @@ Sinograms in gratopy
 Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array`  of the shape :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` being the number of detectors and :math:`N_a` being the number of angles for which projections are considered. 
 When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**. 
 The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equi-distantly partitioning the detector line with detector pixel width 
-:math:`\delta_s`. The angles, on the other hand, need not be equi-distant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
-intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either C or F `contiguity`_.
+:math:`\delta_s`. The angles, on the other hand, do not need to be equi-distant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
+intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* `contiguity`_.
  
 
 

@@ -201,7 +201,7 @@ def test_projection():
 def test_weighting():
     """ Mass preservation test. Checks whether the total mass of an image
     is correctly transported into the total mass of a projection.
-    Due to the fan geometry the width of a projected object on the detector is
+    Due to the fan geometry, the width of a projected object on the detector is
     wider than the original object was, as the width of the fan grows linearly
     with the distance it travels. Consequently, also the total mass on the
     detector is rougly the multiplication of the total mass in the
@@ -336,7 +336,7 @@ def test_adjointness():
 
 def test_fullangle():
     """
-    Full-angle test. Tests and illustrates the impact of the fullangle
+    Full-angle test. Tests and illustrates the impact of the **fullangle**
     parameter, in particular showing artifacts resulting from the incorrect
     use of the limited angle setting.
     """
@@ -439,7 +439,7 @@ def test_fullangle():
                              + "fullangle setting")
 
 
-def test_midpointshift():
+def test_midpoint_shift():
     """
     Shifted midpoint test.
     Tests and illustrates how the sinogram changes if the midpoint of an
@@ -509,21 +509,24 @@ def test_midpointshift():
 
 
 def test_range_check_walnut():
-    """ We consider the walnut data_set [1]_ for testing the implementation.
-    This test observes, that with suitable parameters the data is
-    well-explained by the model defined by gratopy's operators. In particular
-    we note that there is a slight imperfection in the data_set as the detector
-    is not perfectly centered This can be observed in the fact, that the total
-    mass of the upper detector-half theoretically (up to numerical issues)
-    needs to conince with the lower detector-half's mass, but these are values
-    differ significantly.
-    Moreover, this test serves to varify the validity of the conjugate
-    gradient method. It is well-known that CG algorithm approximates the
-    minimal-norm least squares solution to the data, and in particular
-    the forwardprojection of this solution correspond to the projection
-    of data onto the range of the operator. As depicted in the plots,
-    these project do not have a systematic error, asside from an apparent
-    change of intensity/sensitivity for different projection angles.
+    """ The walnut data set from [1]_ is considered
+    for testing the implementation.
+    This test observes that with suitable parameters, the data is
+    well-explained by the model defined by gratopy's operators. In particular,
+    one can observe that there is a slight imperfection in the data set as 
+    the detector is not perfectly centered. Indeed, the total
+    mass of the upper detector-half theoretically 
+    needs to coincide with the lower detector-half's total mass 
+    (up to numerical precision), but these values differ significantly.
+    Moreover, this test serves to verify the validity of the conjugate
+    gradients (CG) method. It is well-known that the CG algorithm 
+    approximates the minimal-norm least squares solution to the data, 
+    and in particular,
+    the forward projection of this solution corresponds to the projection
+    of data onto the range of the operator. As depicted in the plots
+    shown by this test,
+    these projections do not have a systematic error, aside from an apparent
+    change of intensity/sensitivity **(???)** for different projection angles.
 
     .. [1] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and
            Antti Kujanpää and Esa Niemi and Samuli Siltanen.
@@ -910,7 +913,7 @@ def test_nonquadratic():
 
 def test_extract_sparse_matrix():
     """
-    Tests the create_sparse_matrix method to create a sparse matrix
+    Tests the :func:`create_sparse_matrix <gratopy.ProjectionSettings.create_sparse_matrix>` method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
     backprojection by matrix multiplication.
     """

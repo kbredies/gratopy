@@ -326,7 +326,7 @@ def test_adjointness():
 
 
 def test_fullangle():
-    """ Full-angle test. Tests and illustrates the impact of the fullangle
+    """ Full-angle test. Tests and illustrates the impact of the **fullangle**
     parameter, in particular showing artifacts resulting from the incorrect
     use of the limited angle setting.
     """
@@ -481,7 +481,7 @@ def test_nonquadratic():
 
 def test_extract_sparse_matrix():
     """
-    Tests the create_sparse_matrix method to create a sparse matrix
+    Tests the :func:`create_sparse_matrix <gratopy.ProjectionSettings.create_sparse_matrix>` method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
     backprojection by matrix multiplication.
     """
@@ -547,7 +547,7 @@ def test_extract_sparse_matrix():
                              classified="img", name="backprojected image")
 
 
-def test_midpointshift():
+def test_midpoint_shift():
     """
     Shifted midpoint test.
     Tests and illustrates how the sinogram changes if the midpoint of an

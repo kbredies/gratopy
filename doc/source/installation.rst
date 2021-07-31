@@ -1,6 +1,7 @@
 Installation
 *************
-Gratopy can easily be installed via pip.
+Gratopy supports common Python package distribution frameworks such as
+`setuptools <https://pypi.org/project/setuptools/>`_ or `pip <https://pypi.org/project/pip/>`_.
 
 Installation via pip
 =====================
@@ -10,7 +11,7 @@ The gratopy toolbox can easily be installed using `pip <https://pypi.org/project
 
     pip install gratopy   
 
-Alternatively, the release can be downloaded from `<https://github.com/kbredies/gratopy>`_ and installed (after unpacking inside the corresponding folder) via 
+Alternatively, the release can be downloaded from https://github.com/kbredies/gratopy and installed (after unpacking inside the corresponding folder) via 
 ::
 
     pip install .
@@ -61,6 +62,6 @@ relevant to the use of gratopy. Amongst them the most relevant ones are
 * `Pillow>=6.0.0 <https://pypi.org/project/Pillow/>`_
 
 Most users aiming for scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
-Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, `<https://documen.tician.de/pyopencl/>`_.    
+Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, https://documen.tician.de/pyopencl/.
 
 

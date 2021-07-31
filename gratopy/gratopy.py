@@ -62,7 +62,7 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     output will be of the same contiguity as img if no sino is given.
     The OpenCL events associated with the transform will be added to the
     output's events. In case the output array is created, it will use the
-    allocator of img. If the image and sinogram have a third dimension
+    allocator of **img**. If the image and sinogram have a third dimension
     (z-direction) the operator is applied slicewise.
 
     """
@@ -121,7 +121,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     with **sino**'s. The OpenCL events associated with the transform will be
     added to the output's events.
     In case the output array is created, it will
-    use the allocator of sino. If the sinogram and image have a third
+    use the allocator of **sino**. If the sinogram and image have a third
     dimension (z-direction), the operator is applied slicewise.
     """
 
@@ -164,7 +164,6 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :return: Event associated with the computation of the
         Radon transform (which is also added to the events of **sino**).
     :rtype:  :class:`pyopencl.Event`
-
     """
 
     # ensure that all relevant arrays have common data_type
@@ -214,7 +213,6 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
         backprojection
         (which is also added to the events of **img**).
     :rtype: :class:`pyopencl.Event`
-
     """
 
     # ensure that all relevant arrays have common data_type
@@ -243,7 +241,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                  detector_width=2.0, image_width=2.0, midpoint_shift=[0, 0],
                  detector_shift=0.0, fullangle=True):
     """
-    Creates the structure storing geometry information np.required for
+    Creates the structure storing geometry information required for
     the Radon transform and its adjoint.
 
     :param queue: OpenCL command queue in which context the
@@ -251,10 +249,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type queue: :class:`pyopencl.CommandQueue`
 
     :param img_shape:  The number of pixels of the image in x- and
-        y-direction respectively, i.e., the image size. It is assumed
-        that the center of rotation is in the middle
-        of the grid of quadratic pixels. ** (???) is this still valid?
-        there is a midpoint shift. **
+        y-direction respectively, i.e., the image size. 
+        It is assumed that by default, the center of rotation is in 
+        the middle of the grid of quadratic pixels. The midpoint can,
+        however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
 
     :param angles:  Determines which angles are considered for the
@@ -289,12 +287,12 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param midpoint_shift: Two-dimensional vector representing the
         shift of the image away from center of rotation.
         Defaults to the application of no shift.
-    :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
+    :type midpoint_shift:  :class:`list[float]`, default [0.0, 0.0]
 
     :param detector_shift: Physical shift of the detector along
         the detector line in detector pixel offsets. Defaults to
         the application of no shift, i.e., the detector reaches from
-        [- **detector_width** /2, **detector_width** /2].
+        [- **detector_width**/2, **detector_width**/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 
     :param fullangle: If :obj:`True`, the angles are interpreted to
@@ -303,7 +301,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         the given angles represent a discretization of a
         proper subset of :math:`[0,\pi[`.
         Affects the weights in the backprojection.
-    :type fullangle:  :class:`bool`, default :attr:`True`.
+    :type fullangle:  :class:`bool`, default :attr:`True`
 
     :return:
         Tuple (**ofs_dict**, **img_shape**, **sinogram_shape**,
@@ -324,7 +322,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         +---+-------------------+
         | 3 | inverse of cosine |
         +---+-------------------+
-        | 4 | angular weights   |
+        | 4 | angular weight    |
         +---+-------------------+
 
         The remaining columns are unused.
@@ -341,8 +339,8 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :vartype sinogram_shape: :class:`tuple`
 
     :var geo_dict:
-        Array containing information
-        [:math:`\delta_x,\delta_s,N_x,N_y,N_s,N_a`].
+        Array containing the values
+        [:math:`\delta_x, \delta_s, N_x, N_y, N_s, N_a`].
         **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
@@ -474,28 +472,27 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
 
 def fanbeam(sino, img, projectionsetting, wait_for=[]):
-    """Performs the fanbeam transform of a given image
-    using the given projectionsetting.
+    """
+    Performs the fanbeam transform of a given image using the
+    given **projectionsetting**.
 
-    :param sino: The sinogram to be computed (in which results are saved).
+    :param sino: The array in which the resulting sinogram is written.
     :type sino: :class:`pyopencl.array.Array`
 
-    :param img: The image to be transformed.
+    :param img: The image to transform.
     :type img: :class:`pyopencl.array.Array`
 
-    :param projectionsetting: The settings in which the
-        fanbeam transform is to be executed.
+    :param projectionsetting: The geometry settings for which the
+        fanbeam transform is performed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 
-    :param wait_for: The events to wait for before performing
-        the computation in order to avoid race conditions, see
-        `PyopenCL.events
-        <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
+    :param wait_for: The events to wait for before performing the computation
+        in order to avoid, e.g., race conditions, see :class:`pyopencl.Event`.
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
-    :return: Event associated to computation of fanbeam transform
-        (which is also added to the events of *sino*).
-    :rtype: :class:`pyopencl.Event`
+    :return: Event associated with the computation of the
+        fanbeam transform (which is also added to the events of **sino**).
+    :rtype:  :class:`pyopencl.Event`
     """
 
     # ensure that all relevant arrays have common data_type
@@ -521,27 +518,28 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
 
 
 def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
-    """Performs the fanbeam backprojection  of a given sinogram using
-    the given projectionsetting.
+    """
+    Performs the fanbeam backprojection of a given sinogram using
+    the given **projectionsetting**.
 
-    :param img: The image to be computed (in which results are saved).
+    :param img: The array in which the resulting backprojection is
+        written.
     :type img: :class:`pyopencl.array.Array`
 
-    :param sino: The sinogram to be transformed.
+    :param sino: The sinogram to transform.
     :type sino: :class:`pyopencl.array.Array`
 
-    :param projectionsetting: The settings in which the fanbeam
-        backprojection is to be executed.
+    :param projectionsetting: The geometry settings for which the
+        fanbeam backprojection is performed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
 
-    :param wait_for: The events to wait for before performing
-        the computation in order to avoid race conditions, see
-        `PyopenCL.events
-         <https://documen.tician.de/pyopencl/runtime_queue.html>`_.
+    :param wait_for: The events to wait for before performing the computation
+        in order to avoid, e.g., race conditions, see :class:`pyopencl.Event`.
     :type wait_for: :class:`list[pyopencl.Event]`, default []
 
-    :return: Event associated to computation of fanbeam backprojection
-        (which is also added to the events of *img*).
+    :return: Event associated with the computation of the fanbeam
+        backprojection
+        (which is also added to the events of **img**).
     :rtype: :class:`pyopencl.Event`
     """
 
@@ -570,118 +568,145 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
 def fanbeam_struct(queue, img_shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
                    n_detectors=None, detector_shift=0.0,
-                   image_width=None, midpointshift=[0, 0], fullangle=True):
-    """Creates the structure of fanbeam geometry np.required for
-    fanbeam transform and its adjoint.
+                   image_width=None, midpoint_shift=[0, 0], fullangle=True):
+    """
+    Creates the structure storing geometry information required for
+    the fanbeam transform and its adjoint.
 
-    :param queue: Opencl CommandQueue in which context the computations
-        are to be executed.
+    :param queue: OpenCL command queue in which context the
+        computations are to be performed.
     :type queue: :class:`pyopencl.CommandQueue`
 
     :param img_shape:  The number of pixels of the image in x- and
-        y-direction respectively, i.e., image resolution.
-        It is assumed that the center of rotation is in the middle
-        of the grid of quadratic pixels.
+        y-direction respectively, i.e., the image size. 
+        It is assumed that by default, the center of rotation is in 
+        the middle of the grid of quadratic pixels. The midpoint can,
+        however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
 
     :param angles:  Determines which angles are considered for the
-        projection. Integer :math:`N_a` for the number of uniformly
-        distributed angles in the angular range :math:`\ [0,2\pi[`.
-        List containing all angles considered for the projection.
-        More advanced list of lists of angles for multiple limited angle
-        segments, see :class:`fullangle` parameter.
-    :type angles: :class:`int`, :class:`list[float]`
-        or :class:`list[list[float]]`
-    :param detector_width: Physical length of the detector.
-    :type detector_width: :class:`float`
-    :param source_detector_dist:  Physical (orthogonal) distance from
-        the source to the detector line (**R**).
+        projection. Either the integer :math:`N_a` representing the
+        number of uniformly distributed angles in the angular range
+        :math:`[0,2\pi[`, a list containing all angles considered for
+        the projection, or a list of lists containing angles for
+        multiple limited angle segments, also see the
+        **fullangle** parameter.
+    :type angles: :class:`int`, :class:`list[float]` or
+        :class:`list[list[float]]`
+
+    :param detector_width: Physical length of the detector line.
+    :type detector_width: :class:`float`, default 2.0
+
+    :param source_detector_dist:  Physical (orthogonal) distance **R** from
+        the source to the detector line.
     :type source_detector_dist: :class:`float`
-    :param source_origin_dist: Physical distance for source to the
-        origin (center of rotation) (**RE**).
+
+    :param source_origin_dist: Physical distance **RE** from the source to the
+        origin (center of rotation).
     :type source_origin_dist: :class:`float`
 
-    :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
-         pixels considered, i.e., detector resolution.
-         When none is given :math:`N_s` will be chosen as
-         :math:`\sqrt{N_x^2+N_y^2}`.
-    :type n_detectors:  :class:`int`, default None
+    :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
+        detectors. If :obj:`None`, :math:`N_s` will be chosen as
+        :math:`\sqrt{N_x^2+N_y^2}`.
+    :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
 
+    :param detector_shift: Physical shift of the detector along
+        the detector line in detector pixel offsets. Defaults to
+        the application of no shift, i.e., the detector reaches from
+        [- **detector_width**/2, **detector_width**/2].
+    :type detector_shift: :class:`list[float]`, default 0.0
 
-    :param detector_shift:   Physical shift of the detector along the
-        detector-line and corresponding detector pixel offsets
-        , i.e, shifting the position of the detector pixels.
-        If not given no shift is applied, i.e. the detector reaches from
-        [-detector_width/2,detector_width/2].
-    :type detector_shift: :class:`float`, default 0.0
+    :param image_width: Size of the image (more precisely, the larger
+        side length of the rectangle representing the image domain), i.e.,
+        the diameter of the
+        circular object captured by image **(???) this is contradictory**.
+        If :obj:`None`, **image_width** is chosen to capture just
+        all rays.
+    :type image_width: :class:`float`, default :obj:`None`
 
-    :param image_width: Physical size of the image (more precisely  the
-        larger side length of the rectangle image),
-        i.e., the diameter of the circular object captured by image.
-        The image_width is chosen suitably to capture all rays if
-        no image_width is set.
-    :type image_width: :class:`float`, default :obj:`None` corresponds
-        automatic choice
-
-    :param midpoint_shift: Vector of length two representing the
+    :param midpoint_shift: Two-dimensional vector representing the
         shift of the image away from center of rotation.
-        If not given no shift is applied.
-    :type midpoint_shift:  :class:`list[float]` , default [0.0,0.0]
+        Defaults to the application of no shift.
+    :type midpoint_shift:  :class:`list[float]`, default [0.0, 0.0]
 
-    :param fullangle:  :obj:`True` if entire :math:`[0,2\pi[` is represented by
-        the angles, :obj:`False` for a limited angle setting, i.e., the given
-        angles only represent a discretization of a real subset of
-        :math:`[0,2\pi[`.
-        Impacts the weighting in the backprojection.
-    :type fullangel: :class:`bool`, default True
+    :param fullangle: If :obj:`True`, the angles are interpreted to
+        represent the whole interval :math:`[0,2\pi[`.
+        If :obj:`False`, a limited angle setting is considered, i.e.,
+        the given angles represent a discretization of a
+        proper subset of :math:`[0,2\pi[`.
+        Affects the weights in the backprojection.
+    :type fullangle:  :class:`bool`, default :attr:`True`
 
     :return:
-        img_shape: :class:`tuple`  :math:`(N_x,N_y)` resolution
+        Tuple (**img_shape**, **sinogram_shape**, **ofs_dict**,
+        **sdpd_dict**, **image_width**, **geo_dict**, **angles_diff**).
+    
+    :var img_shape:
+        Tuple of integers :math:`(N_x,N_y)` representing the size
         of the image.
+    :vartype img_shape: :class:`tuple`
 
-        sinogram_shape: :class:`tuple`  :math:`(N_s,N_a)`
-        resolution of the sinogram.
+    :var sinogram_shape:
+        Tuple of integers :math:`(N_s,N_a)` representing the size
+        of the sinogram.
+    :vartype sinogram_shape: :class:`tuple`
 
-        Ofs_Dict- dict[np.dtype --> numpy.array]
-        Dictionary containing the relevant angular information in
-        numpy.array form for respective data-type numpy.dtype(float32)
-        or numpy.dtype(float64).
-        Arrays have dimension :math:`(8, N_a)` with:
+    :var ofs_dict:
+        Dictionary containing the relevant angular information as
+        :class:`numpy.ndarray` for the data types :attr:`numpy.float32`
+        and :attr:`numpy.float64`.
+        The arrays have dimension :math:`(8, N_a)` with columns:
 
-        * 0 1 ... vector along detector-direction with length delta_s.
-        * 2 3 ... vector from source vector connecting source to center of
-        rotation.
-        * 4 5 ... vector connecting the origin to the detectorline.
-        * 6 ... Angular weights.
+        +-----+--------------------------------------------+
+        | 0 1 | **(???)** vector along detector direction  |
+        |     | with length :math:`\delta_s`               |
+        +-----+--------------------------------------------+
+        | 2 3 | vector connecting source and center of     |
+        |     | rotation                                   |
+        +-----+--------------------------------------------+
+        | 4 5 | vector connection origin and detector line |
+        |     | **(???) which point exactly? **            |
+        +-----+--------------------------------------------+
+        | 6   | angular weight                             |
+        +-----+--------------------------------------------+
 
+        The remaining column is unused.
+    :vartype ofs_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-        Sdpd_Dict: dictionary containing numpy.array with regard to
-        dtype reprsenting the values :math:`\sqrt{(s^2+R^2)}` for
-        the weighting in the fanbeam transform (weighted by delta_ratio).
+    :var sdpd_dict: Dictionary mapping :attr:`numpy.float32`
+        and :attr:`numpy.float64` to a :class:`numpy.ndarray`
+        representing the values :math:`\sqrt{(s^2+R^2)}` for
+        the weighting in the fanbeam transform (weighted by delta_ratio)
+        **(???)**.
+    :vartype sdpd_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-        image_width: Physical width of the image, is equal to the input
-        if given, or the determined suitable image_width if :obj:`None`
-        is given (see parameter :attr:`image_width`).
+    :var image_width: Physical size of the image. Equal to the input
+        parameter if given, or to the determined image size if 
+        **image_width** is :obj:`None` (see parameter 
+        **image_width**).
+    :vartype image:width: :class:`float`
 
-        geo_dict: numpy array (source_detector_dist, source_origin_dist,
-        width of a detector_pixel, midpoint_x,midpoint_y,midpoint_detectors,
-        img_shape[0],img_shape[1], sinogram_shape[0],
-        sinogram_shape[1],width of a pixel]).
+    :var geo_dict:
+        Array containing the values
+        [source detector distance, source origin distance,
+        width of a detector_pixel, midpoint x-coordinate, 
+        midpoint y-coordinate, midpoint detectors **(???)**,
+        img_shape[0], img_shape[1], sinogram_shape[0],
+        sinogram_shape[1], width of a pixel].
+        **(???) is this true? the type seems to be a dictionary.**
+    :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-        angles_diff: numpy.array
-        same values as in ofs_dict[4] representing the weight
-        associated to the angles (i.e. size of detector-pixels).
-
-    :rtype: (img_shape,sinogram_shape,Ofs_Dict,Sdpd_Dict,
-        image_width, geo_dict,angles_diff) with (:class:`tuple`,
-        :class:`tuple`, :class:`dict`,
-        :class:`dict`, :class:`float`, :class:`dict`, :class:`list`)
+    :var angles_diff:
+        Same values as in **ofs_dict** [6] representing the weights
+        associated with the angles (i.e., the length of sinogram
+        pixels in the angular direction).
+    :vartype angles_diff: :class:`numpy.ndarray`
     """
-
+    
     detector_width = float(detector_width)
     source_detector_dist = float(source_detector_dist)
     source_origin_dist = float(source_origin_dist)
-    midpointshift = np.array(midpointshift)
+    midpointshift = np.array(midpoint_shift)
 
     # choose equidistant angles in (0,2pi] if no specific angles are
     # given.
@@ -855,10 +880,8 @@ def create_code():
     Reads and creates CL code containing all OpenCL kernels
     of the gratopy toolbox.
 
-    :return: The toolbox's CL code
+    :return: The toolbox's CL code.
     :rtype:  :class:`str`
-
-
     """
 
     total_code = ""
@@ -931,12 +954,13 @@ class ProjectionSettings():
 
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image dimension.
-        It is assumed that the center of rotation is in the middle
-        of the grid of quadratic pixels.
+        It is assumed that by default, the center of rotation is in 
+        the middle of the grid of quadratic pixels. The midpoint can,
+        however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
 
     :param angles:  Determines which angles are considered for
-        the projection. Integer :math:`N_a` for the number
+        the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
         :math:`[0,\pi[,\ [0,2\pi[`
         for Radon and fanbeam transform, respectively. Alternatively,
@@ -944,10 +968,10 @@ class ProjectionSettings():
         considered for the projection can be given.
         Also, a list of lists of angles for multiple limited
         angle segments can be given,
-        see :class:`fullangle` parameter.
+        see the **fullangle** parameter.
     :type angles: :class:`int`, :class:`list[float]`
         or :class:`list[list[float]]`
-    :param n_detectors: :math:`N_s` the number of (equi-spaced) detectors
+    :param n_detectors: The number :math:`N_s` of (equi-spaced) detectors
         pixels considered. When :obj:`None`, :math:`N_s`
         will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int`, default :obj:`None`
@@ -983,7 +1007,7 @@ class ProjectionSettings():
         along the detector line.
         Defaults to the application of no shift, i.e.,
         the detector pixels span the range
-        [-detector_width/2, detector_width/2].
+        [-**detector_width**/2, **detector_width**/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 
     :param midpoint_shift: Two-dimensional vector representing the
@@ -998,7 +1022,7 @@ class ProjectionSettings():
         for parallel beam, :math:`[0,2\pi[` for fanbeam geometry)
         is represented. :obj:`False` indicates a limited
         angle setting, i.e., the angles only represent
-        a discretization of a strict subset of the angular range.
+        a discretization of a proper subset of the angular range.
         This impacts the weights in the backprojection.
     :type fullangle: :class:`bool`, default :obj:`True`
 
@@ -1006,14 +1030,14 @@ class ProjectionSettings():
     an instance of :class:`ProjectionSettings`, though the corresponding
     values might be slightly restructured by internal processes.
     Further useful attributes are listed below. It is advised not to set
-    these attributes directly but rather choose suitable input-parameters
-    in the initialization.
+    these attributes directly but rather to choose suitable input
+    parameters for the initialization.
 
     :ivar is_parallel: :obj:`True` if the geometry is for parallel beams,
         :obj:`False` otherwise.
     :vartype is_parallel: :class:`bool`
 
-    :ivar is_fan: :obj:`True` if the setting is for fanbeam geometry,
+    :ivar is_fan: :obj:`True` if the geometry is for fanbeam geometry,
         :obj:`False` otherwise.
     :vartype is_fan: :class:`bool`
 
@@ -1051,7 +1075,7 @@ class ProjectionSettings():
     :vartype prg:  :class:`gratopy.Program`
 
     :ivar struct: Various data used in the projection operator.
-        Contains in particular
+        Contains in particular a
         :class:`pyopencl.array.Array`
         with the angular information necessary for computations.
     :vartype struct: :class:`list`, see :func:`radon_struct` and
@@ -1063,7 +1087,7 @@ class ProjectionSettings():
     # array form for respective data-type numpy.dtype(float32)
     # or numpy.dtype(float64), switching from numpy to cl.array
     # when the information is uploaded to the OpenCL device
-    # (which is done automatically when np.required)
+    # (which is done automatically when required)
     # *Radon transformation*
     # Arrays have dimension 8 x Na with
     # 0 ... weighted cos()
@@ -1080,7 +1104,7 @@ class ProjectionSettings():
     # 6   ... Angular weights
     # :vartype ofs_buf: dictionary  from  numpy.dtype  to  numpy.Array or
     #    pyopencl.
-    # :ivar sdpd: representing the weight sqrt(delta_s^2+R^2) np.required for
+    # :ivar sdpd: representing the weight sqrt(delta_s^2+R^2) required for
     # the computation of fanbeam transform
     # :vartype sdpd: dictionary  from  numpy.dtype  to  numpy.Array or
     #   pyopencl.
@@ -1307,7 +1331,7 @@ class ProjectionSettings():
         :type axes: :class:`matplotlib.axes.Axes`, default :obj:`None`
 
         :param show:
-            Determines whether the resultsing plot is immediately
+            Determines whether the resulting plot is immediately
             shown (:obj:`True`).
             If :obj:`False`, :func:`matplotlib.pyplot.show` can be used
             at a later point to show the figure.
@@ -1488,8 +1512,8 @@ class ProjectionSettings():
     def create_sparse_matrix(self, dtype=np.dtype('float32'), order='F',
                              offset=0, outputfile=None):
         """
-        Creates a sparse representation of the associated forward
-        operator. **(???) this is never tested, Done**
+        Creates a sparse matrix representation of the associated forward
+        operator. 
 
         :param dtype: Precision to compute the sparse representation in.
         :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
@@ -1498,24 +1522,24 @@ class ProjectionSettings():
             to the transform, can be ``F`` or ``C``.
         :type order: :class:`str`, default ``F``
 
-        :param offset: Offset of the indices (e.g., 1 for Matlab,
+        :param offset: Offset of the first array index (e.g., 1 for Matlab,
             0 for Python/C++).
         :type offset: :class:`int`
 
         :param outputfile: Name of the file (.txt) to write the sparse
-            representation into (row, col, val). **(???) is this useful? users
-            can decide what to do with the output, i.e., write this as csv etc.
-            **
+            representation into (row, col, val). **(???) is this useful? 
+            users
+            can always decide what to do with the output, i.e., write this as 
+            csv etc.**
             If :obj:`None`, output is not be written into file.
         :type outputfile: :class:`str`
 
         :return: Sparse matrix corresponding to the
-            forward projection. **(???) why is this not in a common format
-            such as for scipy.sparse.coo_matrix?, DONE**
+            forward projection. 
         :rtype: :class:`scipy.sparse.coo_matrix`
 
         Note that for high resolution projection operators,
-        this may np.require infeasibly much time and memory.
+        this may require infeasibly much time and memory.
 
         """
 
@@ -1633,7 +1657,7 @@ def normest(projectionsetting, number_iterations=50, dtype='float32',
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the standard
     Euclidean or :math:`\ell^2`
-    norms. Useful for iterative methods that np.require such an estimate,
+    norms. Useful for iterative methods that require such an estimate,
     e.g., :func:`landweber` or :func:`total_variation`.
 
     :param projectionsetting: The geometry settings for which the projection
@@ -1852,14 +1876,16 @@ def total_variation(sino, projectionsetting, mu,
     :param slice_thickness: When 3-dimensional data sets are considered,
         regularization is also applied across slices.
         This parameter represents the ratio of the slice thickness to the
-        length of one pixel within a slice. The choice slice_thickness=0
+        length of one pixel within a slice. The choice 
+        **slice_thickness** =0
         results in no coupling across slices.
     :type slice_thickness: :class:`float`, default 1.0, i.e., isotropic voxels
 
     :param stepsize_weighting: Allows to weight the primal-dual algorithm's
-        stepsizes sigma and tau
-        (with :math:`\sigma \tau \|\mathcal{P}\|^2\leq 1`)
-        by multiplication and division respectively with the given weight
+        step sizes :math:`\sigma` and :math:`\\tau`
+        (with :math:`\sigma\\tau\|\mathcal{P}\|^2\leq 1`)
+        by multiplication and division, respectively,
+        with the given value.
     :type stepsize_weighting: :class:`float`, default 10.0
 
 

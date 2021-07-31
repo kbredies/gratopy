@@ -18,7 +18,7 @@ Thus, the first step in using gratopy is always creating an instance of :class:`
 Transforms
 ----------
 The functions :func:`forwardprojection` and :func:`backprojection` perform the projection operations based on the geometry defined in **projectionsetting**. The images **img** and the sinograms **sino** need to be interpreted and 
-behave as described in `Getting Started <getting_started.html>`_.
+behave as described in `Getting started <getting_started.html>`_.
 
 .. autofunction:: gratopy.forwardprojection
 .. autofunction:: gratopy.backprojection
@@ -44,7 +44,7 @@ For convenient testing, a phantom generator is included which creates a modified
 Internal functions
 ------------------
 
-In the following we conclude with the documentation of a series of internal functions, which are probably only of interest for more advanced users.  
+The following contains the documentation for a set of internal functions which could be of interest for developers. Note that these might be subject to change in the future.
 
 .. autofunction:: gratopy.radon
 .. autofunction:: gratopy.radon_ad

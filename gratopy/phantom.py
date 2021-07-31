@@ -20,8 +20,8 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
         example, see [12]_ and [13]_).
     :type modified: :class:`bool`
 
-    :param E: e times 6 numeric matrix defining e ellipses.  
-        The six columns of E are:
+    :param E: :math:`e \\times 6` numeric matrix defining :math:`e` ellipses.  
+        The six columns of **E** are:
 
         - Gray value of the ellipse (in [0, 1])
         - Length of the horizontal semiaxis of the ellipse
@@ -33,7 +33,7 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
 
     :type E: :class:`array_like` or :obj:`None`
 
-    :param ret_E: Return the matrix E used to generate the phantom.
+    :param ret_E: Return the matrix **E** used to generate the phantom.
     :type ret_E: :class:`bool`
 
     :param dtype: The :mod:`pyopencl` data type in which the phantom is created.
