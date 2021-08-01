@@ -1,10 +1,12 @@
+.. _test-examples:
+
 Test examples
 ==================
 
 The following documents a number of tests covering essentially
 all functions and features contained in the package. These functions
 serve the double purpose of showing that the package
-is indeed working as desired (via ``pytest`` or ``nosetests``, see `installation <installation.html>`_),
+is indeed working as desired (via ``pytest`` or ``nosetests``, see :ref:`installation`),
 and illustrating to users how to set various parameters of the
 gratopy toolbox and what their effect are (cf. the source code for the tests).
 

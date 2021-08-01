@@ -1,3 +1,5 @@
+.. _getting-started:
+
 Getting started
 ===============
 
@@ -43,11 +45,11 @@ Geometry of the parallel beam setting.
     
 Geometry of the fanbeam setting.
 
-
 The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`backprojection <gratopy.backprojection>`, which use a **projectionsetting** as the basis for computation and allow to project 
 an image **img** onto an sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe the requirements for such images and sinograms, and how to interpret their corresponding values.
 
- 
+.. _compatible:
+
 Images in gratopy
 '''''''''''''''''
 
@@ -56,10 +58,14 @@ An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of
 where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in
 the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side-length of an rectangular :math:`(N_x,N_y)` grid  of quadratic image pixels
 which allow to consider *slim* objects.  
-In any case the object should be contained in the rectangular image-domain (with sides parallel to the x and y axes), in particular slim in vertical or horizontal direction in case of non-square images.  **(???)**.  
+In any case the object should be contained in the rectangular image-domain (with sides parallel to the x and y axes), in particular slim in vertical or horizontal direction in case of non-square images.  **(???)**.
 When using an image together with **projectionsetting** -- an instance of :class:`gratopy.ProjectionSettings` --  the values :math:`(N_x,N_y)` have to coincide with the attribute **img_shape** of **projectionsetting**, we say they need to be **compatible**. The data type
-of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* `contiguity <https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array>`_. 
- 
+of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
+
+.. _contiguity: https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array
+
+.. _compatible-sino:
+
 Sinograms in gratopy
 ''''''''''''''''''''
 
@@ -67,10 +73,8 @@ Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array
 When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**. 
 The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equi-distantly partitioning the detector line with detector pixel width 
 :math:`\delta_s`. The angles, on the other hand, do not need to be equi-distant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
-intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* `contiguity`_.
+intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
  
-
-
 First example: Radon transform
 ------------------------------
 
@@ -192,5 +196,4 @@ the blue circle (with diameter 57.46) is exactly captured by each projection, an
 
 Plot produced by :class:`gratopy.ProjectionSettings.show_geometry` for the fanbeam setting with automatic and manually chosen **image_width**.
 
-Further examples can be found in the source files of the `test examples <test_examples.html>`_. 
-
+Further examples can be found in the source files of the :ref:`test-examples`. 

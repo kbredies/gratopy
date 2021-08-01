@@ -1,13 +1,18 @@
+.. _installation:
+
 Installation
 ============
 
 Gratopy supports common Python package distribution frameworks such as
-`setuptools <https://pypi.org/project/setuptools/>`_ or `pip <https://pypi.org/project/pip/>`_.
+setuptools_ or pip_.
+
+.. _setuptools: https://pypi.org/project/setuptools/
+.. _pip: https://pypi.org/project/pip/
 
 Installation via pip
 --------------------
 
-The gratopy toolbox can easily be installed using `pip <https://pypi.org/project/pip/>`_
+The gratopy toolbox can easily be installed using pip_
 ::
 
     pip install gratopy   
@@ -18,19 +23,21 @@ Alternatively, the release can be downloaded from https://github.com/kbredies/gr
     pip install .
     
 In case installation fails due to the dependency on other packages (see `requirements.txt <https://github.com/kbredies/gratopy/blob/master/requirements.txt>`_), it is advised to install the packages by hand before retrying to install gratopy. In particular, the PyOpenCL package may require some additional
-effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to PyOpenCL's `documentation <https://documen.tician.de/pyopencl/>`_.  
+effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to the documentation of PyOpenCL_.
+
+.. _pyopencl: https://documen.tician.de/pyopencl/
 
 Testing correct installation
 ----------------------------
 
-The release archive (or GitHub repositoy) includes a ``tests`` folder which contains a variety of tests that allow to observe visually and numerically whether gratopy was installed correctly and works as desired.
+The release archive (or GitHub repository) includes a ``tests`` folder which contains a variety of tests that allow to observe visually and numerically whether gratopy was installed correctly and works as desired.
 
-One can perform these tests by using, for instance, `pytest <https://pypi.org/project/pytest/>`_  
+One can perform these tests by using, for instance, pytest_  
 ::
 
     pytest  
     
-or `nose <https://pypi.org/project/nose/>`_
+or nose_
 ::
 
     nosetests 
@@ -48,7 +55,10 @@ The context number can, for instance, be determined by
 
 following the interactive instructions and observing the console output.
 
-Moreover, the `getting started <getting_started.html>`_ guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
+Moreover, the :ref:`getting-started` guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
+
+.. _pytest: https://pypi.org/project/pytest/
+.. _nose: https://pypi.org/project/nose/
 
 Requirements
 ------------
@@ -64,5 +74,3 @@ relevant to the use of gratopy. Amongst them the most relevant ones are
 
 Most users aiming for scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
 Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, https://documen.tician.de/pyopencl/.
-
-

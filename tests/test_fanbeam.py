@@ -509,7 +509,7 @@ def test_midpoint_shift():
 
 
 def test_range_check_walnut():
-    """ The walnut data set from [1]_ is considered
+    """ The walnut data set from [HHKKNS2015]_ is considered
     for testing the implementation.
     This test observes that with suitable parameters, the data is
     well-explained by the model defined by gratopy's operators. In particular,
@@ -528,10 +528,10 @@ def test_range_check_walnut():
     these projections do not have a systematic error, aside from an apparent
     change of intensity/sensitivity **(???)** for different projection angles.
 
-    .. [1] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and
-           Antti Kujanpää and Esa Niemi and Samuli Siltanen.
-           "Tomographic X-ray data of a walnut".
-           https://arxiv.org/abs/1502.04064
+    .. [HHKKNS2015] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and
+                    Antti Kujanpää and Esa Niemi and Samuli Siltanen.
+                    "Tomographic X-ray data of a walnut".
+                    https://arxiv.org/abs/1502.04064
     """
 
     ctx = cl.create_some_context(interactive=False)
@@ -626,7 +626,7 @@ def test_landweber():
     """
     Landweber reconstruction test. Performs the Landweber iteration
     to compute a reconstruction from a sinogram contained in
-    the walnut data set of [1]_, testing the implementation.
+    the walnut data set of [HHKKNS2015]_, testing the implementation.
     """
     print("Walnut Landweber reconstruction test")
 
@@ -684,7 +684,7 @@ def test_conjugate_gradients():
     Conjugate gradients reconstruction test.
     Performs the conjugate gradients iteration
     to compute a reconstruction from a sinogram contained in
-    the walnut data set of [1]_, testing the implementation.
+    the walnut data set of [HHKKNS2015]_, testing the implementation.
     """
     print("Walnut conjugated_gradients reconstruction test")
 
@@ -742,7 +742,7 @@ def test_total_variation():
     Total variation reconstruction test.
     Performs the toolbox's total-variation-based approach
     to compute a reconstruction from a sinogram contained in
-    the walnut data set of [1]_, testing the implementation.
+    the walnut data set of [HHKKNS2015]_, testing the implementation.
     """
     print("Walnut total variation reconstruction test")
 

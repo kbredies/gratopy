@@ -15,9 +15,9 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     :param N: Matrix size, (N, N) or (M, N).
     :type N: :class:`int` or :class:`array_like`
 
-    :param modified: Use original grey-scale values as given in [10]_.  Most
+    :param modified: Use original grey-scale values as given in [SL1974]_.  Most
         implementations use modified values for better contrast (for
-        example, see [12]_ and [13]_).
+        example, see [2]_ and [3]_).
     :type modified: :class:`bool`
 
     :param E: :math:`e \\times 6` numeric matrix defining :math:`e` ellipses.  
@@ -49,20 +49,20 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     :var E: The ellipse parameters used to generate **ph**.
     :vartype E: :class:`array_like`, optional
     
-    This much abused phantom is due to [10]_.  The tabulated values in
-    the paper are reproduced in the Wikipedia entry [11]_.  The
+    This much abused phantom is due to [SL1974]_.  The tabulated values in
+    the paper are reproduced in the Wikipedia entry [1]_.  The
     original values do not produce great contrast, so modified values
-    are used by default (see Table B.1 in [14]_ or implementations
-    [12]_ and [13]_).
+    are used by default (see Table B.1 in [TS1996]_ or implementations
+    [2]_ and [3]_).
 
-    .. [10] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
-        reconstruction of a head section." IEEE Transactions on
-        nuclear science 21.3 (1974): 21-43.
-    .. [11] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
-    .. [12] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
-    .. [13] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
-    .. [14] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
+    .. [SL1974] Shepp, Lawrence A., and Benjamin F. Logan. "The Fourier
+                reconstruction of a head section." IEEE Transactions on
+                nuclear science 21.3 (1974): 21-43.
+    .. [TS1996] Toft, Peter Aundal, and John Aasted Sørensen. "The Radon
                transform-theory and implementation." (1996).
+    .. [1] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
+    .. [2] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
+    .. [3] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
     '''
 
     # Get size of phantom

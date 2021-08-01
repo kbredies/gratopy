@@ -36,14 +36,14 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
 
     :param img: The image to be transformed.
     :type img: :class:`pyopencl.array.Array` with
-        `compatible  <getting_started.html>`_ dimensions
+        :ref:`compatible  <compatible>` dimensions
     :param projectionsetting: The geometry settings for which the forward
         transform is computed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
     :param sino: The array in which the result of transformation
         is saved. If :obj:`None` (per default) is given, a new array
         will be created and returned.
-    :type sino: :class:`pyopencl.array.Array` with `compatible`_ dimensions,
+    :type sino: :class:`pyopencl.array.Array` with :ref:`compatible <compatible-sino>` dimensions,
         default :obj:`None`
     :param wait_for: The events to wait for before performing the
         computation in order to avoid, e.g., race conditions, see
@@ -91,7 +91,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     settings.
 
     :param sino: Sinogram to be backprojected.
-    :type sino: :class:`pyopencl.array.Array` with `compatible`_ dimensions
+    :type sino: :class:`pyopencl.array.Array` with :ref:`compatible <compatible-sino>` dimensions
 
     :param projectionsetting: The geometry settings for which the forward
         transform is computed.
@@ -99,7 +99,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
 
     :param  img: The array in which the result of backprojection is saved.
         If :obj:`None` is given, a new array will be created and returned.
-    :type img: :class:`pyopencl.array.Array`  with `compatible`_ dimensions,
+    :type img: :class:`pyopencl.array.Array`  with :ref:`compatible <compatible>` dimensions,
         default :obj:`None`
 
     :param wait_for: The events to wait for before performing the
@@ -1695,7 +1695,7 @@ def normest(projectionsetting, number_iterations=50, dtype='float32',
 
 def landweber(sino, projectionsetting, number_iterations=100, w=1):
     """
-    Performs a Landweber iteration [1]_ to approximate
+    Performs a Landweber iteration [L1951]_ to approximate
     a solution to the image reconstruction problem associated
     with a projection and sinogram. This method is also known as SIRT.
 
@@ -1717,10 +1717,9 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
         iteration.
     :rtype: :class:`pyopencl.array.Array`
 
-    .. [1] Landweber, L. "An iteration formula for Fredholm integral
-           equations of the first kind." Amer. J. Math. 73, 615–624
-           (1951).
-           https://doi.org/10.2307/2372313
+    .. [L1951] Landweber, L. "An iteration formula for Fredholm integral
+               equations of the first kind." Amer. J. Math. 73, 615–624
+               (1951). https://doi.org/10.2307/2372313
     """
 
     # Set relaxation parameter
@@ -1750,7 +1749,7 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 def conjugate_gradients(sino, projectionsetting, number_iterations=20,
                         epsilon=0.0, x0=None):
     """
-    Performs a conjugate gradients iteration [2]_ to approximate
+    Performs a conjugate gradients iteration [HS1952]_ to approximate
     a solution to the image reconstruction problem associated
     with a projection and sinogram.
 
@@ -1776,10 +1775,10 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     :return: Reconstruction gained via conjugate gradients iteration.
     :rtype:  :class:`pyopencl.array.Array`
 
-    .. [2] Hestenes, M. R., Stiefel, E. "Methods of Conjugate Gradients
-           for Solving Linear Systems." Journal of Research of the National
-           Bureau of Standards, 49:409–436 (1952).
-           https://doi.org/10.6028/jres.049.044
+    .. [HS1952] Hestenes, M. R., Stiefel, E. "Methods of Conjugate Gradients
+                for Solving Linear Systems." Journal of Research of the National
+                Bureau of Standards, 49:409–436 (1952).
+                https://doi.org/10.6028/jres.049.044
     """
 
     # Determine suitable dimensions
@@ -1850,7 +1849,7 @@ def total_variation(sino, projectionsetting, mu,
                     number_iterations=1000, slice_thickness=1,
                     stepsize_weighting=10.):
     """
-    Peforms a primal-dual algorithm [3]_ to solve a total-variation
+    Peforms a primal-dual algorithm [CP2011]_ to solve a total-variation
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
@@ -1893,10 +1892,10 @@ def total_variation(sino, projectionsetting, mu,
         total-variation regularized reconstruction problem.
     :rtype:  :class:`pyopencl.array.Array`
 
-    .. [3] Chambolle, A., Pock, T. "A First-Order Primal-Dual Algorithm
-           for Convex Problems with Applications to Imaging." J Math
-           Imaging Vis 40, 120–145 (2011).
-           https://doi.org/10.1007/s10851-010-0251-1
+    .. [CP2011] Chambolle, A., Pock, T. "A First-Order Primal-Dual Algorithm
+                for Convex Problems with Applications to Imaging." J Math
+                Imaging Vis 40, 120–145 (2011).
+                https://doi.org/10.1007/s10851-010-0251-1
     """
     # Establish queue and context
 
