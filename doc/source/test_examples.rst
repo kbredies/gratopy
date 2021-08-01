@@ -1,5 +1,3 @@
-
-
 Test examples
 ==================
 
@@ -16,19 +14,13 @@ Radon transform
 
 .. module:: tests.test_radon
 
-.. autoclass:: tests.test_radon.test_projection()
-
-.. autoclass:: tests.test_radon.test_weighting()
-
-.. autoclass:: tests.test_radon.test_adjointness()
-
-.. autoclass:: tests.test_radon.test_nonquadratic()
-
-.. autoclass:: tests.test_radon.test_fullangle()
-
-.. autoclass:: tests.test_radon.test_midpoint_shift()
-
-.. autoclass:: tests.test_radon.test_extract_sparse_matrix()
+.. autofunction:: tests.test_radon.test_projection()
+.. autofunction:: tests.test_radon.test_weighting()
+.. autofunction:: tests.test_radon.test_adjointness()
+.. autofunction:: tests.test_radon.test_nonquadratic()
+.. autofunction:: tests.test_radon.test_fullangle()
+.. autofunction:: tests.test_radon.test_midpoint_shift()
+.. autofunction:: tests.test_radon.test_extract_sparse_matrix()
 
 
 Fanbeam transform
@@ -36,25 +28,14 @@ Fanbeam transform
 
 .. module:: tests.test_fanbeam
 
-
-.. autoclass:: tests.test_fanbeam.test_projection()
-
-.. autoclass:: tests.test_fanbeam.test_weighting()
-
-.. autoclass:: tests.test_fanbeam.test_adjointness()
-
-.. autoclass:: tests.test_fanbeam.test_fullangle()
-
-.. autoclass:: tests.test_fanbeam.test_midpoint_shift()
-
-.. autoclass:: tests.test_fanbeam.test_range_check_walnut()
-
-.. autoclass:: tests.test_fanbeam.test_landweber()
-
-.. autoclass:: tests.test_fanbeam.test_conjugate_gradients()
-
-.. autoclass:: tests.test_fanbeam.test_total_variation()
-
-.. autoclass:: tests.test_fanbeam.test_nonquadratic()
-
-.. autoclass:: tests.test_fanbeam.test_extract_sparse_matrix()
+.. autofunction:: tests.test_fanbeam.test_projection()
+.. autofunction:: tests.test_fanbeam.test_weighting()
+.. autofunction:: tests.test_fanbeam.test_adjointness()
+.. autofunction:: tests.test_fanbeam.test_fullangle()
+.. autofunction:: tests.test_fanbeam.test_midpoint_shift()
+.. autofunction:: tests.test_fanbeam.test_range_check_walnut()
+.. autofunction:: tests.test_fanbeam.test_landweber()
+.. autofunction:: tests.test_fanbeam.test_conjugate_gradients()
+.. autofunction:: tests.test_fanbeam.test_total_variation()
+.. autofunction:: tests.test_fanbeam.test_nonquadratic()
+.. autofunction:: tests.test_fanbeam.test_extract_sparse_matrix()

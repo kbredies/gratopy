@@ -1,13 +1,13 @@
 Getting started
-****************
+===============
 
-Basic principles of gratopy 
-============================
+Basic principles of gratopy
+---------------------------
 
 We start by explaining some recurring relevant quantities and concepts in gratopy, in particular the :class:`ProjectionSettings <gratopy.ProjectionSettings>` class as well as the use of images and sinograms in the context of gratopy.
 
 ProjectionSettings
--------------------
+''''''''''''''''''
 
 The cornerstone of the gratopy toolbox is formed by the :py:class:`gratopy.ProjectionSettings` class, which defines the considered geometry, collects all relevant 
 information to create the OpenCL kernels and precomputes as well as saves
@@ -49,10 +49,10 @@ an image **img** onto an sinogram **sino** and to backproject **sino** onto **im
 
  
 Images in gratopy
--------------------
+'''''''''''''''''
 
 An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`
--- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels of size :math:`\delta_x=\text{image_width}/\max\{N_x,N_y\}`,
+-- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels of size :math:`\delta_x=\mathrm{image_width}/\max\{N_x,N_y\}`,
 where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in
 the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side-length of an rectangular :math:`(N_x,N_y)` grid  of quadratic image pixels
 which allow to consider *slim* objects.  
@@ -61,7 +61,7 @@ When using an image together with **projectionsetting** -- an instance of :class
 of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* `contiguity <https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array>`_. 
  
 Sinograms in gratopy
-------------------------
+''''''''''''''''''''
 
 Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array`  of the shape :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` being the number of detectors and :math:`N_a` being the number of angles for which projections are considered. 
 When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**. 
@@ -72,7 +72,7 @@ intensity values of a continuous sinogram counterpart. The data type of this arr
 
 
 First example: Radon transform
-===============================
+------------------------------
 
 One can start in Python via
 ::
@@ -131,7 +131,8 @@ The following depicts the plots created by this example.
 
 
 Second example: Fanbeam transform
-=================================
+---------------------------------
+
 As a second example, we consider a fanbeam geometry which has a detector that is 120 (cm) wide, the distance from the source to the center of rotation is 100 (cm),
 while the distance from source to detector are 200 (cm). We do not choose the **image_width** but rather let gratopy automatically determine a suitable **image_width**. We visualize the defined geometry via the :class:`gratopy.ProjectionSettings.show_geometry` method.
 ::

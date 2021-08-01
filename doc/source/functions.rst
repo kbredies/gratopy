@@ -1,5 +1,3 @@
-
-     
 Function reference
 ==================
 
@@ -8,15 +6,16 @@ Function reference
 
 Definition of geometry
 ----------------------
-A  cornerstone in applying projection methods is to define for which geometry the projection has to be computed.
+
+A cornerstone in applying projection methods is to define for which geometry the projection has to be computed.
 Thus, the first step in using gratopy is always creating an instance of :class:`gratopy.ProjectionSettings` defining the geometry, and thus internally precomputing relevant quantities.
 
 .. autoclass:: gratopy.ProjectionSettings
 	:members:
 
-
 Transforms
 ----------
+
 The functions :func:`forwardprojection` and :func:`backprojection` perform the projection operations based on the geometry defined in **projectionsetting**. The images **img** and the sinograms **sino** need to be interpreted and 
 behave as described in `Getting started <getting_started.html>`_.
 
@@ -25,6 +24,7 @@ behave as described in `Getting started <getting_started.html>`_.
 
 Solvers
 -------
+
 Based on these forward and backward operators, one can implement a variety of reconstruction algorithms, where the toolbox's focus is on iterative methods (as those in particular are dependent on efficient implementation). 
 The following constitute a few easy-to-use examples which also serve as illustration on how gratopy can be included in custom implementations.
 
@@ -55,6 +55,3 @@ The following contains the documentation for a set of internal functions which c
 .. autofunction:: gratopy.fanbeam_struct
 
 .. autofunction:: gratopy.create_code
-
-
-

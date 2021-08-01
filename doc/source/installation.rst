@@ -1,10 +1,11 @@
 Installation
-*************
+============
+
 Gratopy supports common Python package distribution frameworks such as
 `setuptools <https://pypi.org/project/setuptools/>`_ or `pip <https://pypi.org/project/pip/>`_.
 
 Installation via pip
-=====================
+--------------------
 
 The gratopy toolbox can easily be installed using `pip <https://pypi.org/project/pip/>`_
 ::
@@ -20,7 +21,7 @@ In case installation fails due to the dependency on other packages (see `require
 effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to PyOpenCL's `documentation <https://documen.tician.de/pyopencl/>`_.  
 
 Testing correct installation
-============================
+----------------------------
 
 The release archive (or GitHub repositoy) includes a ``tests`` folder which contains a variety of tests that allow to observe visually and numerically whether gratopy was installed correctly and works as desired.
 
@@ -50,7 +51,7 @@ following the interactive instructions and observing the console output.
 Moreover, the `getting started <getting_started.html>`_ guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
 
 Requirements
-==================
+------------
 
 The requirements.txt file contains references to Python packages
 relevant to the use of gratopy. Amongst them the most relevant ones are
