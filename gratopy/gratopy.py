@@ -1853,7 +1853,7 @@ def total_variation(sino, projectionsetting, mu,
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
-    :math:`\min_{u} {\mu \over 2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
+    :math:`\min_{u} {\\frac\mu2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
     for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
     and :math:`\mu` a positive regluarization parameter (i.e.,
     an :math:`L^2-\mathrm{TV}` reconstruction approach).
