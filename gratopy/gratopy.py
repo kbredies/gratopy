@@ -43,7 +43,8 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     :param sino: The array in which the result of transformation
         is saved. If :obj:`None` (per default) is given, a new array
         will be created and returned.
-    :type sino: :class:`pyopencl.array.Array` with :ref:`compatible <compatible-sino>` dimensions,
+    :type sino: :class:`pyopencl.array.Array` with
+        :ref:`compatible <compatible-sino>` dimensions,
         default :obj:`None`
     :param wait_for: The events to wait for before performing the
         computation in order to avoid, e.g., race conditions, see
@@ -91,7 +92,8 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     settings.
 
     :param sino: Sinogram to be backprojected.
-    :type sino: :class:`pyopencl.array.Array` with :ref:`compatible <compatible-sino>` dimensions
+    :type sino: :class:`pyopencl.array.Array` with
+        :ref:`compatible <compatible-sino>` dimensions
 
     :param projectionsetting: The geometry settings for which the forward
         transform is computed.
@@ -99,7 +101,8 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
 
     :param  img: The array in which the result of backprojection is saved.
         If :obj:`None` is given, a new array will be created and returned.
-    :type img: :class:`pyopencl.array.Array`  with :ref:`compatible <compatible>` dimensions,
+    :type img: :class:`pyopencl.array.Array`  with
+        :ref:`compatible <compatible>` dimensions,
         default :obj:`None`
 
     :param wait_for: The events to wait for before performing the
@@ -249,8 +252,8 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type queue: :class:`pyopencl.CommandQueue`
 
     :param img_shape:  The number of pixels of the image in x- and
-        y-direction respectively, i.e., the image size. 
-        It is assumed that by default, the center of rotation is in 
+        y-direction respectively, i.e., the image size.
+        It is assumed that by default, the center of rotation is in
         the middle of the grid of quadratic pixels. The midpoint can,
         however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
@@ -578,8 +581,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type queue: :class:`pyopencl.CommandQueue`
 
     :param img_shape:  The number of pixels of the image in x- and
-        y-direction respectively, i.e., the image size. 
-        It is assumed that by default, the center of rotation is in 
+        y-direction respectively, i.e., the image size.
+        It is assumed that by default, the center of rotation is in
         the middle of the grid of quadratic pixels. The midpoint can,
         however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
@@ -640,7 +643,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :return:
         Tuple (**img_shape**, **sinogram_shape**, **ofs_dict**,
         **sdpd_dict**, **image_width**, **geo_dict**, **angles_diff**).
-    
+
     :var img_shape:
         Tuple of integers :math:`(N_x,N_y)` representing the size
         of the image.
@@ -681,15 +684,15 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :vartype sdpd_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var image_width: Physical size of the image. Equal to the input
-        parameter if given, or to the determined image size if 
-        **image_width** is :obj:`None` (see parameter 
+        parameter if given, or to the determined image size if
+        **image_width** is :obj:`None` (see parameter
         **image_width**).
     :vartype image:width: :class:`float`
 
     :var geo_dict:
         Array containing the values
         [source detector distance, source origin distance,
-        width of a detector_pixel, midpoint x-coordinate, 
+        width of a detector_pixel, midpoint x-coordinate,
         midpoint y-coordinate, midpoint detectors **(???)**,
         img_shape[0], img_shape[1], sinogram_shape[0],
         sinogram_shape[1], width of a pixel].
@@ -702,7 +705,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         pixels in the angular direction).
     :vartype angles_diff: :class:`numpy.ndarray`
     """
-    
+
     detector_width = float(detector_width)
     source_detector_dist = float(source_detector_dist)
     source_origin_dist = float(source_origin_dist)
@@ -954,7 +957,7 @@ class ProjectionSettings():
 
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image dimension.
-        It is assumed that by default, the center of rotation is in 
+        It is assumed that by default, the center of rotation is in
         the middle of the grid of quadratic pixels. The midpoint can,
         however, be shifted, see the **midpoint_shift** parameter.
     :type img_shape: :class:`tuple` :math:`(N_x,N_y)`
@@ -1313,7 +1316,8 @@ class ProjectionSettings():
             upload_bufs(self, dtype)
             self.buf_upload[dtype] = 1
 
-    def show_geometry(self, angle, figure=None, axes=None, show=True):
+    def show_geometry(self, angle, figure=None, axes=None, show=True,
+                      img=None):
         """ Visualize the geometry associated with the projection settings.
         This can be useful in checking that indeed, the correct input
         for the desired geometry was given.
@@ -1504,16 +1508,17 @@ class ProjectionSettings():
             maxsize = np.sqrt(image_width**2+detector_width**2)
             axes.set_xlim([-maxsize, maxsize])
             axes.set_ylim([-maxsize, maxsize])
-            if show and (figure is not None):
-                figure.show()
-                #            plt.show()
+
+        if img:
+            figure.figimage(img, 0, 0)
+        if show and (figure is not None):
+            figure.show()
         return figure, axes
 
-    def create_sparse_matrix(self, dtype=np.dtype('float32'), order='F',
-                             offset=0, outputfile=None):
+    def create_sparse_matrix(self, dtype=np.dtype('float32'), order='F'):
         """
         Creates a sparse matrix representation of the associated forward
-        operator. 
+        operator.
 
         :param dtype: Precision to compute the sparse representation in.
         :type dtype: :class:`numpy.dtype`, default :attr:`numpy.float32`
@@ -1522,20 +1527,16 @@ class ProjectionSettings():
             to the transform, can be ``F`` or ``C``.
         :type order: :class:`str`, default ``F``
 
-        :param offset: Offset of the first array index (e.g., 1 for Matlab,
-            0 for Python/C++).
-        :type offset: :class:`int`
-
         :param outputfile: Name of the file (.txt) to write the sparse
-            representation into (row, col, val). **(???) is this useful? 
+            representation into (row, col, val). **(???) is this useful?
             users
-            can always decide what to do with the output, i.e., write this as 
+            can always decide what to do with the output, i.e., write this as
             csv etc.**
             If :obj:`None`, output is not be written into file.
         :type outputfile: :class:`str`
 
         :return: Sparse matrix corresponding to the
-            forward projection. 
+            forward projection.
         :rtype: :class:`scipy.sparse.coo_matrix`
 
         Note that for high resolution projection operators,
@@ -1553,11 +1554,11 @@ class ProjectionSettings():
                 }
         elif self.is_fan:
             functions = {
-              (np.dtype("float32"), 0): self.prg.single_line_fan_float_ff,
-              (np.dtype("float32"), 1): self.prg.single_line_fan_float_cc,
-              (np.dtype("float64"), 0): self.prg.single_line_fan_double_ff,
-              (np.dtype("float64"), 1): self.prg.single_line_fan_double_cc
-              }
+                (np.dtype("float32"), 0): self.prg.single_line_fan_float_ff,
+                (np.dtype("float32"), 1): self.prg.single_line_fan_float_cc,
+                (np.dtype("float64"), 0): self.prg.single_line_fan_double_ff,
+                (np.dtype("float64"), 1): self.prg.single_line_fan_double_cc
+                }
 
         function = functions[(np.dtype(dtype), order == 'C')]
 
@@ -1568,35 +1569,36 @@ class ProjectionSettings():
 
         geometry_information = self.geometry_information[dtype]
 
-        def projection_from_single_pixel(x, y, sino=None, wait_for=[]):
-            if self.is_parallel:
+        if self.is_parallel:
+            def projection_from_single_pixel(x, y, sino=None, wait_for=[]):
                 myevent = function(sino.queue, sino.shape, None,
                                    sino.data, np.int32(
                                        x), np.int32(y), ofs_buf,
                                    geometry_information,
                                    wait_for=sino.events+wait_for)
-            else:
+                sino.add_event(myevent)
+        else:
+            def projection_from_single_pixel(x, y, sino=None, wait_for=[]):
                 myevent = function(sino.queue, sino.shape, None,
                                    sino.data, np.int32(x), np.int32(
                                        y), ofs_buf, sdpd_buf,
                                    geometry_information,
                                    wait_for=sino.events+wait_for)
-
-            sino.add_event(myevent)
+                sino.add_event(myevent)
 
         epsilon = 0
         if order == "F":
             def pos_1(x, y):
-                return x+Nx*y+offset
+                return x+Nx*y
 
             def pos_2(s, phi):
-                return s+Ns*phi+offset
+                return s+Ns*phi
         elif order == "C":
             def pos_1(x, y):
-                return x*Ny+y+offset
+                return x*Ny+y
 
             def pos_2(s, phi):
-                return s*Na+phi+offset
+                return s*Na+phi
         else:
             print("Order (contiguity) not recognized, suitable choices are"
                   + "'F' or 'C'")
@@ -1639,11 +1641,6 @@ class ProjectionSettings():
                     vals.append(sinonew[s, phi])
 
         print("\rSparse matrix creation complete")
-        if outputfile:
-            txt = open(outputfile, "w")
-            for a in mylist:
-                txt.writelines(a)
-                txt.close()
 
         sparsematrix = scipy.sparse.coo_matrix((vals, (rows, cols)),
                                                shape=(Ns*Na, Nx*Ny))
@@ -1776,7 +1773,8 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     :rtype:  :class:`pyopencl.array.Array`
 
     .. [HS1952] Hestenes, M. R., Stiefel, E. "Methods of Conjugate Gradients
-                for Solving Linear Systems." Journal of Research of the National
+                for Solving Linear Systems." Journal of Research of
+                the National
                 Bureau of Standards, 49:409–436 (1952).
                 https://doi.org/10.6028/jres.049.044
     """
@@ -1788,7 +1786,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         dimensions = dimensions+tuple([sino.shape[2]])
         dimensions2 = dimensions2+tuple([1])
 
-    order=order={0: 'F', 1: 'C'}
+    order = order = {0: 'F', 1: 'C'}
     if x0 is None:
         x0 = clarray.zeros(projectionsetting.queue, dimensions,
                            sino.dtype, order[sino.flags.c_contiguous])
@@ -1875,7 +1873,7 @@ def total_variation(sino, projectionsetting, mu,
     :param slice_thickness: When 3-dimensional data sets are considered,
         regularization is also applied across slices.
         This parameter represents the ratio of the slice thickness to the
-        length of one pixel within a slice. The choice 
+        length of one pixel within a slice. The choice
         **slice_thickness** =0
         results in no coupling across slices.
     :type slice_thickness: :class:`float`, default 1.0, i.e., isotropic voxels

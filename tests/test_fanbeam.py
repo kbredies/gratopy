@@ -513,14 +513,14 @@ def test_range_check_walnut():
     for testing the implementation.
     This test observes that with suitable parameters, the data is
     well-explained by the model defined by gratopy's operators. In particular,
-    one can observe that there is a slight imperfection in the data set as 
+    one can observe that there is a slight imperfection in the data set as
     the detector is not perfectly centered. Indeed, the total
-    mass of the upper detector-half theoretically 
-    needs to coincide with the lower detector-half's total mass 
+    mass of the upper detector-half theoretically
+    needs to coincide with the lower detector-half's total mass
     (up to numerical precision), but these values differ significantly.
     Moreover, this test serves to verify the validity of the conjugate
-    gradients (CG) method. It is well-known that the CG algorithm 
-    approximates the minimal-norm least squares solution to the data, 
+    gradients (CG) method. It is well-known that the CG algorithm
+    approximates the minimal-norm least squares solution to the data,
     and in particular,
     the forward projection of this solution corresponds to the projection
     of data onto the range of the operator. As depicted in the plots
@@ -754,7 +754,7 @@ def test_total_variation():
     dtype = np.dtype("float32")
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    angles = np.linspace(0,2*np.pi,121)[:-1] + np.pi/2
+    angles = np.linspace(0, 2*np.pi, 121)[:-1] + np.pi/2
     img_shape = (400, 400)
 
     # create projectionsetting
@@ -938,7 +938,7 @@ def test_extract_sparse_matrix():
 
     # Create corresponding sparse matrix
     sparsematrix = PS.create_sparse_matrix(
-        dtype=dtype, order=order, outputfile=None)
+        dtype=dtype, order=order)
 
     # Test image
     img = gratopy.phantom(queue, Nx, dtype)
