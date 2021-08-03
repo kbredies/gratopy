@@ -829,13 +829,13 @@ def test_total_variation():
 
     evaluate_control_numbers(UTV,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=-0.31175, classified="img",
+                             expected_result=0.251589, classified="img",
                              name="total-variation reconstruction"
                              + "with true data")
 
     evaluate_control_numbers(UTV2,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=0.02784277, classified="img",
+                             expected_result=0.0384119, classified="img",
                              name="total-variation reconstruction"
                              + "with noisy data")
 

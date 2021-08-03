@@ -1527,14 +1527,6 @@ class ProjectionSettings():
             to the transform, can be ``F`` or ``C``.
         :type order: :class:`str`, default ``F``
 
-        :param outputfile: Name of the file (.txt) to write the sparse
-            representation into (row, col, val). **(???) is this useful?
-            users
-            can always decide what to do with the output, i.e., write this as
-            csv etc.**
-            If :obj:`None`, output is not be written into file.
-        :type outputfile: :class:`str`
-
         :return: Sparse matrix corresponding to the
             forward projection.
         :rtype: :class:`scipy.sparse.coo_matrix`
@@ -1718,6 +1710,8 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
                equations of the first kind." Amer. J. Math. 73, 615–624
                (1951). https://doi.org/10.2307/2372313
     """
+    # Order to consider solution in
+    my_order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
 
     # Set relaxation parameter
     norm_estimate = normest(
@@ -1728,7 +1722,7 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
     U = w*backprojection(sinonew, projectionsetting)
     Unew = clarray.zeros(projectionsetting.queue, U.shape, dtype=sino.dtype,
-                         order='F', allocator=sino.allocator)
+                         order=my_order, allocator=sino.allocator)
 
     # Poweriteration
     for i in range(number_iterations):
