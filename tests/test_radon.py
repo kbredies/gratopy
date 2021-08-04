@@ -345,6 +345,10 @@ def test_fullangle():
 
     # angles cover only a part of the angular range
     angles = np.linspace(0, np.pi*3/4., 180)+np.pi/8
+    delta=np.pi*3/4.*0.5/179
+    angular_range = (np.pi/8-delta, np.pi*3/4.+np.pi/8+delta)
+    # Alternatively, angular_range = [] (or simply not setting the value)
+    # yields the same result
 
     # create two projecetionsettings, one with the correct "fullangle=False"
     # parameter for limited-angle situation, incorrectly using "fullangle=True"
@@ -352,13 +356,15 @@ def test_fullangle():
                                            img_gpu.shape, angles, Ns,
                                            detector_width=p,
                                            detector_shift=shift,
-                                           fullangle=False)
+                                           fullangle=False,
+                                           angular_range=angular_range)
 
     PSincorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
                                              img_gpu.shape, angles, Ns,
                                              detector_width=p,
                                              detector_shift=shift,
-                                             fullangle=True)
+                                             fullangle=True,
+                                             )
 
     # forward and backprojection for the two settings
     sino_gpu_correct = gratopy.forwardprojection(img_gpu, PScorrect)
