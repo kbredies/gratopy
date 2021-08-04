@@ -189,7 +189,7 @@ def test_projection():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 2),
-                             expected_result=66998.337281,
+                             expected_result=63928.2563,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected,
@@ -420,23 +420,23 @@ def test_fullangle():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles), 2),
-                             expected_result=313.94908, classified="sino",
+                             expected_result=660.530, classified="sino",
                              name="sinogram with correct fullangle setting")
 
     evaluate_control_numbers(sino_incorrect, (N, N, Ns, len(angles), 2),
-                             expected_result=313.94908, classified="sino",
+                             expected_result=660.530, classified="sino",
                              name="sinogram with incorrect fullangle setting")
 
     evaluate_control_numbers(backprojected_correct, (N, N, Ns, len(angles), 2),
-                             expected_result=7044.6522, classified="img",
+                             expected_result=3127.39, classified="img",
                              name="backprojected image with correct"
-                             + "fullangle setting")
+                             + " fullangle setting")
 
     evaluate_control_numbers(backprojected_incorrect,
                              (N, N, Ns, len(angles), 2),
-                             expected_result=37105.70765, classified="img",
+                             expected_result=16347.3, classified="img",
                              name="backprojected image with incorrect"
-                             + "fullangle setting")
+                             + " fullangle setting")
 
 
 def test_midpoint_shift():
@@ -500,12 +500,91 @@ def test_midpoint_shift():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=699.5769,
+                             expected_result=-613.781,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
                              expected_result=14599.8994,
                              classified="img", name="backprojected image")
+
+
+def test_angle_orientation():
+    """
+    Angle orientation test
+    Considers projections with Radon and Fanbeam setting to illustrate that
+    the projection orientation is indeed correct (and not rotated by an angle)
+    """
+    # create PyopenCL context
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
+    queue = cl.CommandQueue(ctx)
+
+    # create test image
+    Nx = 1200
+    img1 = np.zeros([Nx, Nx])
+    img1[0:int(Nx*0.3)][:, 0:int(Nx*0.3)] = 1
+    img2 = img1.copy()
+    img2[0:int(Nx*0.3)][:, 0:int(Nx)] = 1
+
+    # Sinogram parameters
+    number_detectors = 300
+    reverse = False
+    angles = 360
+
+    # Define setting for projection
+    PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
+                                        img_shape=img1.shape, angles=angles,
+                                        detector_width=400, RE=200, R=752,
+                                        n_detectors=number_detectors,
+                                        detector_shift=0,
+                                        image_width=None,
+                                        reverse_detector=reverse)
+
+    PS_par = gratopy.ProjectionSettings(queue, gratopy.RADON,
+                                        img_shape=img1.shape, angles=angles,
+                                        n_detectors=number_detectors,
+                                        detector_shift=0)
+
+    img_gpu_par1 = clarray.to_device(queue, img1)
+    sino_gpu_par1 = gratopy.forwardprojection(img_gpu_par1, PS_par)
+    sino_par1 = sino_gpu_par1.get()
+
+    img_gpu_fan1 = clarray.to_device(queue, img1)
+    sino_gpu_fan1 = gratopy.forwardprojection(img_gpu_fan1, PS_fan)
+    sino_fan1 = sino_gpu_fan1.get()
+
+    img_gpu_par2 = clarray.to_device(queue, img2)
+    sino_gpu_par2 = gratopy.forwardprojection(img_gpu_par2, PS_par)
+    sino_par2 = sino_gpu_par2.get()
+
+    img_gpu_fan2 = clarray.to_device(queue, img2)
+    sino_gpu_fan2 = gratopy.forwardprojection(img_gpu_fan2, PS_fan)
+    sino_fan2 = sino_gpu_fan2.get()
+
+    plt.figure(1)
+    plt.title("Original image 1")
+    plt.imshow(img1)
+
+    plt.figure(2)
+    plt.title("Sinogram of parallel setting for image 1")
+    plt.imshow(sino_par1)
+
+    plt.figure(3)
+    plt.title("Sinogram of fanbeam setting for image 1")
+    plt.imshow(sino_fan1)
+
+    plt.figure(4)
+    plt.title("Original image 2")
+    plt.imshow(img2)
+
+    plt.figure(5)
+    plt.title("Sinogram of parallel setting for image 2")
+    plt.imshow(sino_par2)
+
+    plt.figure(6)
+    plt.title("Sinogram of fanbeam setting for image 2")
+    plt.imshow(sino_fan2)
+
+    plt.show()
 
 
 def test_range_check_walnut():
@@ -539,8 +618,9 @@ def test_range_check_walnut():
 
     dtype = np.dtype("float32")
     order = "C"
+    reverse = True
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1] + np.pi/2
+    angles = np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
 #   import pdb;pdb.set_trace()
@@ -555,16 +635,19 @@ def test_range_check_walnut():
                                               detector_width=Detectorwidth,
                                               R=FDD, RE=FOD,
                                               n_detectors=number_detectors,
-                                              detector_shift=0)
+                                              detector_shift=0,
+                                              reverse_detector=reverse)
 
     PS_correct = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                             img_shape=img_shape, angles=angles,
                                             detector_width=Detectorwidth,
                                             R=FDD, RE=FOD,
                                             n_detectors=number_detectors,
-                                            detector_shift=-0.27)
+                                            detector_shift=-0.27,
+                                            reverse_detector=reverse)
 
     mynoise = clarray.to_device(
+
         queue, 0*np.random.randn(img_shape[0], img_shape[1]))
     UCG_correct = gratopy.conjugate_gradients(sino_gpu, PS_correct,
                                               number_iterations=50,
@@ -643,7 +726,7 @@ def test_landweber():
     walnut /= np.mean(walnut)
 
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1] + np.pi/2
+    angles = np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
     # create projectionsetting
@@ -675,7 +758,7 @@ def test_landweber():
     # Computing controlnumbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(ULW, (Nx, Ny, number_detectors, len(angles), 2),
-                             expected_result=0.97126697, classified="img",
+                             expected_result=0.89971, classified="img",
                              name=" Landweber-reconstruction")
 
 
@@ -701,7 +784,7 @@ def test_conjugate_gradients():
 
     # geometric quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1] + np.pi/2
+    angles = np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
     # create projectionsetting
@@ -733,7 +816,7 @@ def test_conjugate_gradients():
     # Compute control numbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(UCG, (Nx, Ny, number_detectors, len(angles), 2),
-                             expected_result=0.756747, classified="img",
+                             expected_result=0.77610, classified="img",
                              name=" conjugate gradients reconstruction")
 
 
@@ -754,7 +837,7 @@ def test_total_variation():
     dtype = np.dtype("float32")
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1] + np.pi/2
+    angles = np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (400, 400)
 
     # create projectionsetting
@@ -766,7 +849,6 @@ def test_total_variation():
                                     detector_shift=-0.27)
 
     # load and rescale sinogram
-    # walnut=scipy.io.loadmat(TESTWALNUTSINOGRAM)["m"]
     walnut = mpimg.imread(TESTWALNUTSINOGRAM)
     walnut /= np.mean(walnut)
     walnut = np.array(walnut, dtype=dtype)
@@ -829,13 +911,13 @@ def test_total_variation():
 
     evaluate_control_numbers(UTV,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=0.251589, classified="img",
+                             expected_result=-1.164750, classified="img",
                              name="total-variation reconstruction"
                              + "with true data")
 
     evaluate_control_numbers(UTV2,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=0.0384119, classified="img",
+                             expected_result=-1.190727, classified="img",
                              name="total-variation reconstruction"
                              + "with noisy data")
 
@@ -904,7 +986,7 @@ def test_nonquadratic():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N1, N2, Ns, angles, 2),
-                             expected_result=1547.6640,
+                             expected_result=1078.80,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N1, N2, Ns, angles, 2),
@@ -914,7 +996,9 @@ def test_nonquadratic():
 
 def test_extract_sparse_matrix():
     """
-    Tests the :func:`create_sparse_matrix <gratopy.ProjectionSettings.create_sparse_matrix>` method to create a sparse matrix
+    Tests the :func:`create_sparse_matrix
+    <gratopy.ProjectionSettings.create_sparse_matrix>`
+    method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
     backprojection by matrix multiplication.
     """
@@ -973,7 +1057,7 @@ def test_extract_sparse_matrix():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 1),
-                             expected_result=213.071169,
+                             expected_result=212.594,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backproj, (Nx, Nx, number_detectors, angles, 1),

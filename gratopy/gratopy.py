@@ -571,7 +571,8 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
 def fanbeam_struct(queue, img_shape, angles, detector_width,
                    source_detector_dist, source_origin_dist,
                    n_detectors=None, detector_shift=0.0,
-                   image_width=None, midpoint_shift=[0, 0], fullangle=True):
+                   image_width=None, midpoint_shift=[0, 0],
+                   fullangle=True, reverse_detector=False):
     """
     Creates the structure storing geometry information required for
     the fanbeam transform and its adjoint.
@@ -639,6 +640,11 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         proper subset of :math:`[0,2\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`
+
+    :param reverse_detector: When :attr:`True`, the detector direction
+        for fanbeam setting is flipped around, i.e., switching the positive and
+        negative detector positions.
+    :type reverse_detector: :class:`bool`, default :attr:`False`
 
     :return:
         Tuple (**img_shape**, **sinogram_shape**, **ofs_dict**,
@@ -714,7 +720,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     # choose equidistant angles in (0,2pi] if no specific angles are
     # given.
     if np.isscalar(angles):
-        angles = np.linspace(0, 2*np.pi, angles+1)[:-1] + np.pi
+        angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
 
     image_pixels = max(img_shape[0], img_shape[1])
     # set number of pixels same as image_resolution if not specified
@@ -794,6 +800,12 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     if image_width is None:
         dd = (0.5*detector_width-abs(detector_shift))/source_detector_dist
         image_width = 2*dd*source_origin_dist/np.sqrt(1+dd**2)
+        assert image_width > 0, "The automatism for choosing the image_width"\
+            + " failed as the image can never"\
+            + " be fully contained in the fans from all directions "\
+            + "(most likely due to detector_shift being "\
+            + "larger than half the detector_width)! "\
+            + "Please set the image_width parameter by hand!"
         # Projection to compute distance
         # via projectionvector (1,dd) after normalization,
         # is equal to delta_x*N_x
@@ -818,22 +830,23 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     detector_width *= image_pixels/float(image_width)
 
     # unit vector associated to the angle
-    # (vector showing along the detector)
-    thetaX = -np.cos(angles)
-    thetaY = np.sin(angles)
+    # (vector showing from source to detector)
+    detector_orientation = {True: -1, False: 1}[reverse_detector]
+    thetaX = np.cos(angles+np.pi*0.5)*detector_orientation
+    thetaY = np.sin(angles+np.pi*0.5)*detector_orientation
 
     # Direction vector of detector direction normed to the length of a
     # single detector pixel (i.e. delta_s (in the scale of delta_x=1))
-    XD = thetaX*detector_width/nd
-    YD = thetaY*detector_width/nd
+    XD = thetaY*detector_width/nd
+    YD = -thetaX*detector_width/nd
 
     # Direction vector leading to from source to origin (with proper length)
-    Qx = -thetaY*source_origin_dist
-    Qy = thetaX*source_origin_dist
+    Qx = -thetaX*source_origin_dist
+    Qy = -thetaY*source_origin_dist
 
     # Direction vector from origin to the detector center
-    Dx0 = thetaY*(source_detector_dist-source_origin_dist)
-    Dy0 = -thetaX*(source_detector_dist-source_origin_dist)
+    Dx0 = thetaX*(source_detector_dist-source_origin_dist)
+    Dy0 = thetaY*(source_detector_dist-source_origin_dist)
 
     # Save relevant information
     ofs_dict = {}
@@ -1029,6 +1042,11 @@ class ProjectionSettings():
         This impacts the weights in the backprojection.
     :type fullangle: :class:`bool`, default :obj:`True`
 
+    :param reverse_detector: When :attr:`True`, the detector direction
+        is flipped around
+    :type reverse_detector: :class:`bool`, default :attr:`False`
+
+
     These input parameters create attributes of the same name in
     an instance of :class:`ProjectionSettings`, though the corresponding
     values might be slightly restructured by internal processes.
@@ -1116,7 +1134,7 @@ class ProjectionSettings():
                  n_detectors=None, detector_width=2.0,
                  image_width=None, R=None, RE=None,
                  detector_shift=0.0, midpoint_shift=[0., 0.],
-                 fullangle=True):
+                 fullangle=True, reverse_detector=False):
         """Initialize a ProjectionSettings instance.
 
         **Parameters**
@@ -1230,7 +1248,7 @@ class ProjectionSettings():
 
         if np.isscalar(angles):
             if self.is_fan:
-                angles = np.linspace(0, 2*np.pi, angles+1)[:-1] + np.pi
+                angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
             elif self.is_parallel:
                 angles = np.linspace(0, np.pi, angles+1)[:-1]
         angles = angles
@@ -1262,6 +1280,12 @@ class ProjectionSettings():
 
         self.buf_upload = {}
 
+        self.reverse_detector = reverse_detector
+        if ((self.reverse_detector) and (self.is_parallel)):
+            print("WARNING, the reverse_detector argument has no impact"
+                  + " on the parallel beam setting. To recieve the angles"
+                  + " angles can be translated by np.pi")
+
         if self.is_fan:
             parameters_available = not ((R is None) or (RE is None))
 
@@ -1276,7 +1300,8 @@ class ProjectionSettings():
                                          self.angles, self.detector_width,
                                          R, self.RE, self.n_detectors,
                                          self.detector_shift, image_width,
-                                         self.midpoint_shift, self.fullangle)
+                                         self.midpoint_shift, self.fullangle,
+                                         self.reverse_detector)
 
             self.ofs_buf = self.struct[2]
             self.sdpd_buf = self.struct[3]
@@ -1364,6 +1389,7 @@ class ProjectionSettings():
             source_origin_dist = self.RE
             image_width = self.image_width
             midpoint_shift = self.midpoint_shift
+            midpoint_shift = [midpoint_shift[1], midpoint_shift[0]]
 
             maxsize = max(self.RE, np.sqrt((self.R-self.RE)**2
                                            + detector_width**2/4.))
@@ -1409,15 +1435,15 @@ class ProjectionSettings():
 
             color = (1, 1, 0)
             rect = plt.Rectangle(midpoint_shift-0.5
-                                 * np.array([image_width*self.img_shape[0]
+                                 * np.array([image_width*self.img_shape[1]
                                              / np.max(self.img_shape),
-                                             image_width*self.img_shape[1]
+                                             image_width*self.img_shape[0]
                                              / np.max(self.img_shape)]),
                                  image_width
-                                 * self.img_shape[0]
+                                 * self.img_shape[1]
                                  / np.max(self.img_shape),
                                  image_width
-                                 * self.img_shape[1]
+                                 * self.img_shape[0]
                                  / np.max(self.img_shape),
                                  facecolor=color, edgecolor=color)
 
@@ -1437,6 +1463,7 @@ class ProjectionSettings():
             detector_width = self.detector_width
             image_width = self.image_width
             midpoint_shift = self.midpoint_shift
+            midpoint_shift = [midpoint_shift[1], midpoint_shift[0]]
 
             angle = -angle
             A = np.array([[np.cos(angle), np.sin(angle)],
@@ -1482,14 +1509,14 @@ class ProjectionSettings():
             color = (1, 1, 0)
             draw_rectangle = matplotlib.patches.Rectangle(
                                 midpoint_shift
-                                - 0.5*np.array([image_width*self.img_shape[0]
+                                - 0.5*np.array([image_width*self.img_shape[1]
                                                 / np.max(self.img_shape),
                                                 image_width
-                                                * self.img_shape[1]
+                                                * self.img_shape[0]
                                                 / np.max(self.img_shape)]),
-                                image_width * self.img_shape[0]
-                                / np.max(self.img_shape),
                                 image_width * self.img_shape[1]
+                                / np.max(self.img_shape),
+                                image_width * self.img_shape[0]
                                 / np.max(self.img_shape),
                                 facecolor=color,
                                 edgecolor=color)

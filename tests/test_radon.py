@@ -441,6 +441,9 @@ def test_nonquadratic():
     PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
                                     angles, Ns)
 
+    # show geometry of projectionsetting
+    PS.show_geometry(1*np.pi/8, show=False)
+
     # compute forward and backprojection
     sino_gpu = gratopy.forwardprojection(img_gpu, PS)
     backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
@@ -481,7 +484,9 @@ def test_nonquadratic():
 
 def test_extract_sparse_matrix():
     """
-    Tests the :func:`create_sparse_matrix <gratopy.ProjectionSettings.create_sparse_matrix>` method to create a sparse matrix
+    Tests the :func:`create_sparse_matrix
+    <gratopy.ProjectionSettings.create_sparse_matrix>`
+    method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
     backprojection by matrix multiplication.
     """
