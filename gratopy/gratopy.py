@@ -21,6 +21,7 @@ FAN = 2
 # Programm created from the gpu_code
 class Program(object):
     def __init__(self, ctx, code):
+        os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
         self._cl_prg = cl.Program(ctx, code)
         self._cl_prg.build()
         self._cl_kernels = self._cl_prg.all_kernels()
@@ -1056,7 +1057,8 @@ def upload_bufs(projectionsetting, dtype):
 
     geometry_information = projectionsetting.geometry_information[dtype]
     geometry_buf = cl.Buffer(projectionsetting.queue.context,
-                             cl.mem_flags.READ_ONLY, ofs.nbytes)
+                             cl.mem_flags.READ_ONLY,
+                             geometry_information.nbytes)
     cl.enqueue_copy(projectionsetting.queue, geometry_buf,
                     geometry_information.data).wait()
 

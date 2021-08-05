@@ -1041,8 +1041,7 @@ def test_extract_sparse_matrix():
                                     RE=200, n_detectors=number_detectors)
 
     # Create corresponding sparse matrix
-    sparsematrix = PS.create_sparse_matrix(
-        dtype=dtype, order=order)
+    sparsematrix = PS.create_sparse_matrix(dtype=dtype, order=order)
 
     # Test image
     img = gratopy.phantom(queue, Nx, dtype)

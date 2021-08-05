@@ -79,8 +79,8 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
   yd/=(delta_xi*delta_xi);
 
   // Distance from source to origin devided by R
-  RE=RE/R;
-
+  //RE=RE/R; Bug for Intel Double
+  RE*=1/R;
   int Nyy=Ny;
   int Nxx=Nx;
 
@@ -399,7 +399,8 @@ __kernel void single_line_fan_\my_variable_type_\order1\order2(__global \my_vari
   yd/=(delta_xi*delta_xi);
 
   // Distance from source to origin devided by R
-  RE=RE/R;
+  //RE=RE/R; Intel bug for Double
+	RE*=1/R;
 
 
   int Nyy=Ny;
