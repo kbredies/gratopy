@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pyopencl as cl
 import time
+
 import gratopy
 
 
@@ -300,25 +301,20 @@ def test_adjointness():
         gratopy.forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         gratopy.backprojection(sino1_gpu, PS, img=img2_gpu)
 
-        # extract suitable Information
-        sino1 = sino1_gpu.get().flatten()
-        sino2 = sino2_gpu.get().flatten()
-        img1 = img1_gpu.get().flatten()
-        img2 = img2_gpu.get().flatten()
-
         # dual pairing in imagedomain
-        a = np.dot(img1, img2)*PS.delta_x**2
+        a = cl.array.vdot(img1_gpu, img2_gpu).get()*PS.delta_x**2
 
         # dual pairing in sinogram domain
-        b = np.dot(sino1, sino2)*(np.pi)/angles*(PS.delta_ratio*PS.delta_x)
+        b = cl.array.vdot(gratopy.angle_weighting(sino1_gpu, PS),
+                          sino2_gpu).get()* PS.delta_s
 
         # check whether an error occurred
         if abs(a-b)/min(abs(a), abs(b)) > eps:
             count += 1
             Error.append((a, b))
 
-    print('Adjointness: Number of Errors: '+str(count)+' out of\
-        100 tests adjointness-errors were bigger than '+str(eps))
+    print('Adjointness: Number of Errors: '+str(count)+' out of'
+          + " 100 tests adjointness-errors were bigger than" +str(eps))
 
     assert(len(Error) < 10), 'A large number of experiments for adjointness\
         turned out negative, number of errors: '+str(count)+' out of 100\
