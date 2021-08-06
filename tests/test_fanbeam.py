@@ -358,7 +358,8 @@ def test_fullangle():
 
     # angles cover only part of the angular range
     n_angles1 = 180
-    a1 = np.pi/8;    b1 = np.pi/8 + np.pi*3/4.
+    a1 = np.pi/8.
+    b1 = np.pi/8 + np.pi*3/4.
     angles1 = np.linspace(a1, b1, n_angles1)
     delta1 = (b1-a1) / (n_angles1-1) * 0.5
     angular_range1 = (a1-delta1, b1+delta1)
@@ -546,7 +547,7 @@ def test_angle_orientation():
     img2[0:int(Nx*0.3)][:, 0:int(Nx)] = 1
 
     # Sinogram parameters
-    number_detectors = 300
+    Ns = 300
     reverse = False
     angles = 360
 
@@ -554,14 +555,14 @@ def test_angle_orientation():
     PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                         img_shape=img1.shape, angles=angles,
                                         detector_width=400, RE=200, R=752,
-                                        n_detectors=number_detectors,
+                                        n_detectors=Ns,
                                         detector_shift=0,
                                         image_width=None,
                                         reverse_detector=reverse)
 
     PS_par = gratopy.ProjectionSettings(queue, gratopy.RADON,
                                         img_shape=img1.shape, angles=angles,
-                                        n_detectors=number_detectors,
+                                        n_detectors=Ns,
                                         detector_shift=0)
 
     img_gpu_par1 = clarray.to_device(queue, img1)
@@ -605,6 +606,23 @@ def test_angle_orientation():
     plt.imshow(sino_fan2)
 
     plt.show()
+
+    evaluate_control_numbers(sino_par1, (Nx, Nx, Ns, angles, 1),
+                             expected_result=11.64580,
+                             classified="sino",
+                             name="sinogram of first radon example")
+
+    evaluate_control_numbers(sino_par2, (Nx, Nx, Ns, angles, 1),
+                             expected_result=17.9159, classified="sino",
+                             name="sinogram of second radon example")
+
+    evaluate_control_numbers(sino_fan1, (Nx, Nx, Ns, angles, 1),
+                             expected_result=184.857, classified="sino",
+                             name="sinogram of second fanbeam example")
+
+    evaluate_control_numbers(sino_fan2, (Nx, Nx, Ns, angles, 1),
+                             expected_result=558.4474, classified="sino",
+                             name="sinogram of second fanbeam example")
 
 
 def test_range_check_walnut():
