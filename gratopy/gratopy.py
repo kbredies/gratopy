@@ -9,7 +9,7 @@ import scipy
 import scipy.sparse
 
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
-CL_FILES2 = ["total_variation.cl"]
+CL_FILES2 = ["total_variation.cl", "utilities.cl"]
 
 PARALLEL = 1
 RADON = 1
@@ -356,11 +356,11 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
-    :var angles_diff:
-        Same values as in **ofs_dict** [4] representing the weights
+    :var angles_diff_buf: Dictionary containing the
+        same values as in **ofs_dict** [4] representing the weights
         associated with the angles (i.e., the length of sinogram
         pixels in the angular direction).
-    :vartype angles_diff: :class:`numpy.ndarray`
+    :vartype angles_diff: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angular_range: See inputvariable of the same name, though the
         automatic choices will be added.
@@ -525,6 +525,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
     geo_dict = {}
     ofs_dict = {}
+    angle_diff_dict = {}
     for dtype in [np.dtype('float64'), np.dtype('float32')]:
         # save angular information into the ofs buffer
         ofs = np.zeros((8, len(angles)), dtype=dtype, order='F')
@@ -535,12 +536,14 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         ofs[4, :] = angles_diff
         ofs_dict[dtype] = ofs
 
+        angle_diff_dict[dtype] = np.array(angles_diff, dtype=dtype)
+
         geometry_info = np.array([delta_x, delta_s, img_shape[0], img_shape[1],
                                   nd, n_angles], dtype=dtype, order='F')
         geo_dict[dtype] = geometry_info
 
     return (ofs_dict, img_shape, sinogram_shape, geo_dict,
-            angles_diff, angular_range)
+            angle_diff_dict, angular_range)
 
 
 def fanbeam(sino, img, projectionsetting, wait_for=[]):
@@ -785,10 +788,11 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angles_diff:
-        Same values as in **ofs_dict** [6] representing the weights
+        Dictionary containing the
+        same values as in **ofs_dict** [6] representing the weights
         associated with the angles (i.e., the length of sinogram
         pixels in the angular direction).
-    :vartype angles_diff: :class:`numpy.ndarray`
+    :vartype angles_diff: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angular_range: See inputvariable of the same name, though the
         automatic choices will be added.
@@ -971,6 +975,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     ofs_dict = {}
     sdpd_dict = {}
     geo_dict = {}
+    angle_diff_dict = {}
     for dtype in [np.dtype('float64'), np.dtype('float32')]:
         # Angular Information
         ofs = np.zeros((8, len(angles)), dtype=dtype, order='F')
@@ -1006,8 +1011,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
         geo_dict[dtype] = geometry_info
 
+        angle_diff_dict[dtype] = np.array(angles_diff, dtype=dtype)
     return (img_shape, sinogram_shape, ofs_dict, sdpd_dict,
-            image_width, geo_dict, angles_diff, angular_range)
+            image_width, geo_dict, angle_diff_dict, angular_range)
 
 
 def create_code():
@@ -1055,6 +1061,15 @@ def upload_bufs(projectionsetting, dtype):
                         cl.mem_flags.READ_ONLY, ofs.nbytes)
     cl.enqueue_copy(projectionsetting.queue, ofs_buf, ofs.data).wait()
 
+    angle_weights = projectionsetting.angle_weights_buf[dtype]
+    angle_weights_buf = cl.Buffer(projectionsetting.queue.context,
+                                  cl.mem_flags.READ_ONLY, angle_weights.nbytes)
+    cl.enqueue_copy(projectionsetting.queue, angle_weights_buf,
+                    angle_weights.data).wait()
+
+
+
+
     geometry_information = projectionsetting.geometry_information[dtype]
     geometry_buf = cl.Buffer(projectionsetting.queue.context,
                              cl.mem_flags.READ_ONLY,
@@ -1071,6 +1086,7 @@ def upload_bufs(projectionsetting, dtype):
 
     projectionsetting.ofs_buf[dtype] = ofs_buf
     projectionsetting.geometry_information[dtype] = geometry_buf
+    projectionsetting.angle_weights_buf[dtype] = angle_weights_buf
 
 
 class ProjectionSettings():
@@ -1217,8 +1233,9 @@ class ProjectionSettings():
         width for each angle which are used to weight the projections.
         In the fullangle case, these sum up to
         :math:`\pi` and :math:`2\pi` for parallel beam and
-        fanbeam geometry, respectively.
-    :vartype angle_weights: :class:`list[float]`
+        fanbeam geometry respectively
+        (or more specific angular when angular_ranges is set).
+    :vartype angle_weights: :class:`numpy.ndarray`
 
     :ivar prg:  OpenCL program containing the gratopy OpenCL kernels.
         For the corresponding code, see :class:`gratopy.create_code`
@@ -1439,7 +1456,10 @@ class ProjectionSettings():
             self.image_width = self.struct[4]
             self.geometry_information = self.struct[5]
 
-            self.angle_weights = self.struct[6]
+            self.angle_weights_buf = self.struct[6]
+            self.angle_weights = self.angle_weights_buf[
+                                            np.dtype("float")].copy()
+
             self.angular_range = self.struct[7]
 
             self.delta_x = self.image_width/max(img_shape)
@@ -1467,7 +1487,9 @@ class ProjectionSettings():
             self.delta_ratio = self.delta_s/self.delta_x
 
             self.geometry_information = self.struct[3]
-            self.angle_weights = self.struct[4]
+            self.angle_weights_buf = self.struct[4]
+            self.angle_weights = self.angle_weights_buf[
+                                            np.dtype("float")].copy()
             self.angular_range = self.struct[5]
 
     def ensure_dtype(self, dtype):
@@ -1801,6 +1823,77 @@ class ProjectionSettings():
         return sparsematrix
 
 
+def angle_weighting(sino, projectionsetting, sino_new=None, divide = False,
+                    wait_for=[]):
+    """
+    Allows to rescale a sinogram via multiplication (or division) with
+    the angle weights (size of projections in angle-dimension, see
+    attribute of :class:`ProjectionSettings`)
+    to the respective projections,
+    which can be useful, e.g., for computing norms or dual
+    pairings in the appropriate Hilbert space.
+
+    :param sino: The sinogram whose rescaling is supposed to be computed.
+        This array itself remains unchanged unless the same array is given
+        as sino_new
+    :type img: :class:`pyopencl.array.Array`
+    :param projectionsetting: The geometry settings for which the rescaling
+        is computed.
+    :type projectionsetting: :class:`gratopy.ProjectionSettings`
+    :param sino_new: The array in which the result of rescaling
+        is saved. If :obj:`None` (per default) is given, a new array
+        will be created and returned. When giving the same array as sino and
+        sino_new, the values in sino will be overwritten.
+    :type sino: :class:`pyopencl.array.Array` default :obj:`None`
+
+    :param divide: Allows to compute the division instead of the multiplication
+        of the projections by the associated angles.
+    :type divide: :class:`bool`, default :obj:`False`
+
+    :param wait_for: The events to wait for before performing the
+        computation in order to avoid, e.g., race conditions, see
+        :class:`pyopencl.Event`.
+    :type wait_for: :class:`list[pyopencl.Event]`, default :attr:`[]`
+
+    :return: The sinogram rescaled from the input.
+        If the **sino** is not :obj:`None`, the same :mod:`pyopencl` array
+        is returned with the values in its data overwritten.
+    :rtype: :class:`pyopencl.array.Array`
+
+    """
+
+    dtype = sino.dtype
+    my_order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
+
+    if sino_new is None:
+        sino_new = clarray.zeros(sino.queue, sino.shape, dtype=dtype,
+                                 order=my_order)
+    if divide is False:
+        functions = {
+            (np.dtype("float32"), "C"): projectionsetting.prg.multiply_float_c,
+            (np.dtype("float32"), "F"): projectionsetting.prg.multiply_float_f,
+            (np.dtype("float64"), "C"): projectionsetting.prg.multiply_double_c,
+            (np.dtype("float64"), "F"): projectionsetting.prg.multiply_double_f
+            }
+    elif divide is True:
+        functions = {
+            (np.dtype("float32"), "C"): projectionsetting.prg.divide_float_c,
+            (np.dtype("float32"), "F"): projectionsetting.prg.divide_float_f,
+            (np.dtype("float64"), "C"): projectionsetting.prg.divide_double_c,
+            (np.dtype("float64"), "F"): projectionsetting.prg.divide_double_f
+            }
+    function = functions[dtype, my_order]
+
+    projectionsetting.ensure_dtype(dtype)
+
+    myevent = function(sino.queue, sino.shape, None, sino.data,
+                       projectionsetting.angle_weights_buf[dtype],
+                       sino_new.data,
+                       wait_for=wait_for+sino_new.events+sino.events)
+    sino_new.add_event(myevent)
+    return sino_new
+
+
 def normest(projectionsetting, number_iterations=50, dtype='float32',
             allocator=None):
     """
@@ -1954,20 +2047,11 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     d = sino-forwardprojection(x, projectionsetting)
     p = backprojection(d, projectionsetting)
     q = clarray.empty_like(d, projectionsetting.queue)
+    q_rescaled=q.copy()
     snew = backprojection(d, projectionsetting)
     sold = snew.copy()
 
-    angle_weights = clarray.reshape(projectionsetting.angle_weights,
-                                    dimensions2)
-
     order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
-
-    angle_weights = np.ones(sino.shape)*angle_weights
-    angle_weights = clarray.to_device(projectionsetting.queue,
-                                      np.require(np.array(angle_weights,
-                                                          order=order),
-                                                 sino.dtype),
-                                      allocator=sino.allocator)
 
     for k in range(0, number_iterations):
         sys.stdout.write('\rProgress at {:3.0%}'
@@ -1977,7 +2061,9 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         alpha = x.dtype.type(projectionsetting.delta_x**2
                              / (projectionsetting.delta_s)
                              * (clarray.vdot(sold, sold)
-                                / clarray.vdot(q*angle_weights, q)).get())
+                                / clarray.vdot(angle_weighting(q,
+                                                projectionsetting, q_rescaled)
+                                               , q)).get())
 
         x += alpha*p
         d -= alpha*q

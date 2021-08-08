@@ -16,7 +16,7 @@ Thus, the first step in using gratopy is always creating an instance of :class:`
 Transforms
 ----------
 
-The functions :func:`forwardprojection` and :func:`backprojection` perform the projection operations based on the geometry defined in **projectionsetting**. The images **img** and the sinograms **sino** need to be interpreted and 
+The functions :func:`forwardprojection` and :func:`backprojection` perform the projection operations based on the geometry defined in **projectionsetting**. The images **img** and the sinograms **sino** need to be interpreted and
 behave as described in `Getting started <getting_started.html>`_.
 
 .. autofunction:: gratopy.forwardprojection
@@ -25,7 +25,7 @@ behave as described in `Getting started <getting_started.html>`_.
 Solvers
 -------
 
-Based on these forward and backward operators, one can implement a variety of reconstruction algorithms, where the toolbox's focus is on iterative methods (as those in particular are dependent on efficient implementation). 
+Based on these forward and backward operators, one can implement a variety of reconstruction algorithms, where the toolbox's focus is on iterative methods (as those in particular are dependent on efficient implementation).
 The following constitute a few easy-to-use examples which also serve as illustration on how gratopy can be included in custom implementations.
 
 
@@ -33,7 +33,8 @@ The following constitute a few easy-to-use examples which also serve as illustra
 .. autofunction:: gratopy.conjugate_gradients
 .. autofunction:: gratopy.total_variation
 .. autofunction:: gratopy.normest
-		  
+.. autofunction:: gratopy.angle_weighting
+
 Data generation
 ---------------
 

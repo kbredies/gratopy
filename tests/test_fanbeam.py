@@ -12,10 +12,12 @@ import gratopy
 INTERACTIVE = False
 
 
+# Read files relevant for the tests
 def curdir(filename):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
 
 
+# Names of relevant test-data
 TESTWALNUT = curdir('walnut.png')
 TESTWALNUTSINOGRAM = curdir('walnut_sinogram.png')
 TESTRNG = curdir("rng.txt")
@@ -27,12 +29,18 @@ queue = None
 
 def evaluate_control_numbers(data, dimensions, expected_result,
                              classified, name):
+    # Compites a number from given data, compares with expected value,
+    # and raises an error when they do not coincide
+
     [Nx, Ny, Ns, Na, Nz] = dimensions
 
+    # Get indices for which to compute control-number
     test_s, test_phi, test_z, factors, test_x, test_y = read_control_numbers(
                                                      Nx, Ny, Ns, Na, Nz)
+
     m = 1000
     mysum = 0
+    # Dependent on classifier 'img' or 'sino' choose which variables to use
     if classified == "img":
         var1 = test_x
         var2 = test_y
@@ -42,10 +50,15 @@ def evaluate_control_numbers(data, dimensions, expected_result,
         var2 = test_phi
         var3 = test_z
 
+    # Reshape data to 3-dimensional array
     if Nz == 1:
         data = data.reshape(data.shape[0], data.shape[1], 1)
+
+    # Go through all test_numbers
     for i in range(0, m):
         mysum += factors[i]*data[var1[i], var2[i], var3[i]]
+
+    # Check if control-number coincides with expected value
     precision = abs(expected_result)/(10.**3)
     assert(abs(mysum-expected_result) < precision),\
         "A control sum for the "+name + " did not match the expected value. "\
@@ -55,21 +68,25 @@ def evaluate_control_numbers(data, dimensions, expected_result,
 
 
 def create_control_numbers():
+    # This function is not really needed for the user, but was used to create
+    # the random values for the control number
+
     m = 1000
     M = 2000
     rng = np.random.default_rng(1)
     mylist = []
 
+    # Create Radom variables
     mylist.append(rng.integers(0, M, m))  # s
     mylist.append(rng.integers(0, M, m))  # phi
     mylist.append(rng.integers(0, M, m))  # z
     mylist.append(rng.normal(0, 1, m))  # factors
 
-    mylist.append(rng.integers(0, M, m))
-    mylist.append(rng.integers(0, M, m))
+    mylist.append(rng.integers(0, M, m))  # x
+    mylist.append(rng.integers(0, M, m))  # y
 
+    # Save random numbers into file
     myfile = open(TESTRNG, "w")
-
     for j in range(6):
         for i in range(m):
             myfile.write(str(mylist[j][i])+"\n")
@@ -77,6 +94,7 @@ def create_control_numbers():
 
 
 def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
+    # Read saved random numbers to compute the control-number
 
     myfile = open(TESTRNG, "r")
     m = 1000
@@ -87,8 +105,8 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     test_x = []
     test_y = []
 
+    # Read saved rng
     text = myfile.readlines()
-
     for i in range(m):
         test_s.append(int(text[i]) % Ns)
         test_phi.append(int(text[i+m]) % Na)
@@ -101,6 +119,8 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
 
 
 def create_phantoms(queue, N, dtype='double'):
+    # Create a phantom image which is used in many of the tests that follow
+
     # use gratopy phantom method to create Shepp-Logan phantom
     A = gratopy.phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
@@ -141,6 +161,7 @@ def test_projection():
                                     detector_width=400, RE=200,
                                     R=752, n_detectors=number_detectors)
 
+    # Create zero arrays to save the results in
     sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
                              dtype=dtype, order='F')
 
@@ -157,6 +178,7 @@ def test_projection():
     print('Average time required for forward projection',
           (time.perf_counter()-a)/iterations)
 
+    # test speed of implementation for backward projection
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
@@ -164,6 +186,7 @@ def test_projection():
     print('Average time required for backprojection',
           (time.perf_counter()-a)/iterations)
 
+    # retrieve data back from gpu to cpu
     sino = sino_gpu.get()
     backprojected = backprojected_gpu.get()
 
@@ -215,8 +238,10 @@ def test_weighting():
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
+    # determine which dtype to use
     dtype = np.dtype("float32")
-    # execute for different number of detectors, to ensure
+
+    # Execute for different number of detectors, to ensure
     # resolution independence
     for number_detectors in [50, 100, 200, 400, 800, 1600]:
 
@@ -225,8 +250,10 @@ def test_weighting():
         img = np.ones([Nx, Nx])
         angles = 720
 
-        # relevant quantities for scaling
+        # Rescaling parameter for geometry
         rescaling = 1/40.*np.sqrt(2)
+
+        # Set the geometry of the system
         detector_width = 400*rescaling
         R = 1200.*rescaling
         RE = 200.*rescaling
@@ -248,9 +275,10 @@ def test_weighting():
         mass_in_projcetion = np.sum(sino_gpu.get())\
             * (PS.delta_ratio*PS.delta_x) / angles
 
+        # Check results
         print("Mass in original image", mass_in_image, "mass in projection",
               mass_in_projcetion, "Ratio", mass_in_projcetion/mass_in_image,
-              "Ratio should be "+str(R/RE))
+              "Ratio should be roughly"+str(R/RE))
 
         assert(abs(mass_in_projcetion/mass_in_image/(R/RE)-1) < 0.1),\
             "Due to the fan effect the object is enlarged on the detector,\
@@ -277,7 +305,6 @@ def test_adjointness():
     img = np.zeros([400, 400])
     angles = 360
     midpoint_shift = [0, 0]
-
     dtype = np.dtype("float32")
 
     # define projection setting
@@ -293,12 +320,15 @@ def test_adjointness():
     count = 0
     eps = 0.00001
 
+    # create empty arrays for further computation
     img2_gpu = clarray.zeros(queue, PS.img_shape, dtype=dtype,
                              order='F')
     sino2_gpu = clarray.zeros(queue, PS.sinogram_shape, dtype=dtype,
                               order='F')
     for i in range(100):
         # loop through a number of experiments
+
+        # Create random image and sinogram
         img1_gpu = clarray.to_device(queue,
                                      np.require(np.random.random(PS.img_shape),
                                                 dtype, 'F'))
@@ -310,18 +340,13 @@ def test_adjointness():
         gratopy.forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         gratopy.backprojection(sino1_gpu, PS, img=img2_gpu)
 
-        # extract suitable information
-        sino1 = sino1_gpu.get().flatten()
-        sino2 = sino2_gpu.get().flatten()
-        img1 = img1_gpu.get().flatten()
-        img2 = img2_gpu.get().flatten()
+        # dual pairing in image domain (weighted bei delta_x^2)
+        a = cl.array.dot(img1_gpu, img2_gpu)*PS.delta_x**2
+        # dual pairing in sinogram domain (weighted by delta_s)
+        b = cl.array.dot(gratopy.angle_weighting(sino1_gpu, PS),
+                         sino2_gpu)*(PS.delta_s)
 
-        # dual pairing in image domain
-        a = np.dot(img1, img2)*PS.delta_x**2
-        # dual pairing in sinogram domain
-        b = np.dot(sino1, sino2)*(2*np.pi)/angles*(PS.delta_ratio*PS.delta_x)
-
-        # check whether an error occurred
+        # check whether an error occurred, the dual pairings must coincide
         if abs(a-b)/min(abs(a), abs(b)) > eps:
             print(a, b, a/b)
             count += 1
@@ -358,7 +383,8 @@ def test_fullangle():
 
     # angles cover only part of the angular range
     n_angles1 = 180
-    a1 = np.pi/8;    b1 = np.pi/8 + np.pi*3/4.
+    a1 = np.pi/8.
+    b1 = np.pi/8 + np.pi*3/4.
     angles1 = np.linspace(a1, b1, n_angles1)
     delta1 = (b1-a1) / (n_angles1-1) * 0.5
     angular_range1 = (a1-delta1, b1+delta1)
@@ -546,7 +572,7 @@ def test_angle_orientation():
     img2[0:int(Nx*0.3)][:, 0:int(Nx)] = 1
 
     # Sinogram parameters
-    number_detectors = 300
+    Ns = 300
     reverse = False
     angles = 360
 
@@ -554,14 +580,14 @@ def test_angle_orientation():
     PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                         img_shape=img1.shape, angles=angles,
                                         detector_width=400, RE=200, R=752,
-                                        n_detectors=number_detectors,
+                                        n_detectors=Ns,
                                         detector_shift=0,
                                         image_width=None,
                                         reverse_detector=reverse)
 
     PS_par = gratopy.ProjectionSettings(queue, gratopy.RADON,
                                         img_shape=img1.shape, angles=angles,
-                                        n_detectors=number_detectors,
+                                        n_detectors=Ns,
                                         detector_shift=0)
 
     img_gpu_par1 = clarray.to_device(queue, img1)
@@ -605,6 +631,23 @@ def test_angle_orientation():
     plt.imshow(sino_fan2)
 
     plt.show()
+
+    evaluate_control_numbers(sino_par1, (Nx, Nx, Ns, angles, 1),
+                             expected_result=11.64580,
+                             classified="sino",
+                             name="sinogram of first radon example")
+
+    evaluate_control_numbers(sino_par2, (Nx, Nx, Ns, angles, 1),
+                             expected_result=17.9159, classified="sino",
+                             name="sinogram of second radon example")
+
+    evaluate_control_numbers(sino_fan1, (Nx, Nx, Ns, angles, 1),
+                             expected_result=184.857, classified="sino",
+                             name="sinogram of second fanbeam example")
+
+    evaluate_control_numbers(sino_fan2, (Nx, Nx, Ns, angles, 1),
+                             expected_result=558.4474, classified="sino",
+                             name="sinogram of second fanbeam example")
 
 
 def test_range_check_walnut():
