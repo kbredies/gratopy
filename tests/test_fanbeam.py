@@ -154,14 +154,14 @@ def test_projection():
         gratopy.forwardprojection(img, PS, sino=sino_gpu)
     img.get()
 
-    print('Average time np.required Forward',
+    print('Average time required for forward projection',
           (time.perf_counter()-a)/iterations)
 
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
     sino_gpu.get()
-    print('Average time np.required Backprojection',
+    print('Average time required for backprojection',
           (time.perf_counter()-a)/iterations)
 
     sino = sino_gpu.get()
@@ -914,7 +914,7 @@ def test_total_variation():
     plt.title("comparison residue(left) with true data(right)")
     plt.figure(4)
     plt.imshow(UTV2, cmap=plt.cm.gray)
-
+    
     plt.title("total variation reconstruction with noisy data")
     plt.figure(5)
     plt.imshow(sinoreprojected2.get(), cmap=plt.cm.gray)

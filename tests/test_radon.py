@@ -175,13 +175,13 @@ def test_projection():
     for i in range(M):
         gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
     img_gpu.get()
-    print('Average time required Forward', (time.perf_counter()-a)/M)
+    print('Average time required for forward projection', (time.perf_counter()-a)/M)
 
     a = time.perf_counter()
     for i in range(M):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
     sino_gpu.get()
-    print('Average time required Backprojection',
+    print('Average time required for backprojection',
           (time.perf_counter()-a)/M)
 
     # Computing controlnumbers to quantitatively verify correctness

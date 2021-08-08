@@ -1,9 +1,19 @@
 // Array indexing for C contiguous or Fortran contiguous arrays
-#define pos_img_f(x,y,z,Nx,Ny,Nz) (x+y*Nx+z*Nx*Ny)
-#define pos_sino_f(s,a,z,Ns,Na,Nz) (s+a*Ns+Ns*Na*z)
-#define pos_img_c(x,y,z,Nx,Ny,Nz) (z+y*Nz+x*Nz*Ny)
-#define pos_sino_c(s,a,z,Ns,Na,Nz) (z+a*Nz+s*Nz*Na)
+#define pos_img_f(x,y,z,Nx,Ny,Nz) (x+Nx*(y+Ny*z))
+#define pos_sino_f(s,a,z,Ns,Na,Nz) (s+Ns*(a+Na*z))
+#define pos_img_c(x,y,z,Nx,Ny,Nz) (z+Nz*(y+Ny*x))
+#define pos_sino_c(s,a,z,Ns,Na,Nz) (z+Nz*(a+Na*s))
 
+#ifdef real
+#undef real
+#undef real2
+#undef real4
+#undef real8
+#endif
+#define real \my_variable_type
+#define real2 \my_variable_type2
+#define real4 \my_variable_type4
+#define real8 \my_variable_type8 
 
 // Radon Transform
 // Input:
@@ -18,10 +28,10 @@
 //					[delta_x,delta_xi,Nx,Ny,Ni,Nj] 
 // Output:
 //			values inside sino are altered to represent the computed Radon transform	
-__kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type *sino,
-						     __global \my_variable_type *img,
-						     __constant \my_variable_type8 *ofs,
-						     __constant \my_variable_type* Geometryinformation)
+__kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
+						     __global real *img,
+						     __constant real8 *ofs,
+						     __constant real* Geometryinformation)
 {
   //Geometric and discretization information
   size_t Ns = get_global_size(0);
@@ -42,34 +52,34 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
   int ss=s;
   
   //o = (cos,sin,offset,1/cos)
-  \my_variable_type4 o = ofs[a].s0123;
-  
+  real4 o = ofs[a].s0123;
   
   int Nxx=Nx;
   int Nyy=Ny;
 
   int horizontal=1;
   if (fabs(o.x)<=fabs(o.y))
-  {
-  horizontal=0;
+    {
+      horizontal=0;
+
+      o.xy = (real2)(o.y,o.x);
+      
+      Nxx=Ny;
+      Nyy=Nx;
+    }
   
-  \my_variable_type trade= o.x;
-  o.x=o.y;
-  o.y=trade;
-  
-  Nxx=Ny;
-  Nyy=Nx;
-  }
-    
   // accumulation variable
-  \my_variable_type acc = 0.0f;
-  
+  real acc = 0.0f;
+
+  __global real *img0 = img + pos_img_\order2(0,0,z,Nx,Ny,Nz);
+  size_t stride_x = horizontal == 1 ? pos_img_\order2(1,0,0,Nx,Ny,Nz) : pos_img_\order2(0,1,0,Nx,Ny,Nz);
+
   // for through the entire y dimension
   for(int y = 0; y < Nyy; y++) {
     int x_low, x_high;
     
     //project (0,y) onto detector
-    \my_variable_type d = y*o.y + o.z;
+    real d = y*o.y + o.z;
     
     // compute bounds
     x_low = (int)((ss-1 - d)*o.w);
@@ -82,25 +92,27 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
 	x_high=trade;
       }
     
-    
     //make sure x inside image dimensions
     x_low = max(x_low, 0);
     x_high = min(x_high, Nxx-1);
     
+    if (horizontal == 1)
+      img = img0 + pos_img_\order2(x_low,y,0,Nx,Ny,Nz);
+    if (horizontal == 0)
+      img = img0 + pos_img_\order2(y,x_low,0,Nx,Ny,Nz);
+    
     // integration in x dimension for fixed y
     for(int x = x_low; x <= x_high; x++) {
       //anterpolation weight via normal distance
-      \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
+      real weight = 1.0 - fabs(x*o.x + d - ss);
       if (weight > 0.0f) {
-	if (horizontal==1)
-	  {acc += weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];}
-	else
-	  {acc += weight*img[pos_img_\order2(y,x,z,Nx,Ny,Nz)];}
+	acc += weight*img[0];
       }
+      img += stride_x;
     }
   }
   //assign value to sinogram
-  sino[ pos_sino_\order1(s,a,z,Ns,Na,Nz)] = acc*delta_x*delta_x/delta_xi;
+  sino[pos_sino_\order1(s,a,z,Ns,Na,Nz)] = acc*delta_x*delta_x/delta_xi;
 }
 
 // Radon backprojection
@@ -114,10 +126,10 @@ __kernel void radon_\my_variable_type_\order1\order2(__global \my_variable_type 
 //					[delta_x,delta_xi,Nx,Ny,Ni,Nj] 
 // Output:
 //			values inside img are altered to represent the computed Radon backprojection 
-__kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_type *img,
-							__global \my_variable_type *sino,
-							__constant \my_variable_type8 *ofs, 
-							__constant \my_variable_type* Geometryinformation
+__kernel void radon_ad_\my_variable_type_\order1\order2(__global real *img,
+							__global real *sino,
+							__constant real8 *ofs, 
+							__constant real* Geometryinformation
 							)
 {
   // Geometric and discretization information
@@ -133,22 +145,25 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_ty
   const int Na = Geometryinformation[5];
 
   // Accumulation variable
-  \my_variable_type acc = 0.0f;
-  \my_variable_type4 c = (\my_variable_type4)(x,y,1,0);
+  real acc = 0.0f;
+  real4 c = (real4)(x,y,1,0);
 
+  sino += pos_sino_\order2(0,0,z,Ns,Na,Nz);  
   // Integrate with respect to angular dimension
   for (int a=0; a < Na; a++) {
-    \my_variable_type Delta_phi=ofs[a].s4; //angle_width asociated to the angle
+    real Delta_phi=ofs[a].s4; //angle_width asociated to the angle
     
     //compute detector position associated to (x,y) and phi=a
-    \my_variable_type s = dot(c, ofs[a].s0123);
+    real s = dot(c, ofs[a].s0123);
     
     //make sure detector position is inside range
     if ((s > -1) && (s < Ns)) {
-      \my_variable_type s_floor;
-      \my_variable_type p = fract(s, &s_floor);
-      if (s_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[ pos_sino_\order2((int)s_floor,a,z,Ns,Na,Nz)];
-      if (s_floor <= Ns-2) acc += Delta_phi*p*sino[ pos_sino_\order2((int)(s_floor+1),a,z,Ns,Na,Nz)];
+      real s_f;
+      real p = fract(s, &s_f);
+      int s_floor = (int)s_f;
+      if (s_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[pos_sino_\order2(s_floor,a,0,Ns,Na,Nz)];
+      s_floor++;
+      if (s_floor < Ns) acc += Delta_phi*p*sino[ pos_sino_\order2(s_floor,a,0,Ns,Na,Nz)];
     } 
   }
   // Assign value to img
@@ -170,10 +185,10 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global \my_variable_ty
 // Output:
 //			values inside sino are altered to represent the computed Radon transform
 //                      obtained by transforming an image with dirac-delta at (x,y)	
-__kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_variable_type *sino,
+__kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *sino,
 								 int x,  int y,
-								 __constant \my_variable_type8 *ofs,
-								 __constant \my_variable_type* Geometryinformation)
+								 __constant real8 *ofs,
+								 __constant real* Geometryinformation)
 {  //Geometric and discretization information
   size_t Ns = get_global_size(0);
   size_t Na = get_global_size(1); 
@@ -193,7 +208,7 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
   int ss=s;
   
   //o = (cos,sin,offset,1/cos)
-  \my_variable_type4 o = ofs[a].s0123;
+  real4 o = ofs[a].s0123;
   
   int Nxx=Nx;
   int Nyy=Ny;
@@ -202,28 +217,25 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
   if (fabs(o.x)<=fabs(o.y))
     {
       horizontal=0;
-      
-      \my_variable_type trade= o.x;
-      o.x=o.y;
-      o.y=trade;
+
+      o.xy = (real2)(o.y, o.x);
       
       Nxx=Ny;
       Nyy=Nx;
       
-      trade=x;
+      real trade=x;
       x=y;
       y=trade;
     }
   
-  
   //accumulation variable
-  \my_variable_type acc = 0.0f;
+  real acc = 0.0f;
   
   // for through the entire y dimension
   int x_low, x_high;
   
   //project (0,y) onto detector
-  \my_variable_type d = y*o.y + o.z;
+  real d = y*o.y + o.z;
   
   // compute bounds
   x_low = (int)((ss-1 - d)*o.w);
@@ -243,12 +255,9 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global \my_va
   // integration in x dimension for fixed y
   if((x_low<=x) && (x<=x_high)){
     //anterpolation weight via normal distance
-    \my_variable_type weight = 1.0 - fabs(x*o.x + d - ss);
+    real weight = 1.0 - fabs(x*o.x + d - ss);
     if (weight > 0.0f) {
-      if (horizontal==1)
-	{acc += weight*1;}
-      else
-	{acc += weight*1;}
+      acc = weight;
     }
   }
   

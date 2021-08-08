@@ -1,8 +1,17 @@
 // Array indexing for C contiguous or Fortran contiguous arrays
-#define pos_img_f(x,y,z,Nx,Ny,Nz) (x+y*Nx+z*Nx*Ny)
-#define pos_sino_f(s,a,z,Ns,Na,Nz) (s+a*Ns+Ns*Na*z)
-#define pos_img_c(x,y,z,Nx,Ny,Nz) (z+y*Nz+x*Nz*Ny)
-#define pos_sino_c(s,a,z,Ns,Na,Nz) (z+a*Nz+s*Nz*Na)
+#define pos_img_f(x,y,z,Nx,Ny,Nz) (x+Nx*(y+Ny*z))
+#define pos_sino_f(s,a,z,Ns,Na,Nz) (s+Ns*(a+Na*z))
+#define pos_img_c(x,y,z,Nx,Ny,Nz) (z+Nz*(y+Ny*x))
+#define pos_sino_c(s,a,z,Ns,Na,Nz) (z+Nz*(a+Na*s))
+
+#ifdef real
+#undef real
+#undef real2
+#undef real8
+#endif
+#define real \my_variable_type
+#define real2 \my_variable_type2
+#define real8 \my_variable_type8 
 
 // Fanbeam transform
 // Input:
@@ -17,11 +26,11 @@
 //					0. R 1. RE 2. delta_xi, 3.x_mid,4. y_mid, 5 xi_midpoint, 6. Nx,7.Ny,8.Nxi,9.Nphi,10.delta_x
 // Output:
 //			values inside sino are altered to represent the computed fanbeam transform
-__kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_type *sino,
-						       __global \my_variable_type *img,
-						       __constant \my_variable_type8 *ofs,
-						       __constant \my_variable_type *sdpd ,
-						       __constant \my_variable_type* Geometryinformation)
+__kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
+						       __global real *img,
+						       __constant real8 *ofs,
+						       __constant real *sdpd ,
+						       __constant real* Geometryinformation)
 {
   //Geometric information
   size_t Ns = get_global_size(0);
@@ -32,53 +41,46 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
   size_t a = get_global_id(1);
   size_t z = get_global_id(2);
 
-  \my_variable_type midpoint_x=Geometryinformation[3];
-  \my_variable_type midpoint_y=Geometryinformation[4];
-  \my_variable_type midpoint_det=Geometryinformation[5];
+  real2 midpoint = (real2)(Geometryinformation[3], Geometryinformation[4]);
+  real midpoint_det=Geometryinformation[5];
 
-  \my_variable_type R= Geometryinformation[0];
-  \my_variable_type RE= Geometryinformation[1];
-  \my_variable_type delta_xi= Geometryinformation[2]; //delta_xi / delta_x (so ratio, code runs like delta_x=1)
+  real R= Geometryinformation[0];
+  real RE= Geometryinformation[1];
+  real delta_xi= Geometryinformation[2]; //delta_xi / delta_x (so ratio, code runs like delta_x=1)
 
   int Nx=Geometryinformation[6];
   int Ny=Geometryinformation[7];
 
-  \my_variable_type delta_x = Geometryinformation[10];// True delta_x, i.e. not rescaled like delta_xi
+  real delta_x = Geometryinformation[10];// True delta_x, i.e. not rescaled like delta_xi
 
   //Geometric information associated with a.th angle
-  \my_variable_type8 o=ofs[a];
+  real8 o=ofs[a];
   //(xd,yd) ... vector along the detector with length delta_xi.
-  \my_variable_type xd=o.s0;
-  \my_variable_type yd=o.s1;
+  real2 d = (real2)(o.s0, o.s1);
   //(qx,qy) ... vector from origin to source (with length RE).
-  \my_variable_type qx=o.s2;
-  \my_variable_type qy=o.s3;
+  real2 q = (real2)(o.s2, o.s3);
   //(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line.(with length R-RE)
-  \my_variable_type dx0=o.s4;
-  \my_variable_type dy0=o.s5;
+  real2 d0 = (real2)(o.s4, o.s5);
 
   //accumulation variable
-  \my_variable_type acc=0;
+  real acc=0;
 
   // compute direction vector from source to detector pixels above dp (for i+1) and below dm (for i-1).
-  \my_variable_type dpx=dx0+xd*(-midpoint_det+s+1)-qx;
-  \my_variable_type dpy=dy0+yd*(-midpoint_det+s+1)-qy;
-  \my_variable_type dmx=dx0+xd*(-midpoint_det+s-1)-qx;
-  \my_variable_type dmy=dy0+yd*(-midpoint_det+s-1)-qy;
+  real2 dp = d0 + d*(-midpoint_det+s+1) - q;
+    // (real2)(d0.x+d.x*(-midpoint_det+s+1)-q.x, d0.y+d.y*(-midpoint_det+s+1)-q.y);
+  real2 dm = d0 + d*(-midpoint_det+s-1) - q;
+    //dm = (real2)(d0.x+d.x*(-midpoint_det+s-1)-q.x, d0.y+d.y*(-midpoint_det+s-1)-q.y);
 
   //direction vector from origin to detector center (orthogonal projection of origin on detector-line)
-  \my_variable_type dx=dx0-qx;
-  \my_variable_type dy=dy0-qy;
+  real2 dd = d0 - q;
 
   //Normalization (the norm of (dx,dy) is 1/R after normalization)
-  dx/=(R*R);
-  dy/=(R*R);
+  dd /= R*R;
 
   //Normalization (the norm of (xd,yd) is 1/delta_xi after normalization)
-  xd/=(delta_xi*delta_xi);
-  yd/=(delta_xi*delta_xi);
+  d /= delta_xi*delta_xi;
 
-  // Distance from source to origin devided by R
+  // Distance from source to origin divided by R
   //RE=RE/R; Bug for Intel Double
   RE*=1/R;
   int Nyy=Ny;
@@ -92,73 +94,60 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
   //Therefore, for the vertical case the geometry of the image is flipped,
   //so that asside from minor if inquiry all rays execute the same loop
   //with similarly distributed iteration-sets
-  if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy)) { //mostly horizontal lines
+  if (fabs(dp.x)<fabs(dp.y) && fabs(dm.x)<fabs(dm.y)) { //mostly horizontal lines
     horizontal=1;
   }
   else { //case of vertical lines, switch x and y dimensions of geometry
     horizontal=0;
 
-    \my_variable_type trade=dy;
-    dy=dx;
-    dx=trade;
-
-    trade =yd;
-    yd= xd;
-    xd=trade;
-
-    trade=qy;
-    qy=qx;
-    qx=trade;
-
-    trade =dpy;
-    dpy=dpx;
-    dpx=trade;
-
-    trade =dmy;
-    dmy=dmx;
-    dmx=trade;
-
-    trade=midpoint_y;
-    midpoint_y=midpoint_x;
-    midpoint_x=trade;
+    dd = (real2)(dd.y, dd.x);
+    d = (real2)(d.y, d.x);
+    q = (real2)(q.y, q.x);
+    dp = (real2)(dp.y, dp.x);
+    dm = (real2)(dm.y, dm.x);
+    midpoint = (real2)(midpoint.y, midpoint.x);
 
     Nyy=Nx;
     Nxx=Ny;
   }
 
   //Move in y direction stepwise, rescale dp/dm such that represents increase in y direction
-  dpx=dpx/dpy;
-  dmx=dmx/dmy;
+  dp.x/=dp.y;
+  dm.x/=dm.y;
 
   //compute bounds for suitable x values (for fixed y=0)
   //(qy+midpoint_y distance from source to y=0) according to equation
   // x=qx+dmx*(y-qy) with y =-midpoint_y
-  \my_variable_type xlow=qx-dmx*(qy+midpoint_y);
-  \my_variable_type xhigh=qx-dpx*(qy+midpoint_y);
+  real xlow=q.x-dm.x*(q.y+midpoint.y);
+  real xhigh=q.x-dp.x*(q.y+midpoint.y);
 
   //switch roles of dm and dp if necessary (to switch xlow and xhigh)
-  if ((qy)*(dmx-dpx)<0)
+  if ((q.y)*(dm.x-dp.x)<0)
     {
-      \my_variable_type trade=xhigh;
+      real trade=xhigh;
       xhigh=xlow;
       xlow=trade;
 
-      trade=dpx;
-      dpx=dmx;
-      dmx=trade;
+      trade=dp.x;
+      dp.x=dm.x;
+      dm.x=trade;
     }
 
+  real s_midpoint_det = s - midpoint_det;
+  __global real *img0 = img + pos_img_\order2(0,0,z,Nx,Ny,Nz);
+  size_t stride_x = horizontal == 1 ? pos_img_\order2(1,0,0,Nx,Ny,Nz) : pos_img_\order2(0,1,0,Nx,Ny,Nz);
+  
   //For loop going through all y values
   for (int y=0;y<Nyy;y++)
     {
       //changing y by one updates xlow and xhigh exactly by the slopes dp and dm
       // as given in formular above by increasing y by 1
-      xhigh=qx+dpx*(y-midpoint_y-qy);
-      xlow=qx+dmx*(y-midpoint_y-qy);
+      xhigh=q.x+dp.x*(y-midpoint.y-q.y);
+      xlow=q.x+dm.x*(y-midpoint.y-q.y);
 
       // cut bounds within image_range
-      int xhighint=floor (min(Nxx-1-midpoint_x,xhigh)+midpoint_x);
-      int xlowint=ceil(max(-midpoint_x,xlow)+midpoint_x);
+      int xhighint=floor(min(Nxx-1-midpoint.x,xhigh)+midpoint.x);
+      int xlowint=ceil(max(-midpoint.x,xlow)+midpoint.x);
 
 
       //alternative stepping
@@ -168,19 +157,23 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
 
       // for (x,ylowint) compute t and s orthogonal distances from source (t values in (0,1))
       // or projected detectorposition (divided by delta_xi )
-      \my_variable_type t=dx*(xlowint-midpoint_x)+dy*(y-midpoint_y)+RE;
-      \my_variable_type ss=xd*(xlowint-midpoint_x)+yd*(y-midpoint_y);
+      real t=dd.x*(xlowint-midpoint.x)+dd.y*(y-midpoint.y)+RE;
+      real ss=d.x*(xlowint-midpoint.x)+d.y*(y-midpoint.y);
 
-
+      if (horizontal == 1)
+	img = img0 + pos_img_\order2(xlowint,y,0,Nx,Ny,Nz);
+      if (horizontal == 0)
+	img = img0 + pos_img_\order2(y,xlowint,0,Nx,Ny,Nz);
+      
       // loop through all adjacent x values inside the bounds
       for (int x=xlowint;x<=xhighint;x++)
 	{
 	  // xi is equal the projected detector position (with exact positions as integers)
-	  \my_variable_type xi=ss/t;
+	  real xi=ss/t;
 
 	  //Weight corresponds to distance of projected detector position
 	  //divided by the distance from the source
-	  \my_variable_type Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
+	  real Weight=(1-fabs(s_midpoint_det-xi))/t;
 
 	  //cut of ray when hits detector (in case detector inside imaging object)
 	  //if(t>1)
@@ -189,26 +182,19 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
 	  //}
 
 	  //accumulation
-	  if (horizontal==1)
-	    {acc+=Weight*img[pos_img_\order2(x,y,z,Nx,Ny,Nz)];}
-
-	  if(horizontal==0)
-	    {//in this case the variable x represents
-	      //the true y value and reversely due to flipped geometry,
-	      //hence data must be accessed slightly differently
-	      acc+=Weight*img[pos_img_\order2(y,x,z,Nx,Ny,Nz)];}
+	  acc+=Weight*img[0];
+	  img += stride_x;
 
 	  //update t and s via obvious formulas (for fixed y) and x increased by 1
-	  t+=dx;
-	  ss+=xd;
+	  t+=dd.x;
+	  ss+=d.x;
 	}
     }
-
 
   //update relevant sinogram value (weighted with spdp=sqrt(xi^2+R^2)
   //(one delta_x is hidden in the R*t term)
   //(one delta_xi is hidden in weight with values [0,1] instead of [0,\delta_x])
-  sino[pos_sino_\order1(s,a,z,Ns,Na,Nz)]=acc*sdpd[s]/delta_xi*delta_x;
+  sino[pos_sino_\order1(s,a,z,Ns,Na,Nz)]=acc*sdpd[s]/delta_xi*delta_x/R;
 }
 
 
@@ -225,11 +211,11 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global \my_variable_typ
 //					0. R 1. RE 2. delta_xi, 3.x_mid,4. y_mid, 5 xi_midpoint, 6. Nx,7.Ny,8.Nxi,9.Nphi,10.delta_x
 // Output:
 //			values inside img are altered to represent the computed fanbeam backprojection
-__kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global \my_variable_type *img,
-							  __global \my_variable_type *sino,
-							  __constant \my_variable_type8 *ofs,
-							  __constant \my_variable_type *sdpd,
-							  __constant \my_variable_type* Geometryinformation)
+__kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global real *img,
+							  __global real *sino,
+							  __constant real8 *ofs,
+							  __constant real *sdpd,
+							  __constant real* Geometryinformation)
 {
   //geometric information
   size_t Nx = get_global_size(0);
@@ -239,82 +225,78 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global \my_variable_
   size_t yy = get_global_id(1);
   size_t z = get_global_id(2);
 
-  \my_variable_type midpoint_x=Geometryinformation[3];
-  \my_variable_type midpoint_y=Geometryinformation[4];
-  \my_variable_type midpoint_det=Geometryinformation[5];
+  real2 midpoint = (real2)(Geometryinformation[3], Geometryinformation[4]);
+  real midpoint_det=Geometryinformation[5];
 
   int Ns=Geometryinformation[8];
   int Na=Geometryinformation[9];
 
+  real delta_xi=Geometryinformation[2];
+  real R= Geometryinformation[0];
 
-  \my_variable_type delta_xi=Geometryinformation[2];
-  \my_variable_type R= Geometryinformation[0];
-
-  \my_variable_type x=xx-midpoint_x;
-  \my_variable_type y=yy-midpoint_y;
+  real2 P = (real2)(xx,yy) - midpoint;
 
   //accumulation variable
-  \my_variable_type acc=0;
+  real acc=0;
 
+  sino += pos_sino_\order2(0,0,z,Ns,Na,Nz);
+  real R_sqr_inv = 1/(R*R);
+  real delta_xi_sqr_inv = 1/(delta_xi*delta_xi);
   // for loop through all angles
   for (int a=0;a< Na;a++)
     {
       //Geometric information associated with j.th angle
-      \my_variable_type8 o=ofs[a];
+      real8 o=ofs[a];
       //(xd,yd) ... vector along the detector with length delta_xi.
-      \my_variable_type xd=o.s0;
-      \my_variable_type yd=o.s1;
-      //(qx,qy) ... vector from source to origin (with length RE).
-      \my_variable_type qx=o.s2;
-      \my_variable_type qy=o.s3;
-      //(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line (With length R-RE).
-      \my_variable_type dx0=o.s4;
-      \my_variable_type dy0=o.s5;
+      real2 d = (real2)(o.s0, o.s1);
+      //(qx,qy) ... vector from origin to source (with length RE).
+      real2 q = (real2)(o.s2, o.s3);
+      //(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line.(with length R-RE)
+      real2 d0 = (real2)(o.s4, o.s5);
 
-      //vector from source to detector center (orthogonally project detector-line) with length R
-      \my_variable_type dx=dx0-qx;
-      \my_variable_type dy=dy0-qy;
+      //direction vector from origin to detector center (orthogonal projection of origin on detector-line)
+      real2 dd = d0 - q;
 
       //Delta_Phi angular resolution
-      \my_variable_type Delta_Phi=o.s6;
+      real Delta_Phi=o.s6;
 
       //normalization (afterwards (dx,dy) has norm 1/R).
-      dx/=(R*R);
-      dy/=(R*R);
+      dd *= R_sqr_inv;
 
       //normalization (afterwards (xd,yd) has norm 1/delta_xi).
-      xd/=(delta_xi*delta_xi);
-      yd/=(delta_xi*delta_xi);
+      d *= delta_xi_sqr_inv;
 
       //compute t and s orthogonal distances from source (t values in (0,1))
       // or projected detectorposition (divided by delta_xi )
-      \my_variable_type t=dx*(x-qx)+dy*(y-qy);
-      \my_variable_type ss=xd*(x-qx)+yd*(y-qy);
+      //real t=dd.x*(P.x-q.x)+dd.y*(P.y-q.y);
+      //real ss=d.x*(P.x-q.x)+d.y*(P.y-q.y);
+      real t = dot(dd, P-q);
+      real ss = dot(d, P-q);
 
       //compute s projected position on detector
-      \my_variable_type xi=ss/t+midpoint_det;
+      real xi=ss/t+midpoint_det;
 
       //compute adjacent detector positions
       int xim=floor(xi);
       int xip=xim+1;
 
       // compute corresponding weights
-      \my_variable_type Weightp=1-(xim+1-xi);
-      \my_variable_type Weightm=1-(xi-xim);
+      real Weightp=1-(xim+1-xi);
+      real Weightm=1-(xi-xim);
 
       //set weight to zero in case adjacent detector position is outside
       //the detector range and weight with corresponding sdpd=sqrt(xi^2+R^2)
-      if (xim <0 || xim>Ns-1)
+      if (xim <0 || xim >= Ns)
 	{ Weightm=0.; xim=0; }
       else
 	{ Weightm*=sdpd[xim]; }
-      if (xip <0 || xip>Ns-1)
+      if (xip <0 || xip >= Ns)
 	{ Weightp=0.; xip=0; }
       else
 	{ Weightp*=sdpd[xip]; }
 
       //accumulate weigthed sum (Delta_Phi weight due to angular resolution)
-      acc+=Delta_Phi*(Weightm*sino[pos_sino_\order2(xim,a,z,Ns,Na,Nz)]+Weightp*sino[pos_sino_\order2(xip,a,z,Ns,Na,Nz)])/(R*t);
+      acc+=Delta_Phi*(Weightm*sino[pos_sino_\order2(xim,a,0,Ns,Na,Nz)]+Weightp*sino[pos_sino_\order2(xip,a,0,Ns,Na,Nz)])/(R*t);
 
     }
   // update img with computed value
@@ -337,10 +319,10 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global \my_variable_
 //					0. R 1. RE 2. delta_xi, 3.x_mid,4. y_mid, 5 xi_midpoint, 6. Nx,7.Ny,8.Nxi,9.Nphi,10.delta_x
 // Output:
 //			values inside sino are altered to represent the computed fanbeam transform gained by an delta at the position (x,y)
-__kernel void single_line_fan_\my_variable_type_\order1\order2(__global \my_variable_type *sino, int x, int y,
-							       __constant \my_variable_type8 *ofs,
-							       __constant \my_variable_type *sdpd ,
-							       __constant \my_variable_type* Geometryinformation)
+__kernel void single_line_fan_\my_variable_type_\order1\order2(__global real *sino, int x, int y,
+							       __constant real8 *ofs,
+							       __constant real *sdpd ,
+							       __constant real* Geometryinformation)
 {
   //Geometric information
   size_t Ns = get_global_size(0);
@@ -351,57 +333,46 @@ __kernel void single_line_fan_\my_variable_type_\order1\order2(__global \my_vari
   size_t a = get_global_id(1);
   size_t z = 0;
 
-  \my_variable_type midpoint_x=Geometryinformation[3];
-  \my_variable_type midpoint_y=Geometryinformation[4];
-  \my_variable_type midpoint_det=Geometryinformation[5];
+  real2 midpoint = (real2)(Geometryinformation[3], Geometryinformation[4]);
+  real midpoint_det=Geometryinformation[5];
 
-  \my_variable_type R= Geometryinformation[0];
-  \my_variable_type RE= Geometryinformation[1];
-  \my_variable_type delta_xi= Geometryinformation[2]; //delta_xi / delta_x (so ratio, code runs like delta_x=1)
+  real R= Geometryinformation[0];
+  real RE= Geometryinformation[1];
+  real delta_xi= Geometryinformation[2]; //delta_xi / delta_x (so ratio, code runs like delta_x=1)
 
   int Nx=Geometryinformation[6];
   int Ny=Geometryinformation[7];
 
-  \my_variable_type delta_x = Geometryinformation[10];// True delta_x, i.e. not rescaled like delta_xi
+  real delta_x = Geometryinformation[10];// True delta_x, i.e. not rescaled like delta_xi
 
   //Geometric information associated with a.th angle
-  \my_variable_type8 o=ofs[a];
+  real8 o=ofs[a];
   //(xd,yd) ... vector along the detector with length delta_xi.
-  \my_variable_type xd=o.s0;
-  \my_variable_type yd=o.s1;
-  //(qx,qy) ... vector from source to origin (with length RE).
-  \my_variable_type qx=o.s2;
-  \my_variable_type qy=o.s3;
+  real2 d = (real2)(o.s0, o.s1);
+  //(qx,qy) ... vector from origin to source (with length RE).
+  real2 q = (real2)(o.s2, o.s3);
   //(dx0,dy0) ... vector from  origin orthogonally projected onto detector-line.(with length R-RE)
-  \my_variable_type dx0=o.s4;
-  \my_variable_type dy0=o.s5;
+  real2 d0 = (real2)(o.s4, o.s5);
 
   //accumulation variable
-  \my_variable_type acc=0;
-
+  real acc=0;
 
   // compute direction vector from source to detector pixels above dp (for i+1) and below dm (for i-1).
-  \my_variable_type dpx=dx0+xd*(-midpoint_det+s+1)-qx;
-  \my_variable_type dpy=dy0+yd*(-midpoint_det+s+1)-qy;
-  \my_variable_type dmx=dx0+xd*(-midpoint_det+s-1)-qx;
-  \my_variable_type dmy=dy0+yd*(-midpoint_det+s-1)-qy;
+  real2 dp = d0 + d*(-midpoint_det+s+1) - q;
+  real2 dm = d0 + d*(-midpoint_det+s-1) - q;
 
   //direction vector from origin to detector center (orthogonal projection of origin on detector-line)
-  \my_variable_type dx=dx0-qx;
-  \my_variable_type dy=dy0-qy;
+  real2 dd = d0 - q;
 
   //Normalization (the norm of (dx,dy) is 1/R after normalization)
-  dx/=(R*R);
-  dy/=(R*R);
+  dd /= R*R;
 
   //Normalization (the norm of (xd,yd) is 1/delta_xi after normalization)
-  xd/=(delta_xi*delta_xi);
-  yd/=(delta_xi*delta_xi);
+  d /= delta_xi*delta_xi;
 
-  // Distance from source to origin devided by R
+  // Distance from source to origin divided by R
   //RE=RE/R; Intel bug for Double
-	RE*=1/R;
-
+  RE*=1/R;
 
   int Nyy=Ny;
   int Nxx=Nx;
@@ -415,110 +386,73 @@ __kernel void single_line_fan_\my_variable_type_\order1\order2(__global \my_vari
   //Therefore, for the vertical case the geometry of the image is flipped,
   //so that asside from minor if inquiry all rays execute the same loop
   //with similarly distributed iteration-sets
-  if (fabs(dpx)<fabs(dpy) && fabs(dmx)<fabs(dmy)) { //mostly horizontal lines
+  if (fabs(dp.x)<fabs(dp.y) && fabs(dm.x)<fabs(dm.y)) { //mostly horizontal lines
     horizontal=1;
   }
   else { //case of vertical lines, switch x and y dimensions of geometry
     horizontal=0;
 
-    \my_variable_type trade=dy;
-    dy=dx;
-    dx=trade;
-
-    trade =yd;
-    yd= xd;
-    xd=trade;
-
-    trade=qy;
-    qy=qx;
-    qx=trade;
-
-    trade =dpy;
-    dpy=dpx;
-    dpx=trade;
-
-    trade =dmy;
-    dmy=dmx;
-    dmx=trade;
-
-    trade=midpoint_y;
-    midpoint_y=midpoint_x;
-    midpoint_x=trade;
+    dd = (real2)(dd.y, dd.x);
+    d = (real2)(d.y, d.x);
+    q = (real2)(q.y, q.x);
+    dp = (real2)(dp.y, dp.x);
+    dm = (real2)(dm.y, dm.x);
+    midpoint = (real2)(midpoint.y, midpoint.x);
 
     Nyy=Nx;
     Nxx=Ny;
 
-    trade=y;
+    real trade=y;
     y=x;
     x=trade;
   }
 
-
   //Move in y direction stepwise, rescale dp/dm such that represents increase in y direction
-  dpx=dpx/dpy;
-  dmx=dmx/dmy;
+  dp.x/=dp.y;
+  dm.x/=dm.y;
 
   //compute bounds for suitable x values (for fixed y=0)
   //(qy+midpoint_y distance from source to y=0) according to equation
   // x=qx+dmx*(y-qy) with y =-midpoint_y
-  \my_variable_type xlow=qx-dmx*(qy+midpoint_y);
-  \my_variable_type xhigh=qx-dpx*(qy+midpoint_y);
-
+  real xlow=q.x-dm.x*(q.y+midpoint.y);
+  real xhigh=q.x-dp.x*(q.y+midpoint.y);
 
   //switch roles of dm and dp if necessary (to switch xlow and xhigh)
-  if ((qy)*(dmx-dpx)<0) {
-    \my_variable_type trade=xhigh;
-    xhigh=xlow;
-    xlow=trade;
+  if ((q.y)*(dm.x-dp.x)<0)
+    {
+      real trade=xhigh;
+      xhigh=xlow;
+      xlow=trade;
 
-    trade=dpx;
-    dpx=dmx;
-    dmx=trade;
-  }
+      trade=dp.x;
+      dp.x=dm.x;
+      dm.x=trade;
+    }
 
   //Compute xlow and xhigh for given y
-  xhigh=qx+dpx*(y-midpoint_y-qy);
-  xlow=qx+dmx*(y-midpoint_y-qy);
+  xhigh=q.x+dp.x*(y-midpoint.y-q.y);
+  xlow=q.x+dm.x*(y-midpoint.y-q.y);
 
   // cut bounds within image_range
-  int xhighint=floor (min(Nxx-1-midpoint_x,xhigh)+midpoint_x);
-  int xlowint=ceil(max(-midpoint_x,xlow)+midpoint_x);
-
-
-  //alternative stepping
-  //xhigh+=dpx;
-  //xlow+=dmx;
-
+  int xhighint=floor(min(Nxx-1-midpoint.x,xhigh)+midpoint.x);
+  int xlowint=ceil(max(-midpoint.x,xlow)+midpoint.x);
 
   // for (x,y) compute t and s orthogonal distances from source (t values in (0,1))
   // or projected detectorposition (divided by delta_xi ) in case x is in feasible range
   if ((xlowint<=x) && (x<=xhighint))
     {
-      \my_variable_type t=dx*(x-midpoint_x)+dy*(y-midpoint_y)+RE;
-      \my_variable_type ss=xd*(x-midpoint_x)+yd*(y-midpoint_y);
+      real t=dd.x*(x-midpoint.x)+dd.y*(y-midpoint.y)+RE;
+      real ss=d.x*(x-midpoint.x)+d.y*(y-midpoint.y);
 
       // xi is equal the projected detector position (with exact positions as integers)
-      \my_variable_type xi=ss/t;
+      real xi=ss/t;
 
       //Weight corresponds to distance of projected detector position
       //divided by the distance from the source
-      \my_variable_type Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
-
-      //cut of ray when hits detector (in case detector inside imaging object)
-      //if(t>1)
-      //{
-      //Weight=0;
-      //}
+      real Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
 
       //accumulation
-      if (horizontal==1)
-	{acc+=Weight*1;}
-
-      if(horizontal==0)
-	{//in this case the variable x represents
-	  //the true y value and reversely due to flipped geometry,
-	  //hence data must be accessed slightly differently
-	  acc+=Weight*1;}
+      acc = Weight;
     }
 
 
