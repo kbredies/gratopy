@@ -1,4 +1,11 @@
 // Array indexing for C contiguous or Fortran contiguous arrays
+#ifdef pos_img_f
+#undef pos_img_f
+#undef pos_sino_f
+#undef pos_img_c
+#undef pos_sino_c
+#endif
+
 #define pos_img_f(x,y,z,Nx,Ny,Nz) (x+Nx*(y+Ny*z))
 #define pos_sino_f(s,a,z,Ns,Na,Nz) (s+Ns*(a+Na*z))
 #define pos_img_c(x,y,z,Nx,Ny,Nz) (z+Nz*(y+Ny*x))
