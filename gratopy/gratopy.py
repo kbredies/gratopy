@@ -1894,22 +1894,22 @@ def angle_weighting(sino, projectionsetting, sino_new=None, divide = False,
     return sino_new
 
 
-def equ_mul_add(x, a, rhs, projectionsetting, wait_for=[]):
+def equ_mul_add(rhs,  a, x, projectionsetting, wait_for=[]):
     dtype = x.dtype
     function = {np.dtype("float32"): projectionsetting.prg.equ_mul_add_float_c,
                 np.dtype("float64"): projectionsetting.prg.equ_mul_add_double_c
                 }[dtype]
-    function(x.queue, [x.size], None, x.data, a, rhs.data,
+    function(x.queue, [x.size], None, rhs.data, a, x.data,
              wait_for=x.events+rhs.events+wait_for)
     return rhs
 
 
-def mul_add_add(x, a, y, rhs, projectionsetting, wait_for=[]):
+def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     dtype = x.dtype
     function = {np.dtype("float32"): projectionsetting.prg.mul_add_add_float_c,
                 np.dtype("float64"): projectionsetting.prg.mul_add_add_double_c
                 }[dtype]
-    function(x.queue, [x.size], None, x.data, a, y.data, rhs.data,
+    function(x.queue, [x.size], None, rhs.data, a, x.data, y.data,
              wait_for=x.events+y.events+rhs.events+wait_for)
     return rhs
 
@@ -2007,8 +2007,9 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
         forwardprojection(Unew, projectionsetting, sino=sinonew)
         sinonew -= sino
         # Unew = Unew-w*backprojection(sinonew, projectionsetting, img=U)
-        equ_mul_add(backprojection(sinonew, projectionsetting, img=U), -w,
-                    Unew, projectionsetting)
+        equ_mul_add(Unew, -w,
+                    backprojection(sinonew, projectionsetting, img=U),
+                    projectionsetting, wait_for=[])
     print('\rLandweber reconstruction complete')
     return Unew
 
@@ -2087,13 +2088,13 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
                                                 projectionsetting, q_rescaled)
                                                , q)).get())
 
-        equ_mul_add(p, +alpha, x, projectionsetting)  # x += alpha*p
-        equ_mul_add(q, -alpha, d, projectionsetting)  # d -= alpha*q
+        equ_mul_add(x, +alpha, p, projectionsetting)  # x += alpha*p
+        equ_mul_add(d, -alpha, q, projectionsetting)  # d -= alpha*q
         backprojection(d, projectionsetting, img=snew)
         beta = (clarray.vdot(snew, snew)
                 / clarray.vdot(sold, sold)).get()
         (sold, snew) = (snew, sold)
-        mul_add_add(p, beta, sold, p, projectionsetting)  # p = beta*p+sold
+        mul_add_add(p, beta, p, sold, projectionsetting)  # p = beta*p+sold
         residue = np.sqrt(np.sum(clarray.vdot(sold, sold).get())
                           / np.sum(clarray.vdot(sino, sino).get()))
         if residue < epsilon:
