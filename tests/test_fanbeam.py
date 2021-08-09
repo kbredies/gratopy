@@ -810,7 +810,9 @@ def test_landweber():
     walnut_gpu = clarray.to_device(queue, np.require(sino, dtype, order))
 
     # execute Landweber method
+    a = time.perf_counter()
     ULW = gratopy.landweber(walnut_gpu, PS, 100).get()
+    print("Time required "+str(time.perf_counter()-a))
 
     # plot Landweber reconstruction
     plt.figure(4)
@@ -868,7 +870,11 @@ def test_conjugate_gradients():
 
     # perform conjugate gradients algorithm
     walnut_gpu2new = clarray.to_device(queue, np.require(sino, dtype, 'C'))
+
+    a = time.perf_counter()
     UCG = gratopy.conjugate_gradients(walnut_gpu2new, PS, number_iterations=50)
+    print("Time required "+str(time.perf_counter()-a))
+
     UCG = UCG.get()
     # plot results
     plt.figure(1)
