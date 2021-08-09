@@ -18,7 +18,7 @@
 #endif
 #define real \my_variable_type
 #define real2 \my_variable_type2
-#define real8 \my_variable_type8 
+#define real8 \my_variable_type8
 
 // Fanbeam transform
 // Input:
@@ -143,7 +143,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
   real s_midpoint_det = s - midpoint_det;
   __global real *img0 = img + pos_img_\order2(0,0,z,Nx,Ny,Nz);
   size_t stride_x = horizontal == 1 ? pos_img_\order2(1,0,0,Nx,Ny,Nz) : pos_img_\order2(0,1,0,Nx,Ny,Nz);
-  
+
   //For loop going through all y values
   for (int y=0;y<Nyy;y++)
     {
@@ -171,7 +171,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
 	img = img0 + pos_img_\order2(xlowint,y,0,Nx,Ny,Nz);
       if (horizontal == 0)
 	img = img0 + pos_img_\order2(y,xlowint,0,Nx,Ny,Nz);
-      
+
       // loop through all adjacent x values inside the bounds
       for (int x=xlowint;x<=xhighint;x++)
 	{

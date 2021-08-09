@@ -247,7 +247,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     """
     Creates the structure storing geometry information required for
     the Radon transform and its adjoint.
-    
+
     :param queue: OpenCL command queue in which context the
         computations are to be performed.
     :type queue: :class:`pyopencl.CommandQueue`
@@ -262,7 +262,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param angles:  Determines which angles are considered for the
         projection. Either the integer :math:`N_a` representing the
         number of uniformly distributed angles in the angular range
-        :math:`[0,\\pi[`, a list containing all angles considered for
+        :math:`[0,\pi[`, a list containing all angles considered for
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
@@ -300,10 +300,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type detector_shift: :class:`list[float]`, default 0.0
 
     :param fullangle: If :obj:`True`, the angles are interpreted to
-        represent the whole interval :math:`[0,\\pi[`.
+        represent the whole interval :math:`[0,\pi[`.
         If :obj:`False`, a limited angle setting is considered, i.e.,
         the given angles represent a discretization of a
-        proper subset of :math:`[0,\\pi[`.
+        proper subset of :math:`[0,\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`
 
@@ -664,7 +664,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :param angles:  Determines which angles are considered for the
         projection. Either the integer :math:`N_a` representing the
         number of uniformly distributed angles in the angular range
-        :math:`[0,2\\pi[`, a list containing all angles considered for
+        :math:`[0,2\pi[`, a list containing all angles considered for
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
@@ -707,10 +707,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type midpoint_shift:  :class:`list[float]`, default [0.0, 0.0]
 
     :param fullangle: If :obj:`True`, the angles are interpreted to
-        represent the whole interval :math:`[0,2\\pi[`.
+        represent the whole interval :math:`[0,2\pi[`.
         If :obj:`False`, a limited angle setting is considered, i.e.,
         the given angles represent a discretization of a
-        proper subset of :math:`[0,2\\pi[`.
+        proper subset of :math:`[0,2\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`
 
@@ -1036,9 +1036,9 @@ def create_code():
             for order1 in ["f", "c"]:
                 for order2 in ["f", "c"]:
                     total_code += code_template.replace(
-                        "\\my_variable_type", dtype)\
-                        .replace("\\order1", order1)\
-                        .replace("\\order2", order2)
+                        "\my_variable_type", dtype)\
+                        .replace("\order1", order1)\
+                        .replace("\order2", order2)
 
     for file in CL_FILES2:
         textfile = open(os.path.join(os.path.abspath(
@@ -1049,8 +1049,8 @@ def create_code():
         for dtype in ["float", "double"]:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace(
-                    "\\my_variable_type", dtype)\
-                    .replace("\\order1", order1)\
+                    "\my_variable_type", dtype)\
+                    .replace("\order1", order1)\
 
     return total_code
 
@@ -1090,8 +1090,7 @@ def upload_bufs(projectionsetting, dtype):
 
 
 class ProjectionSettings():
-    """
-    Creates and stores all relevant information concerning
+    """ Creates and stores all relevant information concerning
     the projection geometry. Serves as a parameter for virtually all
     gratopy's functions.
 
@@ -1115,7 +1114,7 @@ class ProjectionSettings():
     :param angles:  Determines which angles are considered for
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
-        :math:`[0,\\pi[,\\ [0,2\\pi[`
+        :math:`[0,\pi[,\ [0,2\pi[`
         for Radon and fanbeam transform, respectively. Alternatively,
         a list containing all angles
         considered for the projection can be given.
@@ -1171,8 +1170,8 @@ class ProjectionSettings():
     :param fullangle:
         Indicates whether the entire angular range is represented by
         **angles**. If :obj:`True`,
-        the entire angular range (:math:`[0,\\pi[`
-        for parallel beam, :math:`[0,2\\pi[` for fanbeam geometry)
+        the entire angular range (:math:`[0,\pi[`
+        for parallel beam, :math:`[0,2\pi[` for fanbeam geometry)
         is represented. :obj:`False` indicates a limited
         angle setting, i.e., the angles only represent
         a discretization of a proper subset of the angular range.
@@ -1233,7 +1232,7 @@ class ProjectionSettings():
     :ivar angle_weights: Represents the angular discretization
         width for each angle which are used to weight the projections.
         In the fullangle case, these sum up to
-        :math:`\\pi` and :math:`2\\pi` for parallel beam and
+        :math:`\pi` and :math:`2\pi` for parallel beam and
         fanbeam geometry respectively
         (or more specific angular when angular_ranges is set).
     :vartype angle_weights: :class:`numpy.ndarray`
@@ -1921,7 +1920,7 @@ def normest(projectionsetting, number_iterations=50, dtype='float32',
     """
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the standard
-    Euclidean or :math:`\\ell^2`
+    Euclidean or :math:`\ell^2`
     norms. Useful for iterative methods that require such an estimate,
     e.g., :func:`landweber` or :func:`total_variation`.
 
@@ -2099,7 +2098,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         residue = np.sqrt(np.sum(clarray.vdot(sold, sold).get())
                           / np.sum(clarray.vdot(sino, sino).get()))
         if residue < epsilon:
-            sys.stdout.write('\rProgress aborted prematurely as desired'
+            print('\rProgress aborted prematurely as desired'
                              + 'precision is reached')
             break
 
@@ -2116,9 +2115,9 @@ def total_variation(sino, projectionsetting, mu,
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
-    :math:`\\min_{u} {\\frac\\mu2}\\|\mathcal{P}u-f\\|_{L^2}^2+\mathrm{TV}(u)`
-    for :math:`\\mathcal{P}` the projection operator, :math:`f` the sinogram
-    and :math:`\\mu` a positive regluarization parameter (i.e.,
+    :math:`\min_{u} {\\frac\mu2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
+    for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
+    and :math:`\mu` a positive regluarization parameter (i.e.,
     an :math:`L^2-\mathrm{TV}` reconstruction approach).
 
     :param sino: Sinogram data to invert.
@@ -2145,7 +2144,7 @@ def total_variation(sino, projectionsetting, mu,
 
     :param stepsize_weighting: Allows to weight the primal-dual algorithm's
         step sizes :math:`\sigma` and :math:`\\tau`
-        (with :math:`\sigma\\tau\\|\mathcal{P}\\|^2\leq 1`)
+        (with :math:`\sigma\\tau\|\mathcal{P}\|^2\leq 1`)
         by multiplication and division, respectively,
         with the given value.
     :type stepsize_weighting: :class:`float`, default 10.0
