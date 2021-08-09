@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pyopencl as cl
+import pyopencl.array as clarray
 import time
 
 import gratopy
@@ -92,7 +93,9 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     return test_s, test_phi, test_z, factors, test_x, test_y
 
 
-def create_phantoms(queue, N, dtype='double'):
+def create_phantoms(queue, N, dtype='double', order="F"):
+    # Create a phantom image which is used in many of the tests that follow
+
     # use gratopy phantom method to create Shepp-Logan phantom
     A = gratopy.phantom(queue, N, dtype=dtype)
     A *= 255/cl.array.max(A).get()
@@ -104,7 +107,9 @@ def create_phantoms(queue, N, dtype='double'):
     B[0:int(N/4)] = 0
     B[int(N-N/4):N] = 0
 
-    img = cl.array.to_device(queue, np.stack([A.get(), B.get()], axis=-1))
+    img = cl.array.to_device(queue, np.require(np.stack([A.get(), B.get()],
+                                               axis=-1),
+                                               dtype, order))
     return img
 
 
@@ -176,14 +181,15 @@ def test_projection():
     for i in range(M):
         gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
     img_gpu.get()
-    print('Average time required for forward projection', (time.perf_counter()-a)/M)
+    print('Average time required for forward projection',
+          f"{(time.perf_counter()-a)/M:.3f}")
 
     a = time.perf_counter()
     for i in range(M):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
     sino_gpu.get()
     print('Average time required for backprojection',
-          (time.perf_counter()-a)/M)
+          f"{(time.perf_counter()-a)/M:.3f}")
 
     # Computing controlnumbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, angles, 2),
@@ -197,6 +203,96 @@ def test_projection():
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
                              expected_result=7427.7049,
                              classified="img", name="backprojected image")
+
+
+def test_types_contiguity():
+    """
+    Runs forward and backprojections for parallel beam geometry
+    for different precision and contiguity settings,
+    checking that they all lead to the same results.
+    """
+    print("Types and contiguity test")
+
+    # create PyopenCL context
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    # create test image
+    Nx = 600
+    phantom = gratopy.phantom(queue, Nx, dtype=np.dtype("float64")).get()
+
+    # define setting for projection
+    number_detectors = 300
+    angles = 180
+    PS = gratopy.ProjectionSettings(queue, gratopy.RADON,
+                                    img_shape=(Nx, Nx), angles=angles,
+                                    n_detectors=number_detectors)
+
+    # loop through all possible settings for precision and contiguity
+    for dtype in [np.dtype("float32"), np.dtype("float64")]:
+        for order1 in ["F", "C"]:
+            for order2 in ["F", "C"]:
+                # Set img to suitable setting
+                img = clarray.to_device(queue, np.require(phantom,
+                                                          dtype, order1))
+
+                # Create zero arrays to save the results in
+                sino_gpu = clarray.zeros(queue,
+                                         (PS.n_detectors, PS.n_angles),
+                                         dtype=dtype, order=order2)
+
+                backprojected_gpu = clarray.zeros(queue,
+                                                  PS.img_shape,
+                                                  dtype=dtype, order=order1)
+
+                # test speed of implementation for forward projection
+                iterations = 20
+                a = time.perf_counter()
+                for i in range(iterations):
+                    gratopy.forwardprojection(img, PS, sino=sino_gpu)
+                img.get()
+                print('Average time required for forward projection with '
+                      '(precision:'
+                      + str(dtype)+"), (image contiguity:"+str(order1)
+                      + "), (sinogram contiguity:" + str(order2) + ") is ",
+                      f"{(time.perf_counter()-a)/iterations:.3f}")
+
+                # test speed of implementation for backward projection
+                a = time.perf_counter()
+                for i in range(iterations):
+                    gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
+                sino_gpu.get()
+                print('Average time required for backprojection with '
+                      + '(precision:'
+                      + str(dtype)+"), (image contiguity:"+str(order1)
+                      + "), (sinogram contiguity:" + str(order2) + ") is ",
+                      f"{(time.perf_counter()-a)/iterations:.3f}", "\n")
+
+                # retrieve data back from gpu to cpu
+                sino = sino_gpu.get()
+                backprojected = backprojected_gpu.get()
+
+                # Computing controlnumbers to quantitatively verify correctness
+                evaluate_control_numbers(img,
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=7.8922043,
+                                         classified="img",
+                                         name="original image")
+
+                evaluate_control_numbers(sino,
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=6.9605,
+                                         classified="sino",
+                                         name="sinogram with "+str(dtype)
+                                              + str(order1) + str(order2))
+
+                evaluate_control_numbers(backprojected,
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=20.2049,
+                                         classified="img",
+                                         name="backprojected image"
+                                              + str(dtype)
+                                              + str(order1) + str(order2))
 
 
 def test_weighting():
@@ -306,7 +402,7 @@ def test_adjointness():
 
         # dual pairing in sinogram domain
         b = cl.array.vdot(gratopy.angle_weighting(sino1_gpu, PS),
-                          sino2_gpu).get()* PS.delta_s
+                          sino2_gpu).get() * PS.delta_s
 
         # check whether an error occurred
         if abs(a-b)/min(abs(a), abs(b)) > eps:
@@ -314,7 +410,7 @@ def test_adjointness():
             Error.append((a, b))
 
     print('Adjointness: Number of Errors: '+str(count)+' out of'
-          + " 100 tests adjointness-errors were bigger than" +str(eps))
+          + " 100 tests adjointness-errors were bigger than" + str(eps))
 
     assert(len(Error) < 10), 'A large number of experiments for adjointness\
         turned out negative, number of errors: '+str(count)+' out of 100\
@@ -341,7 +437,7 @@ def test_fullangle():
 
     # angles cover only a part of the angular range
     angles = np.linspace(0, np.pi*3/4., 180)+np.pi/8
-    delta=np.pi*3/4.*0.5/179
+    delta = np.pi*3/4.*0.5/179
     angular_range = (np.pi/8-delta, np.pi*3/4.+np.pi/8+delta)
     # Alternatively, angular_range = [] (or simply not setting the value)
     # yields the same result

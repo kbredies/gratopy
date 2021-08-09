@@ -118,7 +118,7 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     return test_s, test_phi, test_z, factors, test_x, test_y
 
 
-def create_phantoms(queue, N, dtype='double', order="C"):
+def create_phantoms(queue, N, dtype='double', order="F"):
     # Create a phantom image which is used in many of the tests that follow
 
     # use gratopy phantom method to create Shepp-Logan phantom
@@ -178,7 +178,7 @@ def test_projection():
     img.get()
 
     print('Average time required for forward projection',
-           f"{(time.perf_counter()-a)/iterations:.3f}")
+          f"{(time.perf_counter()-a)/iterations:.3f}")
 
     # test speed of implementation for backward projection
     a = time.perf_counter()
@@ -186,7 +186,7 @@ def test_projection():
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
     sino_gpu.get()
     print('Average time required for backprojection',
-           f"{(time.perf_counter()-a)/iterations:.3f}")
+          f"{(time.perf_counter()-a)/iterations:.3f}")
 
     # retrieve data back from gpu to cpu
     sino = sino_gpu.get()
@@ -224,44 +224,54 @@ def test_projection():
 
 
 def test_types_contiguity():
-
-    print("Projection test")
+    """
+    Runs forward and backprojections for fanbeam geometry
+    for different precision and contiguity settings,
+    checking that they all lead to the same results.
+    """
+    print("Types and contiguity test")
 
     # create PyopenCL context
     ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create test image
-    Nx = 1200
+    Nx = 600
+    phantom = gratopy.phantom(queue, Nx, dtype=np.dtype("float64")).get()
 
     # define setting for projection
-    number_detectors = 600
-    angles = 360
+    number_detectors = 300
+    angles = 180
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                     img_shape=(Nx, Nx), angles=angles,
                                     detector_width=400, RE=200,
                                     R=752, n_detectors=number_detectors)
 
+    # loop through all possible settings for precision and contiguity
     for dtype in [np.dtype("float32"), np.dtype("float64")]:
         for order1 in ["F", "C"]:
             for order2 in ["F", "C"]:
-                img = create_phantoms(queue, Nx, dtype,order=order1)
-                original = img.get()
+                # Set img to suitable setting
+                img = clarray.to_device(queue, np.require(phantom,
+                                                          dtype, order1))
 
                 # Create zero arrays to save the results in
-                sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
+                sino_gpu = clarray.zeros(queue,
+                                         (PS.n_detectors, PS.n_angles),
                                          dtype=dtype, order=order2)
 
-                backprojected_gpu = clarray.zeros(queue, (PS.img_shape+tuple([2])),
+                backprojected_gpu = clarray.zeros(queue,
+                                                  PS.img_shape,
                                                   dtype=dtype, order=order1)
 
                 # test speed of implementation for forward projection
-                iterations = 1
+                iterations = 20
                 a = time.perf_counter()
                 for i in range(iterations):
                     gratopy.forwardprojection(img, PS, sino=sino_gpu)
                 img.get()
-                print('Average time required for forward projection with (precision:'
+                print('Average time required for forward projection with '
+                      '(precision:'
                       + str(dtype)+"), (image contiguity:"+str(order1)
                       + "), (sinogram contiguity:" + str(order2) + ") is ",
                       f"{(time.perf_counter()-a)/iterations:.3f}")
@@ -271,7 +281,8 @@ def test_types_contiguity():
                 for i in range(iterations):
                     gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
                 sino_gpu.get()
-                print('Average time required for backprojection with (precision:'
+                print('Average time required for backprojection with '
+                      + '(precision:'
                       + str(dtype)+"), (image contiguity:"+str(order1)
                       + "), (sinogram contiguity:" + str(order2) + ") is ",
                       f"{(time.perf_counter()-a)/iterations:.3f}", "\n")
@@ -281,18 +292,26 @@ def test_types_contiguity():
                 backprojected = backprojected_gpu.get()
 
                 # Computing controlnumbers to quantitatively verify correctness
-                evaluate_control_numbers(img, (Nx, Nx, number_detectors, angles, 2),
-                                         expected_result=2949.3728,
-                                         classified="img", name="original image")
+                evaluate_control_numbers(img,
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=7.8922043,
+                                         classified="img",
+                                         name="original image")
 
-                evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 2),
-                                         expected_result=63928.2563,
-                                         classified="sino", name="sinogram")
+                evaluate_control_numbers(sino,
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=490.26,
+                                         classified="sino",
+                                         name="sinogram with "+str(dtype)
+                                              + str(order1) + str(order2))
 
                 evaluate_control_numbers(backprojected,
-                                         (Nx, Nx, number_detectors, angles, 2),
-                                         expected_result=1482240.72690,
-                                         classified="img", name="backprojected image")
+                                         (Nx, Nx, number_detectors, angles, 1),
+                                         expected_result=7851.41,
+                                         classified="img",
+                                         name="backprojected image"
+                                              + str(dtype)
+                                              + str(order1) + str(order2))
 
 
 def test_weighting():
