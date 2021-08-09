@@ -288,17 +288,17 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global real *img,
       int xip=xim+1;
 
       // compute corresponding weights
-      real Weightp=1-(xim+1-xi);
+      real Weightp=1-(xip-xi);
       real Weightm=1-(xi-xim);
 
       //set weight to zero in case adjacent detector position is outside
       //the detector range and weight with corresponding sdpd=sqrt(xi^2+R^2)
       if (xim <0 || xim >= Ns)
-	{ Weightm=0.; xim=0; }
+	{ Weightm=(real)0.; xim=0; }
       else
 	{ Weightm*=sdpd[xim]; }
       if (xip <0 || xip >= Ns)
-	{ Weightp=0.; xip=0; }
+	{ Weightp=(real)0.; xip=0; }
       else
 	{ Weightp*=sdpd[xip]; }
 

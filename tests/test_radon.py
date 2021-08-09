@@ -2,6 +2,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import pyopencl as cl
+import pyopencl.array as clarray
 import time
 
 import gratopy
@@ -141,22 +142,39 @@ def test_projection():
                                     detector_shift=0,
                                     fullangle=True)
 
+    # compute Radon transform for given test images
+    sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
+                             dtype=dtype, order='F')
+
+    # compute backprojection of computed sinogram
+    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+(2,)),
+                                      dtype=dtype, order='F')
+
+    # test speed of implementation for forward projection
+    M = 10
+    a = time.perf_counter()
+    for i in range(M):
+        gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
+    sino_gpu.get()
+    print('Average time required for forward projection', (time.perf_counter()-a)/M)
+
+    a = time.perf_counter()
+    for i in range(M):
+        gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
+    backprojected_gpu.get()
+    print('Average time required for backprojection',
+          (time.perf_counter()-a)/M)
+
+    img = img_gpu.get()
+    sino = sino_gpu.get()
+    backprojected = backprojected_gpu.get()
+    
     # plot geometry via show_geometry method to visualize geometry
     plt.figure(0)
     PS.show_geometry(0, axes=plt.subplot(2, 2, 1))
     PS.show_geometry(np.pi/8, axes=plt.subplot(2, 2, 2))
     PS.show_geometry(np.pi/4, axes=plt.subplot(2, 2, 3))
     PS.show_geometry(np.pi*3/8., axes=plt.subplot(2, 2, 4))
-
-    # compute Radon transform for given test images
-    sino_gpu = gratopy.forwardprojection(img_gpu, PS)
-
-    # compute backprojection of computed sinogram
-    backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
-
-    img = img_gpu.get()
-    sino = sino_gpu.get()
-    backprojected = backprojected_gpu.get()
 
     # plot results
     plt.figure(1)
@@ -169,21 +187,6 @@ def test_projection():
                           backprojected[:, :, 1]]), cmap=plt.cm.gray)
 
     plt.show()
-
-    # test speed of implementation for forward projection
-    M = 10
-    a = time.perf_counter()
-    for i in range(M):
-        gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
-    img_gpu.get()
-    print('Average time required for forward projection', (time.perf_counter()-a)/M)
-
-    a = time.perf_counter()
-    for i in range(M):
-        gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
-    sino_gpu.get()
-    print('Average time required for backprojection',
-          (time.perf_counter()-a)/M)
 
     # Computing controlnumbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, angles, 2),

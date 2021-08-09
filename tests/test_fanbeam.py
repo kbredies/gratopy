@@ -165,7 +165,7 @@ def test_projection():
     sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
                              dtype=dtype, order='F')
 
-    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+tuple([2])),
+    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+(2,)),
                                       dtype=dtype, order='F')
 
     # test speed of implementation for forward projection
@@ -173,8 +173,7 @@ def test_projection():
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.forwardprojection(img, PS, sino=sino_gpu)
-    img.get()
-
+    sino_gpu.get()
     print('Average time required for forward projection',
           (time.perf_counter()-a)/iterations)
 
@@ -182,7 +181,7 @@ def test_projection():
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
-    sino_gpu.get()
+    backprojected_gpu.get()
     print('Average time required for backprojection',
           (time.perf_counter()-a)/iterations)
 
