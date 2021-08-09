@@ -14,11 +14,13 @@
 #ifdef real
 #undef real
 #undef real2
+#undef real3
 #undef real4
 #undef real8
 #endif
 #define real \my_variable_type
 #define real2 \my_variable_type2
+#define real3 \my_variable_type3
 #define real4 \my_variable_type4
 #define real8 \my_variable_type8 
 
@@ -86,11 +88,11 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
     int x_low, x_high;
     
     //project (0,y) onto detector
-    real d = y*o.y + o.z;
+    real d = y*o.y + o.z - ss;
     
     // compute bounds
-    x_low = (int)((ss-1 - d)*o.w);
-    x_high = (int)((ss+1 - d)*o.w);
+    x_low = (int)((-1 - d)*o.w);
+    x_high = (int)((1 - d)*o.w);
     
     if (o.w<0)
       {
@@ -111,8 +113,8 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
     // integration in x dimension for fixed y
     for(int x = x_low; x <= x_high; x++) {
       //anterpolation weight via normal distance
-      real weight = 1.0 - fabs(x*o.x + d - ss);
-      if (weight > 0.0f) {
+      real weight = (real)1. - fabs(x*o.x + d);
+      if (weight > (real)0.) {
 	acc += weight*img[0];
       }
       img += stride_x;
@@ -153,29 +155,38 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global real *img,
 
   // Accumulation variable
   real acc = 0.0f;
-  real4 c = (real4)(x,y,1,0);
+  real2 c = (real2)(x,y);
 
   sino += pos_sino_\order2(0,0,z,Ns,Na,Nz);  
   // Integrate with respect to angular dimension
   for (int a=0; a < Na; a++) {
-    real Delta_phi=ofs[a].s4; //angle_width asociated to the angle
+    real8 o = ofs[a];
+    real Delta_phi=o.s4; //angle_width asociated to the angle
     
     //compute detector position associated to (x,y) and phi=a
-    real s = dot(c, ofs[a].s0123);
-    
-    //make sure detector position is inside range
-    if ((s > -1) && (s < Ns)) {
-      real s_f;
-      real p = fract(s, &s_f);
-      int s_floor = (int)s_f;
-      if (s_floor >= 0)	  acc += Delta_phi*(1.0f - p)*sino[pos_sino_\order2(s_floor,a,0,Ns,Na,Nz)];
-      s_floor++;
-      if (s_floor < Ns) acc += Delta_phi*p*sino[ pos_sino_\order2(s_floor,a,0,Ns,Na,Nz)];
-    } 
+    real s = dot(c, o.s01) + o.s2;
+
+    //compute adjacent detector positions
+    int sm=floor(s);
+    int sp=sm+1;
+
+    // compute corresponding weights
+    real weightp=1-(sp-s);
+    real weightm=1-(s-sm);
+
+    //set weight to zero in case adjacent detector position is outside
+    //the detector range 
+    if (sm < 0 || sm >= Ns)
+      { weightm=(real)0.; sm=0; }
+    if (sp < 0 || sp >= Ns)
+      { weightp=(real)0.; sp=0; }
+
+    //accumulate weigthed sum (Delta_Phi weight due to angular resolution)
+    acc+=Delta_phi*(weightm*sino[pos_sino_\order2(sm,a,0,Ns,Na,Nz)]+weightp*sino[pos_sino_\order2(sp,a,0,Ns,Na,Nz)]);    
   }
+  
   // Assign value to img
   img[pos_img_\order1(x,y,z,Nx,Ny,Nz)] = acc;
-  
 }
 
 // Single Line of Radon Transform: Computes the Fanbeam transform of an image with delta peak in (x,y) 

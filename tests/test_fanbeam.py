@@ -19,6 +19,7 @@ if plot_parameter != '0':
 else:
     PLOT = False
 
+
 # Read files relevant for the tests
 def curdir(filename):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
@@ -179,7 +180,7 @@ def test_projection():
     sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
                              dtype=dtype, order='F')
 
-    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+tuple([2])),
+    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+(2,)),
                                       dtype=dtype, order='F')
 
     # test speed of implementation for forward projection
@@ -187,7 +188,8 @@ def test_projection():
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.forwardprojection(img, PS, sino=sino_gpu)
-    img.get()
+    sino_gpu.get()
+
     print('Average time required for forward projection',
           f"{(time.perf_counter()-a)/iterations:.3f}")
 
@@ -195,7 +197,7 @@ def test_projection():
     a = time.perf_counter()
     for i in range(iterations):
         gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
-    sino_gpu.get()
+    backprojected_gpu.get()
     print('Average time required for backprojection',
           f"{(time.perf_counter()-a)/iterations:.3f}")
 
@@ -874,7 +876,8 @@ def test_range_check_walnut():
         plt.title("conjugate gradients reconstruction with shift correction")
         plt.imshow(UCG_correct.get(), cmap=plt.cm.gray)
         plt.subplot(1, 2, 2)
-        plt.title("conjugate gradients reconstruction without shift correction")
+        plt.title("conjugate gradients reconstruction "
+                  + "without shift correction")
         plt.imshow(UCG_incorrect.get(), cmap=plt.cm.gray)
 
         plt.figure(2)
@@ -888,8 +891,9 @@ def test_range_check_walnut():
         plt.title("Residue")
         plt.imshow(abs(sino_gpu.get()-best_approximation_correct.get()))
         plt.colorbar()
-        plt.suptitle("Sinogram associated to reconstruction with shift correction,"
-                     " i.e., best possible approximation with given operator")
+        plt.suptitle("Sinogram associated to reconstruction with shift "
+                     + "correction, i.e., best possible approximation "
+                     + "with given operator.")
 
         plt.figure(3)
         plt.subplot(1, 3, 1)
@@ -903,8 +907,8 @@ def test_range_check_walnut():
         plt.imshow(abs(sino_gpu.get()-best_approximation_incorrect.get()))
         plt.colorbar()
         plt.suptitle("Sinogram associated to reconstruction without shift "
-                     " correction, i.e., best possible approximation with given"
-                     + "operator")
+                     " correction, i.e., best possible approximation with "
+                     + "given operator")
 
         plt.show()
 
@@ -947,7 +951,7 @@ def test_landweber():
     my_phantom_sinogram = gratopy.forwardprojection(my_phantom, PS)
 
     # Stick together real data and phantom sinogram data
-    sino = np.zeros(PS.sinogram_shape+tuple([2]))
+    sino = np.zeros(PS.sinogram_shape+(2,))
     sino[:, :, 0] = walnut/np.max(walnut)
     sino[:, :, 1] = my_phantom_sinogram.get()/np.max(my_phantom_sinogram.get())
     walnut_gpu = clarray.to_device(queue, np.require(sino, dtype, order))

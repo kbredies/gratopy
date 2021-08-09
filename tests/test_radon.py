@@ -17,6 +17,7 @@ if plot_parameter != '0':
 else:
     PLOT = False
 
+
 # Read files relevant for the tests
 def curdir(filename):
     return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
@@ -176,24 +177,42 @@ def test_projection():
                                     detector_shift=0,
                                     fullangle=True)
 
-    if PLOT:
-        # plot geometry via show_geometry method to visualize geometry
-        plt.figure(0)
-        PS.show_geometry(0, axes=plt.subplot(2, 2, 1))
-        PS.show_geometry(np.pi/8, axes=plt.subplot(2, 2, 2))
-        PS.show_geometry(np.pi/4, axes=plt.subplot(2, 2, 3))
-        PS.show_geometry(np.pi*3/8., axes=plt.subplot(2, 2, 4))
-
     # compute Radon transform for given test images
-    sino_gpu = gratopy.forwardprojection(img_gpu, PS)
+    sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
+                             dtype=dtype, order='F')
 
     # compute backprojection of computed sinogram
-    backprojected_gpu = gratopy.backprojection(sino_gpu, PS)
+    backprojected_gpu = clarray.zeros(queue, (PS.img_shape+(2,)),
+                                      dtype=dtype, order='F')
+
+    # test speed of implementation for forward projection
+    M = 10
+    a = time.perf_counter()
+    for i in range(M):
+        gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
+    sino_gpu.get()
+    print('Average time required for forward projection',
+          (time.perf_counter()-a)/M)
+
+    a = time.perf_counter()
+    for i in range(M):
+        gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
+    backprojected_gpu.get()
+    print('Average time required for backprojection',
+          (time.perf_counter()-a)/M)
 
     # write data from gpu to the cpu
     img = img_gpu.get()
     sino = sino_gpu.get()
     backprojected = backprojected_gpu.get()
+
+    # plot geometry via show_geometry method to visualize geometry
+    if PLOT:
+        plt.figure(0)
+        PS.show_geometry(0, axes=plt.subplot(2, 2, 1))
+        PS.show_geometry(np.pi/8, axes=plt.subplot(2, 2, 2))
+        PS.show_geometry(np.pi/4, axes=plt.subplot(2, 2, 3))
+        PS.show_geometry(np.pi*3/8., axes=plt.subplot(2, 2, 4))
 
     # plot results
     if PLOT:
@@ -207,23 +226,6 @@ def test_projection():
                               backprojected[:, :, 1]]), cmap=plt.cm.gray)
 
         plt.show()
-
-    M = 10
-    # test speed of implementation for forward projection
-    a = time.perf_counter()
-    for i in range(M):
-        gratopy.forwardprojection(img_gpu, PS, sino=sino_gpu)
-    img_gpu.get()
-    print('Average time required for forward projection',
-          f"{(time.perf_counter()-a)/M:.3f}")
-
-    # test speed of implementation for backward projection
-    a = time.perf_counter()
-    for i in range(M):
-        gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
-    sino_gpu.get()
-    print('Average time required for backprojection',
-          f"{(time.perf_counter()-a)/M:.3f}")
 
     # Computing controlnumbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, angles, 2),
@@ -443,7 +445,7 @@ def test_adjointness():
 
         # dual pairing in sinogram domain
         pairing_sino = cl.array.vdot(gratopy.angle_weighting(sino1_gpu, PS),
-                          sino2_gpu).get() * PS.delta_s
+                                     sino2_gpu).get() * PS.delta_s
 
         # check whether an error occurred,
         # i.e., the dual pairings pairing_img and pairing_sino must coincide
