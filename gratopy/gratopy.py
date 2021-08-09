@@ -247,7 +247,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     """
     Creates the structure storing geometry information required for
     the Radon transform and its adjoint.
-
+    
     :param queue: OpenCL command queue in which context the
         computations are to be performed.
     :type queue: :class:`pyopencl.CommandQueue`
@@ -1049,8 +1049,8 @@ def create_code():
         for dtype in ["float", "double"]:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace(
-                    "\my_variable_type", dtype)\
-                    .replace("\order1", order1)\
+                    "\\my_variable_type", dtype)\
+                    .replace("\\order1", order1)\
 
     return total_code
 
@@ -1090,7 +1090,8 @@ def upload_bufs(projectionsetting, dtype):
 
 
 class ProjectionSettings():
-    """ Creates and stores all relevant information concerning
+    """
+    Creates and stores all relevant information concerning
     the projection geometry. Serves as a parameter for virtually all
     gratopy's functions.
 
@@ -1920,7 +1921,7 @@ def normest(projectionsetting, number_iterations=50, dtype='float32',
     """
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the standard
-    Euclidean or :math:`\ell^2`
+    Euclidean or :math:`\\ell^2`
     norms. Useful for iterative methods that require such an estimate,
     e.g., :func:`landweber` or :func:`total_variation`.
 
@@ -2115,7 +2116,7 @@ def total_variation(sino, projectionsetting, mu,
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
-    :math:`\\min_{u} {\\frac\\mu2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
+    :math:`\\min_{u} {\\frac\\mu2}\\|\mathcal{P}u-f\\|_{L^2}^2+\mathrm{TV}(u)`
     for :math:`\\mathcal{P}` the projection operator, :math:`f` the sinogram
     and :math:`\\mu` a positive regluarization parameter (i.e.,
     an :math:`L^2-\mathrm{TV}` reconstruction approach).
@@ -2144,7 +2145,7 @@ def total_variation(sino, projectionsetting, mu,
 
     :param stepsize_weighting: Allows to weight the primal-dual algorithm's
         step sizes :math:`\sigma` and :math:`\\tau`
-        (with :math:`\sigma\\tau\|\mathcal{P}\|^2\leq 1`)
+        (with :math:`\sigma\\tau\\|\mathcal{P}\\|^2\leq 1`)
         by multiplication and division, respectively,
         with the given value.
     :type stepsize_weighting: :class:`float`, default 10.0
