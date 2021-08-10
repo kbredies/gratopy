@@ -424,23 +424,27 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     if np.isscalar(angles):
         angles = np.linspace(0, np.pi, angles+1)[:-1]
 
-    # Choosing the number of detectors as the half of the diagonal
-    # through the the image (in image_pixel scale)
+    # Choosing the number of detectors as the the diagonal
+    # through the the image (in image_pixel scale) if none is given
     if n_detectors is None:
         nd = int(np.ceil(np.hypot(img_shape[0], img_shape[1])))
     else:
         nd = n_detectors
 
+    # Warn that fullangle == True, the angular_range will be ignored
     if (fullangle and angular_range):
         print("WARNING, fullangle is active, and hence the given angular_range"
               + " will be ignored!")
 
-    # Extract angle information
+    # Extract angle information when angles has multiple sections
+    # (list of lists)
     if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
         n_angles = 0
         angles_new = []
         angles_section = [0]
         count = 0
+        # write all angles into a single array and remember
+        # where new sections begin
         for j in range(len(angles)):
             n_angles += len(angles[j])
             for k in range(len(angles[j])):
@@ -452,7 +456,6 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         n_angles = len(angles)
         angles_section = [0, n_angles]
         angles = np.array(angles)
-
     sinogram_shape = (nd, n_angles)
 
     # Angular weights (resolution associated to angles)
@@ -461,13 +464,15 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     if fullangle:
         angles_index = np.argsort(angles % (np.pi))
         angles_sorted = angles[angles_index] % (np.pi)
+
+        # add first angle at end and last angle at beginning
+        # to create full circle, and then compute suitable difference
         angles_sorted = np.array(np.hstack([-np.pi+angles_sorted[-1],
                                             angles_sorted, angles_sorted[0]
                                             + np.pi]))
         angles_diff = 0.5*(abs(angles_sorted[2:len(angles_sorted)]
                                - angles_sorted[0:len(angles_sorted)-2]))
         angles_diff = np.array(angles_diff)
-
         angles_diff = angles_diff[angles_index]
 
         # Special case when an angle appears twice (particular when angles in
@@ -479,17 +484,21 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                 angles_diff[angles_index[i+1]] = val
                 angles_diff[angles_index[i]] = val
 
-    else:  # Act as though first/last angles width is equal to the
-        # distance from the second/second to last angle
+    else:  # limited angle setting is considered, then the given angular_range
+           # is considered and if none given an automatism is used
+
+        # Make sure that angular_range has suitable form
         if isinstance(angular_range, tuple):
             angular_range2 = []
             angular_range2.append(angular_range)
             angular_range = angular_range2
+
         assert isinstance(angular_range, list), "Expected that angular "\
                                                 + "range to be a list of "\
                                                 + "tuples, but recieved "\
                                                 + str(type(angular_range))
-
+        # Case not a sufficient amount of angular_range information is given
+        # Add empty tuples corresponding to automatisms
         if len(angular_range) < len(angles_section)-1:
             print("Fullangle"
                   + "=False requires as many angular_range entries "
@@ -505,33 +514,39 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             for i in range(len(angular_range), len(angles_section)-1):
                 angular_range.append(tuple())
 
+        # go through all angle_sections to compute the angular widths
         angles_diff = []
         for j in range(len(angles_section)-1):
+            # get angles of current angles_section
             current_angles = angles[angles_section[j]:angles_section[j+1]]
             current_angles_index = np.argsort(current_angles % (np.pi))
             current_angles = current_angles[current_angles_index] % (np.pi)
 
+            # Consider corresponding angular range, choose automatically
+            # if necessary
             current_boundaries = angular_range[j]
             if current_boundaries == tuple():
+                # choose boundaries with half the distance from first/last to
+                # second/second to last
                 current_boundaries = (1.5*current_angles[0]
                                       - 0.5*current_angles[1],
                                       1.5*current_angles[-1]
                                       - 0.5*current_angles[-2])
                 angular_range[j] = current_boundaries
 
+            # compute angular difference
             angles_sorted_temp = np.array(np.hstack([2*current_boundaries[0]
                                                     - current_angles[0],
                                                      current_angles,
                                                      2*current_boundaries[1]
                                                      - current_angles[-1]]))
-
             angles_diff_temp = 0.5*(abs(angles_sorted_temp
                                         [2:len(angles_sorted_temp)]
                                         - angles_sorted_temp
                                         [0:len(angles_sorted_temp)-2]))
 
             # Special case when an angle appears twice (particular when
-            # angles in [0,2pi] are considered instead of [0,pi] and
+            # angles in [0,2pi[ are considered instead of [0,pi[ and
             # modulo pi has same angles)
             for i in range(len(current_angles)-1):
                 if abs(angles_sorted_temp[i+1]
@@ -542,7 +557,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
             angles_diff += list(angles_diff_temp[current_angles_index])
 
-    # also write basic information to gpu
+    # compute basic resolutions
     delta_x = image_width/float(max(img_shape))
     delta_s = float(detector_width)/nd
 
@@ -551,23 +566,22 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         np.array(midpoint_shift)/delta_x
     midpoint_detectors = (nd-1.0)/2.0
 
-    # direction vectors and inverse in x
+    # Vector in projection-direction (from source toward detector)
     X = np.cos(angles)/relative_detector_pixel_width
     Y = np.sin(angles)/relative_detector_pixel_width
     Xinv = 1.0/X
-    # set near vertical lines to vertical
+
+    # set near vertical lines to horizontal
     mask = np.where(abs(X) <= abs(Y))
     Xinv[mask] = 1.0/Y[mask]
 
-    # X*x+Y*y=detectorposition, ofs is error in midpoint of
-    # the image (in shifted detector setting)
+    # X*x+Y*y=detectorposition, offset is error in midpoint of
+    # the sinogram (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
         - Y*midpoint_domain[1] + detector_shift/delta_s
 
-    # Angular weights
-    angles_index = np.argsort(angles % (np.pi))
-    angles_sorted = angles[angles_index] % (np.pi)
-
+    # Save for datatype float64 and float32 the relevant additional information
+    # required for the computations
     geo_dict = {}
     ofs_dict = {}
     angle_diff_dict = {}
@@ -619,8 +633,9 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     # compatible dimensions
     check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
-
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
     sdpd_buf = projectionsetting.sdpd_buf[dtype]
@@ -629,6 +644,8 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     # choose function with approrpiate dtype
     function = projectionsetting.functions[(dtype, sino.flags.c_contiguous,
                                             img.flags.c_contiguous)]
+
+    # execute corresponding function and add event to sinogram
     myevent = function(sino.queue, sino.shape, None,
                        sino.data, img.data, ofs_buf, sdpd_buf,
                        geometry_information,
@@ -667,8 +684,9 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     # compatible dimensions
     check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
-
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
     sdpd_buf = projectionsetting.sdpd_buf[dtype]
@@ -677,6 +695,8 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     function = projectionsetting.functions_ad[(dtype,
                                                img.flags.c_contiguous,
                                                sino.flags.c_contiguous)]
+
+    # execute corresponding function and add event to sinogram
     myevent = function(img.queue, img.shape, None,
                        img.data, sino.data, ofs_buf, sdpd_buf,
                        geometry_information,
@@ -844,33 +864,41 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :vartype angular_range: list[tuple]
     """
 
+    # ensure physical quantites are suitable
     detector_width = float(detector_width)
     source_detector_dist = float(source_detector_dist)
     source_origin_dist = float(source_origin_dist)
     midpointshift = np.array(midpoint_shift)
 
+    # Warn that fullangle == True, the angular_range will be ignored
     if (fullangle and angular_range):
         print("WARNING, fullangle is active, and hence the given angular_range"
               + " will be ignored!")
 
-    # choose equidistant angles in (0,2pi] if no specific angles are given.
+    # choose equidistant angles in [0,2pi[ if no specific angles are given.
     if np.isscalar(angles):
         angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
 
     image_pixels = max(img_shape[0], img_shape[1])
-    # set number of pixels same as image_resolution if not specified
+
+    # Choosing the number of detectors as the the diagonal
+    # through the the image (in image_pixel scale) if none is given
     if n_detectors is None:
         nd = int(np.ceil(np.hypot(img_shape[0], img_shape[1])))
     else:
         nd = n_detectors
     assert isinstance(nd, int), "Number of detectors must be integer"
 
-    # Extract angle information
+    # Extract angle information when angles has multiple sections
+    # (list of lists)
     if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
         n_angles = 0
         angles_new = []
         angles_section = [0]
         count = 0
+
+        # write all angles into a single array and remember
+        # where new sections begin
         for j in range(len(angles)):
             n_angles += len(angles[j])
             for k in range(len(angles[j])):
@@ -894,22 +922,29 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         angles_sorted = np.array(np.hstack([-2*np.pi+angles_sorted[-1],
                                            angles_sorted, angles_sorted[0]
                                            + 2*np.pi]))
+
+        # add first angle at end and last angle at beginning
+        # to create full circle, and then compute suitable difference
         angles_diff = 0.5*(abs(angles_sorted[2:len(angles_sorted)]
                                - angles_sorted[0:len(angles_sorted)-2]))
         angles_diff = np.array(angles_diff)
         angles_diff = angles_diff[angles_index]
-    else:
+    else:  # limited angle setting is considered, then the given angular_range
+           # is considered and if none given an automatism is used
 
         # Make sure that angular_range has suitable form
         if isinstance(angular_range, tuple):
             angular_range2 = []
             angular_range2.append(angular_range)
             angular_range = angular_range2
+
         assert isinstance(angular_range, list), "Expected that angular "\
                                                 + "range to be a list of "\
                                                 +  "tuples, but recieved "\
                                                 + str(type(angular_range))
 
+        # Case not a sufficient amount of angular_range information is given
+        # Add empty tuples corresponding to automatisms
         if len(angular_range) < len(angles_section)-1:
             print("Fullangle"
                   + "=False requires as many angular_range entries "
@@ -926,13 +961,15 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
                 angular_range.append(tuple())
 
         angles_diff = []
-        # from the second/second to last angle
+        # go through all angle_sections to compute the angular widths
         for j in range(len(angles_section)-1):
-
+            # get angles of current angles_section
             current_angles = angles[angles_section[j]:angles_section[j+1]]
             current_angles_index = np.argsort(current_angles % (2*np.pi))
             current_angles = current_angles[current_angles_index] % (2*np.pi)
 
+            # Consider corresponding angular range, choose automatically
+            # if necessary
             current_boundaries = angular_range[j]
             if current_boundaries == tuple():
                 current_boundaries = (1.5*current_angles[0]
@@ -941,6 +978,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
                                       - 0.5*current_angles[-2])
                 angular_range[j] = current_boundaries
 
+            # compute angular difference
             angles_sorted_temp = np.array(np.hstack([2*current_boundaries[0]
                                                     - current_angles[0],
                                                      current_angles,
@@ -953,19 +991,23 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
                                         [0:len(angles_sorted_temp)-2]))
             angles_diff += list(angles_diff_temp[current_angles_index])
 
-    # compute midpoints for orientation
+    # compute midpoints of geometries
     midpoint_detectors = (nd-1.0)/2.0
     midpoint_detectors = midpoint_detectors+detector_shift*nd\
         / detector_width
 
     # ensure that indeed detector on the opposite side of the source
-    assert source_detector_dist > source_origin_dist, 'Origin not \
-        between detector and source'
+    assert (source_detector_dist > source_origin_dist), ('The origin is not '
+        + 'between detector and source')
 
     # In case no image_width is predetermined, image_width is chosen in
     # a way that the (square) image is always contained inside
     # the fan between source and detector
     if image_width is None:
+        # distance from image_center to the outermost rays between
+        # source and detector via projection to compute distance via
+        # projectionvector (1,dd) after normalization,
+        # is equal to delta_x*N_x
         dd = (0.5*detector_width-abs(detector_shift))/source_detector_dist
         image_width = 2*dd*source_origin_dist/np.sqrt(1+dd**2)
         assert image_width > 0, "The automatism for choosing the image_width"\
@@ -974,22 +1016,19 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
             + "(most likely due to detector_shift being "\
             + "larger than half the detector_width)! "\
             + "Please set the image_width parameter by hand!"
-        # Projection to compute distance
-        # via projectionvector (1,dd) after normalization,
-        # is equal to delta_x*N_x
 
     # ensure that source is outside the image domain
     # (otherwise fanbeam is not continuous in classical L2)
-    assert image_width*0.5*np.sqrt(1+(min(img_shape)/max(img_shape))**2)\
-        + np.linalg.norm(midpointshift) < source_origin_dist, \
-        'the source is not outside the image domain'
+    assert (image_width*0.5*np.sqrt(1+(min(img_shape)/max(img_shape))**2)
+        + np.linalg.norm(midpointshift) < source_origin_dist), (
+        'The source is not outside the image domain')
 
     # Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center)
-    midpoint_x = midpointshift[0]*image_pixels /\
-        float(image_width)+(img_shape[0]-1)/2.
-    midpoint_y = midpointshift[1]*image_pixels /\
-        float(image_width)+(img_shape[1]-1)/2.
+    midpoint_x = (midpointshift[0]*image_pixels
+                  / float(image_width)+(img_shape[0]-1)/2.)
+    midpoint_y = (midpointshift[1]*image_pixels
+                  / float(image_width)+(img_shape[1]-1)/2.)
 
     # adjust distances to pixel units, i.e. 1 unit corresponds
     # to the length of one image pixel
@@ -1003,26 +1042,28 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     thetaX = np.cos(angles+np.pi*0.5)*detector_orientation
     thetaY = np.sin(angles+np.pi*0.5)*detector_orientation
 
-    # Direction vector of detector direction normed to the length of a
+    # Direction vector along the detector line normed to the length of a
     # single detector pixel (i.e. delta_s (in the scale of delta_x=1))
     XD = thetaY*detector_width/nd
     YD = -thetaX*detector_width/nd
 
-    # Direction vector leading to from source to origin (with proper length)
+    # Direction vector leading to source from origin (with proper length RE)
     Qx = -thetaX*source_origin_dist
     Qy = -thetaY*source_origin_dist
 
-    # Direction vector from origin to the detector center
+    # Direction vector from origin to the detector
+    # (projection of center onto detector)
     Dx0 = thetaX*(source_detector_dist-source_origin_dist)
     Dy0 = thetaY*(source_detector_dist-source_origin_dist)
 
-    # Save relevant information
+    # Save for datatype float64 and float32 the relevant additional information
+    # required for the computations
     ofs_dict = {}
     sdpd_dict = {}
     geo_dict = {}
     angle_diff_dict = {}
     for dtype in [np.dtype('float64'), np.dtype('float32')]:
-        # Angular Information
+        # save angular information into the ofs buffer
         ofs = np.zeros((8, len(angles)), dtype=dtype, order='F')
         ofs[0, :] = XD
         ofs[1, :] = YD
@@ -1057,6 +1098,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         geo_dict[dtype] = geometry_info
 
         angle_diff_dict[dtype] = np.array(angles_diff, dtype=dtype)
+
     return (img_shape, sinogram_shape, ofs_dict, sdpd_dict,
             image_width, geo_dict, angle_diff_dict, angular_range)
 
@@ -1071,12 +1113,15 @@ def create_code():
     """
 
     total_code = ""
+    # go through all the source files
     for file in CL_FILES1:
         textfile = open(os.path.join(os.path.abspath(
             os.path.dirname(__file__)), file))
         code_template = textfile.read()
         textfile.close()
 
+        # go through all possible dtypes and contiguities and replace
+        # the placeholders suitably
         for dtype in ["float", "double"]:
             for order1 in ["f", "c"]:
                 for order2 in ["f", "c"]:
@@ -1085,33 +1130,43 @@ def create_code():
                         .replace("\\order1", order1)\
                         .replace("\\order2", order2)
 
+    # go through all the source files
     for file in CL_FILES2:
         textfile = open(os.path.join(os.path.abspath(
             os.path.dirname(__file__)), file))
         code_template = textfile.read()
         textfile.close()
 
+        # go through all possible dtypes and contiguities and replace
+        # the placeholders suitably
         for dtype in ["float", "double"]:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace(
-                    "\\my_variable_type", dtype)\
-                    .replace("\\order1", order1)\
+                    "\\my_variable_type", dtype).replace("\\order1", order1)
 
     return total_code
 
 
 def upload_bufs(projectionsetting, dtype):
+    """
+    Loads the buffers from projectionsetting of desired type onto the gpu,
+    i.e., change the np.arrays to buffers and save in corresponding
+    dictionaries of buffers.
+    """
+    # upload ofs_buffer
     ofs = projectionsetting.ofs_buf[dtype]
     ofs_buf = cl.Buffer(projectionsetting.queue.context,
                         cl.mem_flags.READ_ONLY, ofs.nbytes)
     cl.enqueue_copy(projectionsetting.queue, ofs_buf, ofs.data).wait()
 
+    # upload angle_weights
     angle_weights = projectionsetting.angle_weights_buf[dtype]
     angle_weights_buf = cl.Buffer(projectionsetting.queue.context,
                                   cl.mem_flags.READ_ONLY, angle_weights.nbytes)
     cl.enqueue_copy(projectionsetting.queue, angle_weights_buf,
                     angle_weights.data).wait()
 
+    # upload geometric information
     geometry_information = projectionsetting.geometry_information[dtype]
     geometry_buf = cl.Buffer(projectionsetting.queue.context,
                              cl.mem_flags.READ_ONLY,
@@ -1119,6 +1174,7 @@ def upload_bufs(projectionsetting, dtype):
     cl.enqueue_copy(projectionsetting.queue, geometry_buf,
                     geometry_information.data).wait()
 
+    # upload sdpd in case of fanbeam geometry
     if projectionsetting.is_fan:
         sdpd = projectionsetting.sdpd_buf[dtype]
         sdpd_buf = cl.Buffer(projectionsetting.queue.context,
@@ -1126,6 +1182,7 @@ def upload_bufs(projectionsetting, dtype):
         cl.enqueue_copy(projectionsetting.queue, sdpd_buf, sdpd.data).wait()
         projectionsetting.sdpd_buf[dtype] = sdpd_buf
 
+    # update buffer dictionaries
     projectionsetting.ofs_buf[dtype] = ofs_buf
     projectionsetting.geometry_information[dtype] = geometry_buf
     projectionsetting.angle_weights_buf[dtype] = angle_weights_buf
@@ -1362,32 +1419,37 @@ class ProjectionSettings():
             self: gratopy.ProjectionSettings
                 ProjectionSettings with the corresponding atributes
         """
-
         self.geometry = geometry
         self.queue = queue
 
+        # build program containing opencl code
         self.adjusted_code = create_code()
-
         self.prg = Program(queue.context, self.adjusted_code)
-        self.image_width = image_width
 
         if np.isscalar(img_shape):
             img_shape = (img_shape, img_shape)
 
+        # only planar img_shape is of relevance
         if len(img_shape) > 2:
             img_shape = img_shape[0:2]
         self.img_shape = img_shape
 
+        self.image_width = image_width
+
+        # Check that given geometry is indeed available
         if self.geometry not in [RADON, PARALLEL, FAN, FANBEAM]:
             raise ValueError("unknown projection_type, projection_type "
                              + "must be PARALLEL or FAN")
+
         if self.geometry in [RADON, PARALLEL]:
             self.is_parallel = True
             self.is_fan = False
 
+            # set relevant forward and backprojection functions
             self.forwardprojection = radon
             self.backprojection = radon_ad
 
+            # The kernel-functions according to the possible data types
             float32 = np.dtype('float32')
             float64 = np.dtype('float64')
             self.functions = {(float32, 0, 0): self.prg.radon_float_ff,
@@ -1411,9 +1473,11 @@ class ProjectionSettings():
             self.is_parallel = False
             self.is_fan = True
 
+            # set relevant forward and backprojection functions
             self.forwardprojection = fanbeam
             self.backprojection = fanbeam_ad
 
+            # The kernel-functions according to the possible data types
             float32 = np.dtype('float32')
             float64 = np.dtype('float64')
             self.functions = {(float32, 0, 0): self.prg.fanbeam_float_ff,
@@ -1434,6 +1498,8 @@ class ProjectionSettings():
                 (float64, 0, 1): self.prg.fanbeam_ad_double_fc,
                 (float64, 1, 1): self.prg.fanbeam_ad_double_cc}
 
+        # angles are chosen automatically as equidistant in suitable
+        # angular-range when scalar angle is given
         if np.isscalar(angles):
             if self.is_fan:
                 angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
@@ -1441,6 +1507,7 @@ class ProjectionSettings():
                 angles = np.linspace(0, np.pi, angles+1)[:-1]
         angles = angles
 
+        # Choosing n_detectors by default as diagonal of image pixels
         if n_detectors is None:
             self.n_detectors = int(np.ceil(np.hypot(img_shape[0],
                                                     img_shape[1])))
@@ -1448,6 +1515,7 @@ class ProjectionSettings():
             self.n_detectors = n_detectors
         detector_width = float(detector_width)
 
+        # extract information in case of multiple angle_section
         if isinstance(angles[0], list) or isinstance(angles[0], np.ndarray):
             self.n_angles = 0
             for j in range(len(angles)):
