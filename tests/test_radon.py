@@ -7,8 +7,8 @@ import time
 
 import gratopy
 
-# Plots can be deactivated by setting ' export GRATOPY_TEST_PLOT=0 '
-# in the terminal
+# Plots are deactivated by default, can be activated
+# by setting 'export GRATOPY_TEST_PLOT=0' in the terminal
 plot_parameter = os.environ.get("GRATOPY_TEST_PLOT")
 if (plot_parameter is None):
     plot_parameter = '0'

@@ -15,13 +15,13 @@ Installation via pip
 The gratopy toolbox can easily be installed using pip_
 ::
 
-    pip install gratopy   
+    pip install gratopy
 
-Alternatively, the release can be downloaded from https://github.com/kbredies/gratopy and installed (after unpacking inside the corresponding folder) via 
+Alternatively, the release can be downloaded from https://github.com/kbredies/gratopy and installed (after unpacking inside the corresponding folder) via
 ::
 
     pip install .
-    
+
 In case installation fails due to the dependency on other packages (see `requirements.txt <https://github.com/kbredies/gratopy/blob/master/requirements.txt>`_), it is advised to install the packages by hand before retrying to install gratopy. In particular, the PyOpenCL package may require some additional
 effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to the documentation of PyOpenCL_.
 
@@ -32,15 +32,15 @@ Testing correct installation
 
 The release archive (or GitHub repository) includes a ``tests`` folder which contains a variety of tests that allow to observe visually and numerically whether gratopy was installed correctly and works as desired.
 
-One can perform these tests by using, for instance, pytest_  
+One can perform these tests by using, for instance, pytest_
 ::
 
-    pytest  
-    
+    pytest
+
 or nose_
 ::
 
-    nosetests 
+    nosetests
 
 In case multiple OpenCL devices are registered in :mod:`pyopencl`, but the default device is not suitably configured for the tests to work, one might need to choose the context to use manually. This a-priori choice of context to use in :mod:`pyopencl` can be done via
 ::
@@ -49,11 +49,16 @@ In case multiple OpenCL devices are registered in :mod:`pyopencl`, but the defau
 
 The context number can, for instance, be determined by
 ::
-   
+
    import pyopencl
    pyopencl.create_some_context()
 
 following the interactive instructions and observing the console output.
+
+By default the plots of the tests are disabled, but can be activated by
+::
+
+    export GRATOPY_TEST_PLOT=1
 
 Moreover, the :ref:`getting-started` guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
 
