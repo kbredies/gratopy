@@ -243,6 +243,7 @@ def test_projection():
 
 def test_types_contiguity():
     """
+    Types and contiguity test.
     Runs forward and backprojections for parallel beam geometry
     for different precision and contiguity settings,
     checking that they all lead to the same results.
@@ -444,7 +445,7 @@ def test_adjointness():
         pairing_img = cl.array.vdot(img1_gpu, img2_gpu).get()*PS.delta_x**2
 
         # dual pairing in sinogram domain
-        pairing_sino = cl.array.vdot(gratopy.angle_weighting(sino1_gpu, PS),
+        pairing_sino = cl.array.vdot(gratopy.weight_sinogram(sino1_gpu, PS),
                                      sino2_gpu).get() * PS.delta_s
 
         # check whether an error occurred,
@@ -632,7 +633,7 @@ def test_nonquadratic():
                              classified="img", name="backprojected image")
 
 
-def test_extract_sparse_matrix():
+def test_create_sparse_matrix():
     """
     Tests the :func:`create_sparse_matrix
     <gratopy.ProjectionSettings.create_sparse_matrix>`

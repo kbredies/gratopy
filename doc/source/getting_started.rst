@@ -56,9 +56,10 @@ Images in gratopy
 An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`
 -- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels of size :math:`\delta_x=\mathrm{image_width}/\max\{N_x,N_y\}`,
 where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in
-the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side-length of an rectangular :math:`(N_x,N_y)` grid  of quadratic image pixels
-which allow to consider *slim* objects.  
-In any case the object should be contained in the rectangular image-domain (with sides parallel to the x and y axes), in particular slim in vertical or horizontal direction in case of non-square images.  **(???)**.
+the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side length of an rectangular :math:`(N_x,N_y)` grid of quadratic image pixels
+which allow to consider *slim* objects. 
+The image domain is, however, always a rectangle or square
+that is aligned with the *x* and *y* axis.
 When using an image together with **projectionsetting** -- an instance of :class:`gratopy.ProjectionSettings` --  the values :math:`(N_x,N_y)` have to coincide with the attribute **img_shape** of **projectionsetting**, we say they need to be **compatible**. The data type
 of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
 

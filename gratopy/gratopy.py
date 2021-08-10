@@ -313,8 +313,9 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
-    :type angles: :class:`int`, :class:`list[float]` or
-        :class:`list[list[float]]`
+    :type angles: :class:`int`, :class:`list[float]`,
+        :class:`list[list[float]]`, :class:`list[(float,float,int)]`
+        or :class:`list[(float,float,list[float])]`
 
     :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as
@@ -324,10 +325,8 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param detector_width: Physical length of the detector line.
     :type detector_width: :class:`float`, default 2.0
 
-    :param image_width: Size of the image (more precisely, the larger
-        side length of the rectangle representing the image domain), i.e.,
-        the diameter of the
-        circular object captured by image **(???) this is contradictory**.
+    :param image_width: Size of the image indicated by the length of
+        the longer side of the rectangular image domain.
         Choosing
         **image_width** = **detector_width** results in
         the standard Radon transform with each projection touching the
@@ -398,9 +397,9 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :vartype sinogram_shape: :class:`tuple`
 
     :var geo_dict:
-        Array containing the values
+        Dictionary mapping the allowed data types 
+        to an array containing the values
         [:math:`\\delta_x, \\delta_s, N_x, N_y, N_s, N_a`].
-        **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angles_diff_buf: Dictionary containing the
@@ -758,10 +757,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         [- **detector_width**/2, **detector_width**/2].
     :type detector_shift: :class:`list[float]`, default 0.0
 
-    :param image_width: Size of the image (more precisely, the larger
-        side length of the rectangle representing the image domain), i.e.,
-        the diameter of the
-        circular object captured by image **(???) this is contradictory**.
+    :param image_width: Size of the image indicated by the length of
+        the longer side of the rectangular image domain.
         If :obj:`None`, **image_width** is chosen to capture just
         all rays.
     :type image_width: :class:`float`, default :obj:`None`
@@ -780,8 +777,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type fullangle:  :class:`bool`, default :attr:`True`
 
     :param reverse_detector: When :attr:`True`, the detector direction
-        for fanbeam setting is flipped around, i.e., switching the positive and
-        negative detector positions.
+        is flipped.
     :type reverse_detector: :class:`bool`, default :attr:`False`
 
     :param angular_range: Only relevant if fullangle=False, can be used to
@@ -814,14 +810,14 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         The arrays have dimension :math:`(8, N_a)` with columns:
 
         +-----+--------------------------------------------+
-        | 0 1 | **(???)** vector along detector direction  |
-        |     | with length :math:`\\delta_s`               |
+        | 0 1 | vector of length :math:`\\delta_s`          |
+        |     | pointing in positive detector direction    |
         +-----+--------------------------------------------+
         | 2 3 | vector connecting source and center of     |
         |     | rotation                                   |
         +-----+--------------------------------------------+
-        | 4 5 | vector connection origin and detector line |
-        |     | **(???) which point exactly? **            |
+        | 4 5 | vector connection the origin and its       |
+        |     | projection onto the detector line          |
         +-----+--------------------------------------------+
         | 6   | angular weight                             |
         +-----+--------------------------------------------+
@@ -832,8 +828,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :var sdpd_dict: Dictionary mapping :attr:`numpy.float32`
         and :attr:`numpy.float64` to a :class:`numpy.ndarray`
         representing the values :math:`\\sqrt{(s^2+R^2)}` for
-        the weighting in the fanbeam transform (weighted by delta_ratio)
-        **(???)**.
+        the weighting in the fanbeam transform (weighted by 
+        **delta_ratio**, i.e., :math:`\\delta_s/\\delta_x`).
     :vartype sdpd_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var image_width: Physical size of the image. Equal to the input
@@ -843,13 +839,13 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :vartype image:width: :class:`float`
 
     :var geo_dict:
-        Array containing the values
+        Dictionary mapping the allowed data types to an
+        array containing the values
         [source detector distance, source origin distance,
-        width of a detector_pixel, midpoint x-coordinate,
-        midpoint y-coordinate, midpoint detectors **(???)**,
+        width of a detector_pixel, image midpoint x-coordinate,
+        image midpoint y-coordinate, detector line midpoint,
         img_shape[0], img_shape[1], sinogram_shape[0],
         sinogram_shape[1], width of a pixel].
-        **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angles_diff:
@@ -1213,7 +1209,7 @@ class ProjectionSettings():
     :param angles:  Determines which angles are considered for
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
-        :math:`[0,\\pi[,[0,2\\pi[`
+        :math:`[0,\\pi[`, :math:`[0,2\\pi[`
         for Radon and fanbeam transform, respectively. Alternatively,
         a list containing all angles
         considered for the projection can be given.
@@ -1230,10 +1226,8 @@ class ProjectionSettings():
     :type detector_width: :class:`float`, default 2.0
 
     :param image_width: Physical size of the image
-        (more precisely, the length of the longer side
-        of the rectangle defining the image domain),
-        i.e., the longest possible diameter of an object captured by image
-        **(???)**.
+        indicated by the length of
+        the longer side of the rectangular image domain.
         For parallel beam geometry, when :obj:`None`,
         **image_width** is chosen as 2.0.
         For fanbeam geometry, when :obj:`None`, **image_width** is chosen
@@ -1278,7 +1272,9 @@ class ProjectionSettings():
     :type fullangle: :class:`bool`, default :obj:`True`
 
     :param reverse_detector: When :attr:`True`, the detector direction
-        is flipped around.
+        is flipped in case of fanbeam geometry, i.e., the positive and
+        negative detector positions are swapped.
+        This parameter has no effect for parallel geometry.
     :type reverse_detector: :class:`bool`, default :attr:`False`
 
     :param angular_range: Only relevant if fullangle=False, can be used to
@@ -1540,8 +1536,8 @@ class ProjectionSettings():
         self.reverse_detector = reverse_detector
         if ((self.reverse_detector) and (self.is_parallel)):
             print("WARNING, the reverse_detector argument has no impact"
-                  + " on the parallel beam setting. To recieve the angles"
-                  + " angles can be translated by np.pi")
+                  + " on the parallel beam setting. To reverse the angles,"
+                  + " the angles parameter can be translated by np.pi")
 
         if self.is_fan:
             parameters_available = not ((R is None) or (RE is None))
@@ -1933,31 +1929,32 @@ class ProjectionSettings():
         return sparsematrix
 
 
-def angle_weighting(sino, projectionsetting, sino_new=None, divide = False,
+def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False,
                     wait_for=[]):
     """
-    Allows to rescale a sinogram via multiplication (or division) with
-    the angle weights (size of projections in angle-dimension, see
-    attribute of :class:`ProjectionSettings`)
-    to the respective projections,
-    which can be useful, e.g., for computing norms or dual
+    Performs an angular rescaling of a given sinogram via multiplication 
+    (or division) with the projection's angle weights (size of projections in 
+    angle dimension, see attributes of :class:`ProjectionSettings`)
+    to the respective projections.
+    This can be useful, e.g., for computing norms or dual
     pairings in the appropriate Hilbert space.
 
-    :param sino: The sinogram whose rescaling is supposed to be computed.
+    :param sino: The sinogram whose rescaling is computed.
         This array itself remains unchanged unless the same array is given
-        as sino_new
+        as **sino_out**.
     :type img: :class:`pyopencl.array.Array`
     :param projectionsetting: The geometry settings for which the rescaling
         is computed.
     :type projectionsetting: :class:`gratopy.ProjectionSettings`
-    :param sino_new: The array in which the result of rescaling
+    :param sino_out: The array in which the result of rescaling
         is saved. If :obj:`None` (per default) is given, a new array
-        will be created and returned. When giving the same array as sino and
-        sino_new, the values in sino will be overwritten.
+        will be created and returned. When giving the same array as 
+        **sino**, the values in **sino** will be overwritten.
     :type sino: :class:`pyopencl.array.Array` default :obj:`None`
 
-    :param divide: Allows to compute the division instead of the multiplication
-        of the projections by the associated angles.
+    :param divide: Determines whether the sinogram is multiplied
+        or divided by the angular weights. If :obj:`True`, 
+        a division is performed, otherwise, the weights are multiplied.
     :type divide: :class:`bool`, default :obj:`False`
 
     :param wait_for: The events to wait for before performing the
@@ -1965,18 +1962,17 @@ def angle_weighting(sino, projectionsetting, sino_new=None, divide = False,
         :class:`pyopencl.Event`.
     :type wait_for: :class:`list[pyopencl.Event]`, default :attr:`[]`
 
-    :return: The sinogram rescaled from the input.
-        If the **sino** is not :obj:`None`, the same :mod:`pyopencl` array
+    :return: The weighted sinogram.
+        If **sino_out** is not :obj:`None`, it
         is returned with the values in its data overwritten.
     :rtype: :class:`pyopencl.array.Array`
-
     """
 
     dtype = sino.dtype
     my_order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
 
-    if sino_new is None:
-        sino_new = clarray.zeros(sino.queue, sino.shape, dtype=dtype,
+    if sino_out is None:
+        sino_out = clarray.zeros(sino.queue, sino.shape, dtype=dtype,
                                  order=my_order)
     if divide is False:
         functions = {
@@ -1998,13 +1994,13 @@ def angle_weighting(sino, projectionsetting, sino_new=None, divide = False,
 
     myevent = function(sino.queue, sino.shape, None, sino.data,
                        projectionsetting.angle_weights_buf[dtype],
-                       sino_new.data,
-                       wait_for=wait_for+sino_new.events+sino.events)
-    sino_new.add_event(myevent)
-    return sino_new
+                       sino_out.data,
+                       wait_for=wait_for+sino_out.events+sino.events)
+    sino_out.add_event(myevent)
+    return sino_out
 
 
-def equ_mul_add(rhs,  a, x, projectionsetting, wait_for=[]):
+def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
     dtype = x.dtype
     function = {np.dtype("float32"): projectionsetting.prg.equ_mul_add_float_c,
                 np.dtype("float64"): projectionsetting.prg.equ_mul_add_double_c
@@ -2193,7 +2189,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         alpha = x.dtype.type(projectionsetting.delta_x**2
                              / (projectionsetting.delta_s)
                              * (clarray.vdot(sold, sold)
-                                / clarray.vdot(angle_weighting(q,
+                                / clarray.vdot(weight_sinogram(q,
                                                 projectionsetting, q_rescaled)
                                                , q)).get())
 
