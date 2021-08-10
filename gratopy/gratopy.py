@@ -757,8 +757,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type fullangle:  :class:`bool`, default :attr:`True`
 
     :param reverse_detector: When :attr:`True`, the detector direction
-        for fanbeam setting is flipped around, i.e., switching the positive and
-        negative detector positions.
+        is flipped.
     :type reverse_detector: :class:`bool`, default :attr:`False`
 
     :param angular_range: Only relevant if fullangle=False, can be used to
@@ -1216,7 +1215,9 @@ class ProjectionSettings():
     :type fullangle: :class:`bool`, default :obj:`True`
 
     :param reverse_detector: When :attr:`True`, the detector direction
-        is flipped around.
+        is flipped in case of fanbeam geometry, i.e., the positive and
+        negative detector positions are swapped.
+        This parameter has no effect for parallel geometry.
     :type reverse_detector: :class:`bool`, default :attr:`False`
 
     :param angular_range: Only relevant if fullangle=False, can be used to
@@ -1467,8 +1468,8 @@ class ProjectionSettings():
         self.reverse_detector = reverse_detector
         if ((self.reverse_detector) and (self.is_parallel)):
             print("WARNING, the reverse_detector argument has no impact"
-                  + " on the parallel beam setting. To recieve the angles"
-                  + " angles can be translated by np.pi")
+                  + " on the parallel beam setting. To reverse the angles,"
+                  + " the angles parameter can be translated by np.pi")
 
         if self.is_fan:
             parameters_available = not ((R is None) or (RE is None))
