@@ -313,8 +313,9 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
-    :type angles: :class:`int`, :class:`list[float]` or
-        :class:`list[list[float]]`
+    :type angles: :class:`int`, :class:`list[float]`,
+        :class:`list[list[float]]`, :class:`list[(float,float,int)]`
+        or :class:`list[(float,float,list[float])]`
 
     :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as

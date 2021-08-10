@@ -10,7 +10,7 @@ is indeed working as desired (via ``pytest`` or ``nosetests``, see :ref:`install
 and illustrating to users how to set various parameters of the
 gratopy toolbox and what their effect are (cf. the source code for the tests).
 
-The tests can are also able to
+The tests are also able to
 produce plots of the results. To turn on plotting, the
 environment variable ``GRATOPY_TEST_PLOT`` needs to be set, e.g.
 the command
