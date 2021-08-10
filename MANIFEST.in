@@ -1,4 +1,7 @@
 include gratopy/*.cl
-include tests/*
+include tests/__init__.py
+include tests/test_*.py
+include tests/walnut*.png
+include tests/rng.txt
 include requirements.txt
 
