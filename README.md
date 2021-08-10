@@ -100,8 +100,8 @@ We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/late
 
 ## Authors
 
-* **Richard Huber** richard.huber@uni-graz.at
-* **Kristian Bredies** kristian.bredies@uni-graz.at
+* **Kristian Bredies**, University of Graz, kristian.bredies@uni-graz.at
+* **Richard Huber**, University of Graz, richard.huber@uni-graz.at
 
 All authors are affiliated with the [Institute of Mathematics and Scientific Computing](https://mathematik.uni-graz.at/en) at the [University of Graz](https://www.uni-graz.at/en).
 
