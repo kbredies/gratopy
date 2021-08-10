@@ -33,7 +33,7 @@ The following constitute a few easy-to-use examples which also serve as illustra
 .. autofunction:: gratopy.conjugate_gradients
 .. autofunction:: gratopy.total_variation
 .. autofunction:: gratopy.normest
-.. autofunction:: gratopy.angle_weighting
+.. autofunction:: gratopy.weight_sinogram
 
 Data generation
 ---------------

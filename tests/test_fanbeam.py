@@ -238,6 +238,8 @@ def test_projection():
 
 def test_types_contiguity():
     """
+    Types and contiguity test.
+    Types and contiguity test.
     Runs forward and backprojections for fanbeam geometry
     for different precision and contiguity settings,
     checking that they all lead to the same results.
@@ -334,9 +336,8 @@ def test_weighting():
     wider than the original object was, as the width of the fan grows linearly
     with the distance it travels. Consequently, also the total mass on the
     detector is rougly the multiplication of the total mass in the
-    object by the ratio of **R** and **RE**. This test indicates that
-    the scaling of the transform
-    is suitable. (???)
+    object by the ratio of **R** and **RE**. This estimate is verified
+    numerically.
     """
     print("Weighting test")
 
@@ -453,7 +454,7 @@ def test_adjointness():
         # dual pairing in image domain (weighted bei delta_x^2)
         pairing_img = cl.array.dot(img1_gpu, img2_gpu)*PS.delta_x**2
         # dual pairing in sinogram domain (weighted by delta_s)
-        pairing_sino = cl.array.dot(gratopy.angle_weighting(sino1_gpu, PS),
+        pairing_sino = cl.array.dot(gratopy.weight_sinogram(sino1_gpu, PS),
                                     sino2_gpu)*(PS.delta_s)
 
         # check whether an error occurred,
@@ -681,8 +682,8 @@ def test_midpoint_shift():
 def test_angle_orientation():
     """
     Angle orientation test.
-    Considers projections with Radon and Fanbeam setting to illustrate that
-    the projection orientation is indeed correct (and not rotated by an angle)
+    Considers projections with parallel and fanbeam geometry to illustrate that
+    the projection orientation is indeed correct (and not rotated by an angle).
     """
 
     # create PyopenCL context
@@ -795,10 +796,10 @@ def test_range_check_walnut():
     approximates the minimal-norm least squares solution to the data,
     and in particular,
     the forward projection of this solution corresponds to the projection
-    of data onto the range of the operator. As depicted in the plots
-    shown by this test,
-    these projections do not have a systematic error, aside from an apparent
-    change of intensity/sensitivity **(???)** for different projection angles.
+    of data onto the range of the operator. As depicted in the
+    plots of the residual data shown by this test,
+    the walnut projection data admit, after midpoint adjustment, 
+    only slight intensity variations as systematic error.
 
     .. [HHKKNS2015] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and
                     Antti Kujanpää and Esa Niemi and Samuli Siltanen.
@@ -888,7 +889,7 @@ def test_range_check_walnut():
         plt.title("Given data")
         plt.imshow(sino_gpu.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 3)
-        plt.title("Residue")
+        plt.title("Residual")
         plt.imshow(abs(sino_gpu.get()-best_approximation_correct.get()))
         plt.colorbar()
         plt.suptitle("Sinogram associated to reconstruction with shift "
@@ -903,7 +904,7 @@ def test_range_check_walnut():
         plt.title("Given data")
         plt.imshow(sino_gpu.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 3)
-        plt.title("Residue")
+        plt.title("Residual")
         plt.imshow(abs(sino_gpu.get()-best_approximation_incorrect.get()))
         plt.colorbar()
         plt.suptitle("Sinogram associated to reconstruction without shift "
@@ -1236,7 +1237,7 @@ def test_nonquadratic():
                              classified="img", name="backprojected image")
 
 
-def test_extract_sparse_matrix():
+def test_create_sparse_matrix():
     """
     Tests the :func:`create_sparse_matrix
     <gratopy.ProjectionSettings.create_sparse_matrix>`
