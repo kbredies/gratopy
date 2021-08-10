@@ -790,7 +790,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         The arrays have dimension :math:`(8, N_a)` with columns:
 
         +-----+--------------------------------------------+
-        | 0 1 | vector of length :math:`\\delta_s`         |
+        | 0 1 | vector of length :math:`\\delta_s`          |
         |     | pointing in positive detector direction    |
         +-----+--------------------------------------------+
         | 2 3 | vector connecting source and center of     |
