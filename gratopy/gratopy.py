@@ -8,9 +8,11 @@ import pyopencl.array as clarray
 import scipy
 import scipy.sparse
 
+# Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
 
+# Class attribute corresponding to which geometry to consider
 PARALLEL = 1
 RADON = 1
 FANBEAM = 2
@@ -21,12 +23,49 @@ FAN = 2
 # Programm created from the gpu_code
 class Program(object):
     def __init__(self, ctx, code):
+
+        # activate warnings
         os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
+        # build opencl code
         self._cl_prg = cl.Program(ctx, code)
         self._cl_prg.build()
+        # add the kernels functions to the local dictionary
         self._cl_kernels = self._cl_prg.all_kernels()
         for kernel in self._cl_kernels:
             self.__dict__[kernel.function_name] = kernel
+
+
+def check_compatibility(img, sino, projectionsetting):
+    """
+    Ensures, that img, sino, and projectionsetting have compatible
+    dimensions and types.
+    """
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share"
+        + "common data type: " + str(sino.dtype)+" and "+str(img.dtype))
+
+    assert (sino.shape[0:2] == projectionsetting.sinogram_shape), (
+        "The dimensions of the sinogram" + str(sino.shape)
+        + " do not match the projectionsetting's "
+        + str(projectionsetting.sinogram_shape))
+
+    assert (sino.shape[0:2] == projectionsetting.sinogram_shape), (
+        "The dimensions of the image " + str(img.shape)
+        + " do not match the projectionsetting's "
+        + str(projectionsetting.img_shape))
+
+    if len(sino.shape) > 2:
+        if sino.shape[2] > 1:
+            assert(len(img.shape) > 2), (" The sinogram has a third dimension"
+                + "but the image does not.")
+            assert(sino.shape[2] == img.shape[2]), ("The third dimension"
+                + "(z-direction) of the sinogram is" + str(sino.shape[2])
+                + " and the image's is" + str(img.shape[2])
+                + ", they do not coincide.")
+
+    if len(img.shape) > 2:
+        if img.shape[2] > 1:
+            assert(len(sino.shape) > 2), (" The sinogram has a third dimension"
+                + "but the image does not.")
 
 
 def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
@@ -74,6 +113,7 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
         z_dimension = tuple()
         if len(img.shape) > 2:
             z_dimension = (img.shape[2],)
+        # create sinogram with same basic properties as img
         sino = clarray.zeros(projectionsetting.queue,
                              projectionsetting.sinogram_shape+z_dimension,
                              dtype=img.dtype,
@@ -134,6 +174,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
         z_dimension = tuple()
         if len(sino.shape) > 2:
             z_dimension = (sino.shape[2],)
+        # create img for backprojection with same basic properties as sino
         img = clarray.zeros(projectionsetting.queue,
                             projectionsetting.img_shape+z_dimension,
                             dtype=sino.dtype, order={0: 'F', 1: 'C'}[
@@ -170,10 +211,12 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :rtype:  :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
@@ -184,6 +227,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
                                             sino.flags.c_contiguous,
                                             img.flags.c_contiguous)]
 
+    # execute corresponding function and add event to sinogram
     myevent = function(sino.queue, sino.shape, None,
                        sino.data, img.data, ofs_buf,
                        geometry_information,
@@ -219,10 +263,12 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     :rtype: :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
@@ -233,6 +279,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
                                                img.flags.c_contiguous,
                                                sino.flags.c_contiguous)]
 
+    # execute corresponding function and add event to image
     myevent = function(img.queue, img.shape, None,
                        img.data, sino.data, ofs_buf,
                        geometry_information,
@@ -262,7 +309,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :param angles:  Determines which angles are considered for the
         projection. Either the integer :math:`N_a` representing the
         number of uniformly distributed angles in the angular range
-        :math:`[0,\pi[`, a list containing all angles considered for
+        :math:`[0,\\pi[`, a list containing all angles considered for
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
@@ -271,7 +318,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
     :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as
-        :math:`\sqrt{N_x^2+N_y^2}`.
+        :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
 
     :param detector_width: Physical length of the detector line.
@@ -300,10 +347,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
     :type detector_shift: :class:`list[float]`, default 0.0
 
     :param fullangle: If :obj:`True`, the angles are interpreted to
-        represent the whole interval :math:`[0,\pi[`.
+        represent the whole interval :math:`[0,\\pi[`.
         If :obj:`False`, a limited angle setting is considered, i.e.,
         the given angles represent a discretization of a
-        proper subset of :math:`[0,\pi[`.
+        proper subset of :math:`[0,\\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`
 
@@ -352,7 +399,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
     :var geo_dict:
         Array containing the values
-        [:math:`\delta_x, \delta_s, N_x, N_y, N_s, N_a`].
+        [:math:`\\delta_x, \\delta_s, N_x, N_y, N_s, N_a`].
         **(???) is this true? the type seems to be a dictionary.**
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
@@ -440,7 +487,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             angular_range = angular_range2
         assert isinstance(angular_range, list), "Expected that angular "\
                                                 + "range to be a list of "\
-                                                +  "tuples, but recieved "\
+                                                + "tuples, but recieved "\
                                                 + str(type(angular_range))
 
         if len(angular_range) < len(angles_section)-1:
@@ -452,10 +499,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                   + " angle sections! The missing angular_ranges will be "
                   + "added automatically (This can lead to issues for angles "
                   + "set with a single angle). In particular it leads to the "
-                  + "two outermost angles. It might be adviseable to check the "
-                  + "resulting angle_weights to ensure suitable "
+                  + "two outermost angles. It might be adviseable to check the"
+                  + " resulting angle_weights to ensure suitable "
                   + "weights were chosen")
-            for i in range(len(angular_range),len(angles_section)-1):
+            for i in range(len(angular_range), len(angles_section)-1):
                 angular_range.append(tuple())
 
         angles_diff = []
@@ -493,11 +540,9 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                     angles_diff_temp[[i]] = val
                     angles_diff_temp[[i+1]] = val
 
-
             angles_diff += list(angles_diff_temp[current_angles_index])
 
     # also write basic information to gpu
-
     delta_x = image_width/float(max(img_shape))
     delta_s = float(detector_width)/nd
 
@@ -570,9 +615,9 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     :rtype:  :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
     dtype = sino.dtype
 
@@ -618,9 +663,9 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     :rtype: :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
     dtype = sino.dtype
 
@@ -664,7 +709,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :param angles:  Determines which angles are considered for the
         projection. Either the integer :math:`N_a` representing the
         number of uniformly distributed angles in the angular range
-        :math:`[0,2\pi[`, a list containing all angles considered for
+        :math:`[0,2\\pi[`, a list containing all angles considered for
         the projection, or a list of lists containing angles for
         multiple limited angle sections, also see the
         **fullangle** parameter.
@@ -684,7 +729,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as
-        :math:`\sqrt{N_x^2+N_y^2}`.
+        :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
 
     :param detector_shift: Physical shift of the detector along
@@ -707,10 +752,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :type midpoint_shift:  :class:`list[float]`, default [0.0, 0.0]
 
     :param fullangle: If :obj:`True`, the angles are interpreted to
-        represent the whole interval :math:`[0,2\pi[`.
+        represent the whole interval :math:`[0,2\\pi[`.
         If :obj:`False`, a limited angle setting is considered, i.e.,
         the given angles represent a discretization of a
-        proper subset of :math:`[0,2\pi[`.
+        proper subset of :math:`[0,2\\pi[`.
         Affects the weights in the backprojection.
     :type fullangle:  :class:`bool`, default :attr:`True`
 
@@ -750,7 +795,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
         +-----+--------------------------------------------+
         | 0 1 | **(???)** vector along detector direction  |
-        |     | with length :math:`\delta_s`               |
+        |     | with length :math:`\\delta_s`               |
         +-----+--------------------------------------------+
         | 2 3 | vector connecting source and center of     |
         |     | rotation                                   |
@@ -766,7 +811,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     :var sdpd_dict: Dictionary mapping :attr:`numpy.float32`
         and :attr:`numpy.float64` to a :class:`numpy.ndarray`
-        representing the values :math:`\sqrt{(s^2+R^2)}` for
+        representing the values :math:`\\sqrt{(s^2+R^2)}` for
         the weighting in the fanbeam transform (weighted by delta_ratio)
         **(???)**.
     :vartype sdpd_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
@@ -1036,9 +1081,9 @@ def create_code():
             for order1 in ["f", "c"]:
                 for order2 in ["f", "c"]:
                     total_code += code_template.replace(
-                        "\my_variable_type", dtype)\
-                        .replace("\order1", order1)\
-                        .replace("\order2", order2)
+                        "\\my_variable_type", dtype)\
+                        .replace("\\order1", order1)\
+                        .replace("\\order2", order2)
 
     for file in CL_FILES2:
         textfile = open(os.path.join(os.path.abspath(
@@ -1049,8 +1094,8 @@ def create_code():
         for dtype in ["float", "double"]:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace(
-                    "\my_variable_type", dtype)\
-                    .replace("\order1", order1)\
+                    "\\my_variable_type", dtype)\
+                    .replace("\\order1", order1)\
 
     return total_code
 
@@ -1066,9 +1111,6 @@ def upload_bufs(projectionsetting, dtype):
                                   cl.mem_flags.READ_ONLY, angle_weights.nbytes)
     cl.enqueue_copy(projectionsetting.queue, angle_weights_buf,
                     angle_weights.data).wait()
-
-
-
 
     geometry_information = projectionsetting.geometry_information[dtype]
     geometry_buf = cl.Buffer(projectionsetting.queue.context,
@@ -1114,7 +1156,7 @@ class ProjectionSettings():
     :param angles:  Determines which angles are considered for
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
-        :math:`[0,\pi[,\ [0,2\pi[`
+        :math:`[0,\\pi[,[0,2\\pi[`
         for Radon and fanbeam transform, respectively. Alternatively,
         a list containing all angles
         considered for the projection can be given.
@@ -1125,7 +1167,7 @@ class ProjectionSettings():
         or :class:`list[list[float]]`
     :param n_detectors: The number :math:`N_s` of (equi-spaced) detectors
         pixels considered. When :obj:`None`, :math:`N_s`
-        will be chosen as :math:`\sqrt{N_x^2+N_y^2}`.
+        will be chosen as :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int`, default :obj:`None`
     :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`, default 2.0
@@ -1170,8 +1212,8 @@ class ProjectionSettings():
     :param fullangle:
         Indicates whether the entire angular range is represented by
         **angles**. If :obj:`True`,
-        the entire angular range (:math:`[0,\pi[`
-        for parallel beam, :math:`[0,2\pi[` for fanbeam geometry)
+        the entire angular range (:math:`[0,\\pi[`
+        for parallel beam, :math:`[0,2\\pi[` for fanbeam geometry)
         is represented. :obj:`False` indicates a limited
         angle setting, i.e., the angles only represent
         a discretization of a proper subset of the angular range.
@@ -1217,14 +1259,14 @@ class ProjectionSettings():
         detectors (**n_detectors**) and angles (**n_angles**).
     :vartype sinogram_shape: :class:`tuple` :math:`(N_s,N_a)`
 
-    :ivar delta_x: 	Physical width and height :math:`\delta_x` of
+    :ivar delta_x: 	Physical width and height :math:`\\delta_x` of
         the image pixels.
     :vartype delta_x:  :class:`float`
 
-    :ivar delta_s:  Physical width :math:`\delta_s` of a detector pixel.
+    :ivar delta_s:  Physical width :math:`\\delta_s` of a detector pixel.
     :vartype delta_s:  :class:`float`
 
-    :ivar delta_ratio:  Ratio :math:`{\delta_s}/{\delta_x}`,
+    :ivar delta_ratio:  Ratio :math:`{\\delta_s}/{\\delta_x}`,
         i.e. the detector
         pixel width relative to unit image pixels.
     :vartype delta_ratio:  :class:`float`
@@ -1232,7 +1274,7 @@ class ProjectionSettings():
     :ivar angle_weights: Represents the angular discretization
         width for each angle which are used to weight the projections.
         In the fullangle case, these sum up to
-        :math:`\pi` and :math:`2\pi` for parallel beam and
+        :math:`\\pi` and :math:`2\\pi` for parallel beam and
         fanbeam geometry respectively
         (or more specific angular when angular_ranges is set).
     :vartype angle_weights: :class:`numpy.ndarray`
@@ -1914,13 +1956,12 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     return rhs
 
 
-
 def normest(projectionsetting, number_iterations=50, dtype='float32',
             allocator=None):
     """
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the standard
-    Euclidean or :math:`\ell^2`
+    Euclidean or :math:`\\ell^2`
     norms. Useful for iterative methods that require such an estimate,
     e.g., :func:`landweber` or :func:`total_variation`.
 
@@ -2115,10 +2156,10 @@ def total_variation(sino, projectionsetting, mu,
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
-    :math:`\min_{u} {\\frac\mu2}\|\mathcal{P}u-f\|_{L^2}^2+\mathrm{TV}(u)`
-    for :math:`\mathcal{P}` the projection operator, :math:`f` the sinogram
-    and :math:`\mu` a positive regluarization parameter (i.e.,
-    an :math:`L^2-\mathrm{TV}` reconstruction approach).
+    :math:`\\min_{u} {\\frac\\mu2}\\|\\mathcal{P}u-f\\|_{L^2}^2+\\mathrm{TV}(u)`
+    for :math:`\\mathcal{P}` the projection operator, :math:`f` the sinogram
+    and :math:`\\mu` a positive regluarization parameter (i.e.,
+    an :math:`L^2-\\mathrm{TV}` reconstruction approach).
 
     :param sino: Sinogram data to invert.
     :type sino: :class:`pyopencl.array.Array`
@@ -2143,8 +2184,8 @@ def total_variation(sino, projectionsetting, mu,
     :type slice_thickness: :class:`float`, default 1.0, i.e., isotropic voxels
 
     :param stepsize_weighting: Allows to weight the primal-dual algorithm's
-        step sizes :math:`\sigma` and :math:`\\tau`
-        (with :math:`\sigma\\tau\|\mathcal{P}\|^2\leq 1`)
+        step sizes :math:`\\sigma` and :math:`\\tau`
+        (with :math:`\\sigma\\tau\\|\\mathcal{P}\\|^2\\leq 1`)
         by multiplication and division, respectively,
         with the given value.
     :type stepsize_weighting: :class:`float`, default 10.0
