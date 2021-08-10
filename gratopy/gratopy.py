@@ -8,9 +8,11 @@ import pyopencl.array as clarray
 import scipy
 import scipy.sparse
 
+# Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
 
+# Class attribute corresponding to which geometry to consider
 PARALLEL = 1
 RADON = 1
 FANBEAM = 2
@@ -21,12 +23,49 @@ FAN = 2
 # Programm created from the gpu_code
 class Program(object):
     def __init__(self, ctx, code):
+
+        # activate warnings
         os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
+        # build opencl code
         self._cl_prg = cl.Program(ctx, code)
         self._cl_prg.build()
+        # add the kernels functions to the local dictionary
         self._cl_kernels = self._cl_prg.all_kernels()
         for kernel in self._cl_kernels:
             self.__dict__[kernel.function_name] = kernel
+
+
+def check_compatibility(img, sino, projectionsetting):
+    """
+    Ensures, that img, sino, and projectionsetting have compatible
+    dimensions and types.
+    """
+    assert (sino.dtype == img.dtype), ("sinogram and image do not share"
+        + "common data type: " + str(sino.dtype)+" and "+str(img.dtype))
+
+    assert (sino.shape[0:2] == projectionsetting.sinogram_shape), (
+        "The dimensions of the sinogram" + str(sino.shape)
+        + " do not match the projectionsetting's "
+        + str(projectionsetting.sinogram_shape))
+
+    assert (sino.shape[0:2] == projectionsetting.sinogram_shape), (
+        "The dimensions of the image " + str(img.shape)
+        + " do not match the projectionsetting's "
+        + str(projectionsetting.img_shape))
+
+    if len(sino.shape) > 2:
+        if sino.shape[2] > 1:
+            assert(len(img.shape) > 2), (" The sinogram has a third dimension"
+                + "but the image does not.")
+            assert(sino.shape[2] == img.shape[2]), ("The third dimension"
+                + "(z-direction) of the sinogram is" + str(sino.shape[2])
+                + " and the image's is" + str(img.shape[2])
+                + ", they do not coincide.")
+
+    if len(img.shape) > 2:
+        if img.shape[2] > 1:
+            assert(len(sino.shape) > 2), (" The sinogram has a third dimension"
+                + "but the image does not.")
 
 
 def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
@@ -74,6 +113,7 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
         z_dimension = tuple()
         if len(img.shape) > 2:
             z_dimension = (img.shape[2],)
+        # create sinogram with same basic properties as img
         sino = clarray.zeros(projectionsetting.queue,
                              projectionsetting.sinogram_shape+z_dimension,
                              dtype=img.dtype,
@@ -134,6 +174,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
         z_dimension = tuple()
         if len(sino.shape) > 2:
             z_dimension = (sino.shape[2],)
+        # create img for backprojection with same basic properties as sino
         img = clarray.zeros(projectionsetting.queue,
                             projectionsetting.img_shape+z_dimension,
                             dtype=sino.dtype, order={0: 'F', 1: 'C'}[
@@ -170,10 +211,12 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     :rtype:  :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
@@ -184,6 +227,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
                                             sino.flags.c_contiguous,
                                             img.flags.c_contiguous)]
 
+    # execute corresponding function and add event to sinogram
     myevent = function(sino.queue, sino.shape, None,
                        sino.data, img.data, ofs_buf,
                        geometry_information,
@@ -219,10 +263,12 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     :rtype: :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
+    # select additional information of suitable data-type,
+    # upload via ensure_dtype in case not yet uploaded to gpu
     dtype = sino.dtype
     projectionsetting.ensure_dtype(dtype)
     ofs_buf = projectionsetting.ofs_buf[dtype]
@@ -233,6 +279,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
                                                img.flags.c_contiguous,
                                                sino.flags.c_contiguous)]
 
+    # execute corresponding function and add event to image
     myevent = function(img.queue, img.shape, None,
                        img.data, sino.data, ofs_buf,
                        geometry_information,
@@ -438,7 +485,7 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
             angular_range = angular_range2
         assert isinstance(angular_range, list), "Expected that angular "\
                                                 + "range to be a list of "\
-                                                +  "tuples, but recieved "\
+                                                + "tuples, but recieved "\
                                                 + str(type(angular_range))
 
         if len(angular_range) < len(angles_section)-1:
@@ -450,10 +497,10 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                   + " angle sections! The missing angular_ranges will be "
                   + "added automatically (This can lead to issues for angles "
                   + "set with a single angle). In particular it leads to the "
-                  + "two outermost angles. It might be adviseable to check the "
-                  + "resulting angle_weights to ensure suitable "
+                  + "two outermost angles. It might be adviseable to check the"
+                  + " resulting angle_weights to ensure suitable "
                   + "weights were chosen")
-            for i in range(len(angular_range),len(angles_section)-1):
+            for i in range(len(angular_range), len(angles_section)-1):
                 angular_range.append(tuple())
 
         angles_diff = []
@@ -491,11 +538,9 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
                     angles_diff_temp[[i]] = val
                     angles_diff_temp[[i+1]] = val
 
-
             angles_diff += list(angles_diff_temp[current_angles_index])
 
     # also write basic information to gpu
-
     delta_x = image_width/float(max(img_shape))
     delta_s = float(detector_width)/nd
 
@@ -568,9 +613,9 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     :rtype:  :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share \
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
     dtype = sino.dtype
 
@@ -616,9 +661,9 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     :rtype: :class:`pyopencl.Event`
     """
 
-    # ensure that all relevant arrays have common data_type
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share\
-        common data type: "+str(sino.dtype)+" and "+str(img.dtype))
+    # ensure that all relevant arrays have common data_type and
+    # compatible dimensions
+    check_compatibility(img, sino, projectionsetting)
 
     dtype = sino.dtype
 
@@ -1063,9 +1108,6 @@ def upload_bufs(projectionsetting, dtype):
     cl.enqueue_copy(projectionsetting.queue, angle_weights_buf,
                     angle_weights.data).wait()
 
-
-
-
     geometry_information = projectionsetting.geometry_information[dtype]
     geometry_buf = cl.Buffer(projectionsetting.queue.context,
                              cl.mem_flags.READ_ONLY,
@@ -1110,7 +1152,7 @@ class ProjectionSettings():
     :param angles:  Determines which angles are considered for
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
-        :math:`[0,\\pi[,\\ [0,2\\pi[`
+        :math:`[0,\\pi[`, :math:`[0,2\\pi[`
         for Radon and fanbeam transform, respectively. Alternatively,
         a list containing all angles
         considered for the projection can be given.
@@ -1906,7 +1948,6 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     function(x.queue, [x.size], None, rhs.data, a, x.data, y.data,
              wait_for=x.events+y.events+rhs.events+wait_for)
     return rhs
-
 
 
 def normest(projectionsetting, number_iterations=50, dtype='float32',
