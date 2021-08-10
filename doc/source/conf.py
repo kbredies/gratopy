@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 # -- Project information -----------------------------------------------------
 
 project = 'gratopy'
-copyright = '2021, Richard Huber, Kristian Bredies'
-author = 'Richard Huber, Kristian Bredies'
+copyright = '2021, Kristian Bredies, Richard Huber'
+author = 'Kristian Bredies, Richard Huber'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1.0.dev0'
