@@ -40,8 +40,9 @@ def check_compatibility(img, sino, projectionsetting):
     Ensures, that img, sino, and projectionsetting have compatible
     dimensions and types.
     """
-    assert (sino.dtype == img.dtype), ("sinogram and image do not share"
-        + "common data type: " + str(sino.dtype)+" and "+str(img.dtype))
+    assert (sino.dtype == img.dtype),\
+        ("sinogram and image do not share"
+         + "common data type: " + str(sino.dtype)+" and "+str(img.dtype))
 
     assert (sino.shape[0:2] == projectionsetting.sinogram_shape), (
         "The dimensions of the sinogram" + str(sino.shape)
@@ -55,17 +56,20 @@ def check_compatibility(img, sino, projectionsetting):
 
     if len(sino.shape) > 2:
         if sino.shape[2] > 1:
-            assert(len(img.shape) > 2), (" The sinogram has a third dimension"
-                + "but the image does not.")
-            assert(sino.shape[2] == img.shape[2]), ("The third dimension"
-                + "(z-direction) of the sinogram is" + str(sino.shape[2])
-                + " and the image's is" + str(img.shape[2])
-                + ", they do not coincide.")
+            assert(len(img.shape) > 2),\
+                (" The sinogram has a third dimension"
+                 + "but the image does not.")
+            assert(sino.shape[2] == img.shape[2]),\
+                ("The third dimension"
+                 + "(z-direction) of the sinogram is" + str(sino.shape[2])
+                 + " and the image's is" + str(img.shape[2])
+                 + ", they do not coincide.")
 
     if len(img.shape) > 2:
         if img.shape[2] > 1:
-            assert(len(sino.shape) > 2), (" The sinogram has a third dimension"
-                + "but the image does not.")
+            assert(len(sino.shape) > 2),\
+                (" The sinogram has a third dimension"
+                 + "but the image does not.")
 
 
 def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
@@ -707,8 +711,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         / detector_width
 
     # ensure that indeed detector on the opposite side of the source
-    assert (source_detector_dist > source_origin_dist), ('The origin is not '
-        + 'between detector and source')
+    assert (source_detector_dist > source_origin_dist),\
+        ('The origin is not '
+         + 'between detector and source')
 
     # In case no image_width is predetermined, image_width is chosen in
     # a way that the (square) image is always contained inside
@@ -730,8 +735,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     # ensure that source is outside the image domain
     # (otherwise fanbeam is not continuous in classical L2)
     assert (image_width*0.5*np.sqrt(1+(min(img_shape)/max(img_shape))**2)
-        + np.linalg.norm(midpointshift) < source_origin_dist), (
-        'The source is not outside the image domain')
+            + np.linalg.norm(midpointshift) < source_origin_dist),\
+        ('The source is not outside the image domain')
 
     # Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center)
@@ -947,10 +952,11 @@ def read_angles(angles, geometry, fullangle):
             # case where first entry is integer, i.e. the number of angles to
             # separate the angular range into, i.e. angles[i] = (n_a,a,b)
             if isinstance(angles[j][0], int):
-                assert(len(angles[j]) == 3), ("When integer is given as a "
-                    + "parameter, also angular bounds need to be given, i.e."
-                    + " tuple with number of angles and upper and lower limit "
-                    + "of range to be discretized")
+                assert(len(angles[j]) == 3),\
+                    ("When integer is given as a "
+                     + "parameter, also angular bounds need to be given, i.e."
+                     + " tuple with number of angles and upper and lower "
+                     + "limit of range to be discretized")
 
                 # separate angular range (a,b) into na angles
                 na = angles[j][0]
@@ -961,16 +967,16 @@ def read_angles(angles, geometry, fullangle):
                 angular_range.append((a, b, ))
 
             # case where a list of angles is given in the tuple
-            if isinstance(angles[j][0], (list,np.ndarray)):
+            if isinstance(angles[j][0], (list, np.ndarray)):
                 angles_current = np.array(angles[j][0])
                 # try to access the angular_range information if given
-                try:
+                if len(angles[j]) >= 2:
                     a = angles[j][1]
-                except:
+                else:
                     a = None
-                try:
+                if len(angles[j]) >= 3:
                     b = angles[j][2]
-                except:
+                else:
                     b = None
                 angular_range.append((a, b))
 
@@ -995,11 +1001,10 @@ def read_angles(angles, geometry, fullangle):
 
             # add suitable new angles, at front and beg
             current_boundaries = angular_range[j]
-            angles_sorted_extended = np.array(np.hstack([2*current_boundaries[0]
-                                                    - angles_sorted[0],
-                                                     angles_sorted,
-                                                     2*current_boundaries[1]
-                                                     - angles_sorted[-1]]))
+            angles_sorted_extended = np.array(np.hstack
+                ([2*current_boundaries[0] - angles_sorted[0],
+                  angles_sorted,
+                  2*current_boundaries[1] - angles_sorted[-1]]))
 
             # compute differences to neighboring angles to compute the
             # angle_weights
@@ -1395,7 +1400,6 @@ class ProjectionSettings():
                                          detector_shift=self.detector_shift,
                                          image_width=image_width,
                                          midpoint_shift=self.midpoint_shift,
-                                         fullangle=self.fullangle,
                                          reverse_detector=self.reverse_detector
                                          )
 
@@ -1425,7 +1429,6 @@ class ProjectionSettings():
                                        image_width=self.image_width,
                                        midpoint_shift=self.midpoint_shift,
                                        detector_shift=self.detector_shift,
-                                       fullangle=self.fullangle,
                                        )
 
             # extract relevant information from struct and write as attribute
@@ -1437,7 +1440,6 @@ class ProjectionSettings():
             self.angle_weights_buf = self.struct[4]
             self.angle_weights = self.angle_weights_buf[
                                             np.dtype("float")].copy()
-
 
     def ensure_dtype(self, dtype):
         """
@@ -1779,7 +1781,7 @@ class ProjectionSettings():
                 sys.stdout.write('\rProgress at {:3.0%}'
                                  .format(float(x)/Nx))
             for y in range(Ny):
-                #compute projection for delta peaks in x,y and write onto sino
+                # compute projection for delta peaks in x,y and write onto sino
                 projection_from_single_pixel(x, y, sino)
                 sinonew = sino.get()
                 pos = pos_1(x, y)
@@ -2072,7 +2074,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         x0 = clarray.zeros(projectionsetting.queue, dimensions,
                            sino.dtype, order)
 
-    assert(x0.flags.c_contiguous == sino.flags.c_contiguous),(
+    assert(x0.flags.c_contiguous == sino.flags.c_contiguous), (
         "The data sino and initial guess x0 must have the same contiguity!")
 
     x = x0.copy()
@@ -2111,7 +2113,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         # break if relative residue is smaller than given epsilon
         if residue < epsilon:
             print('\rProgress aborted prematurely as desired'
-                             + 'precision is reached')
+                  + 'precision is reached')
             break
 
     print("\rCG reconstruction complete")
