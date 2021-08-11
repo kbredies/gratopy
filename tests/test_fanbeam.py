@@ -532,8 +532,7 @@ def test_fullangle():
                                            R=R, RE=RE,
                                            detector_width=Detector_width,
                                            detector_shift=shift,
-                                           fullangle=False,
-                                           angular_range=angular_range)
+                                           fullangle=False)
 
     PSincorrect = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                              img_gpu.shape, angles, Ns,
@@ -798,7 +797,7 @@ def test_range_check_walnut():
     the forward projection of this solution corresponds to the projection
     of data onto the range of the operator. As depicted in the
     plots of the residual data shown by this test,
-    the walnut projection data admit, after midpoint adjustment, 
+    the walnut projection data admit, after midpoint adjustment,
     only slight intensity variations as systematic error.
 
     .. [HHKKNS2015] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and

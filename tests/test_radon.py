@@ -497,14 +497,11 @@ def test_fullangle():
                                            img_gpu.shape, angles, Ns,
                                            detector_width=detector_width,
                                            detector_shift=shift,
-                                           fullangle=False,
-                                           angular_range=angular_range)
+                                           fullangle=False)
     PSincorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
                                              img_gpu.shape, angles, Ns,
                                              detector_width=detector_width,
-                                             detector_shift=shift,
-                                             fullangle=True,
-                                             )
+                                             detector_shift=shift)
 
     # forward and backprojection for the two settings
     sino_gpu_correct = gratopy.forwardprojection(img_gpu, PScorrect)
