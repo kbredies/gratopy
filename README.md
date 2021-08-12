@@ -43,7 +43,7 @@ Alternatively, if no dedicated installation is needed for the toolbox, the code 
 
 
 * [pyopencl>=2019.1](https://pypi.org/project/pyopencl/)
-* [numpy>=1.16.0](https://pypi.org/project/numpy/)
+* [numpy>=1.17.0](https://pypi.org/project/numpy/)
 * [scipy>=1.3.0](https://pypi.org/project/scipy/)
 * [matplotlib>=3.2.0](https://pypi.org/project/matplotlib/)
 * [Pillow>=6.0.0](https://pypi.org/project/Pillow/)
