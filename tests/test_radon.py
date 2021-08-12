@@ -486,8 +486,6 @@ def test_fullangle():
     # angles cover only a part of the angular range, angles is a list of angles
     # while angular_range discribes the intervall covered by it
     angles = np.linspace(0, np.pi*3/4., 180)+np.pi/8
-    delta = np.pi*3/4.*0.5/179
-    angular_range = (np.pi/8-delta, np.pi*3/4.+np.pi/8+delta)
     # Alternatively, angular_range = [] (or simply not setting the value)
     # yields the same result for these concrete angles
 
@@ -563,6 +561,17 @@ def test_fullangle():
                              expected_result=2409.5415, classified="img",
                              name="backprojected image with incorrect"
                              + "fullangle setting")
+
+    # repair by setting angle_weights Suitable
+    PSincorrect.set_angle_weights(PScorrect.angle_weights)
+    backprojected_incorrect = gratopy.backprojection\
+        (sino_gpu_correct, PSincorrect).get()
+
+    evaluate_control_numbers(backprojected_incorrect,
+                             (N, N, Ns, len(angles), 2),
+                             expected_result=1357.2650, classified="img",
+                             name="backprojected image with correction on "
+                             + "incorrect fullangle setting")
 
 
 def test_nonquadratic():
@@ -770,6 +779,131 @@ def test_midpoint_shift():
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
                              expected_result=3570.1789,
                              classified="img", name="backprojected image")
+
+
+def test_angle_input_variant():
+    """
+    Illustrates how in a limited angle situation the angles can be centered
+    showing various different possible possibilities and there results.
+    """
+    # create PyopenCL context
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    # create test image
+    dtype = np.dtype("float32")
+    N = 300
+    img_gpu = create_phantoms(queue, N, dtype=dtype)
+
+    # Create lists to save various cases for angle inputs
+    # and the expected results
+    Angles = []
+    Angles_expected = []
+    Angle_weights_expected = []
+    Fullangle = []
+
+    # consider angles [0,pi/100,... 99*pi/100]
+    Angles.append(np.linspace(0, np.pi, 101)[:-1])
+    Angles_expected.append(np.linspace(0, np.pi, 101)[:-1])
+    Angle_weights_expected.append(np.ones(100)*np.pi/100)
+    Fullangle.append(True)
+
+    # consider angles [0,pi/300,...pi*99/300,pi/3, pi/3+pi/150,
+    # ...pi*99/150, pi*2/3,... pi*299/300]
+    Angles.append([np.linspace(0, np.pi/3, 101)[:-1],
+                   np.linspace(np.pi/3, np.pi*2./3, 51)[:-1],
+                   np.linspace(np.pi*2/3, np.pi, 101)[:-1]])
+    Angles_expected.append(list(np.arange(0, np.pi/3-0.00001, np.pi/300))
+                           + list(np.arange(np.pi/3, np.pi*2/3-0.00001,
+                                            np.pi/150))
+                           + list(np.arange(np.pi*2/3, np.pi-0.00001,
+                                            np.pi/300)))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/300)
+                                  + list(np.ones(50)*np.pi/150)
+                                  + list(np.ones(100)*np.pi/300))
+    Fullangle.append(False)
+    # Consider multiple ways to define angles,
+    # [(pi/400,pi*3/400... pi*99/400),
+    # (pi*101/400, ... pi*199/400),
+    # (pi*201/400,299/400)
+    # (pi*301/400, 399/400)]
+    Angles.append([np.linspace(0, np.pi/4, 51)[:-1]+np.pi/400,
+                  (np.linspace(np.pi/4+np.pi/400, np.pi/2-np.pi/400, 50)),
+                  (50, np.pi/2, np.pi*3/4),
+                  (np.linspace(np.pi*3/4, np.pi, 51)[:-1]+np.pi/4/100,
+                   None, np.pi)])
+    Angles_expected.append(list(np.arange(np.pi/400, np.pi-0.00001,
+                                np.pi/200)))
+    Angle_weights_expected.append(np.ones(200)*np.pi/200)
+    Fullangle.append(False)
+
+    # the interval (0,np.pi/3) is partioned
+    # in 50 angles via np.pi/300,.. np.pi*99/300
+    # and  interval (np.pi*2/3) is discretized in 50 angles
+    # via np.pi*201/300 ... np.pi*299/300
+    Angles.append([(50, 0, np.pi/3), (50, np.pi*2/3, np.pi)])
+    Angles_expected.append(list(np.arange(np.pi/300, np.pi/3-0.00001,
+                                          np.pi/150))
+                           + list(np.arange(np.pi*201/300, np.pi-0.00001,
+                                            np.pi/150)))
+    Angle_weights_expected.append(np.ones(100)*np.pi/150)
+    Fullangle.append(False)
+
+    # Only a single angle pi/2 partitions (0,pi)
+    Angles.append([(1, 0, np.pi)])
+    Angles_expected.append(np.pi/2)
+    Angle_weights_expected.append([np.pi])
+    Fullangle.append(True)
+
+    # Partion of angles from 0 to 2 pi (altough only (0,pi) is supposed to be
+    # considered) For Fullangle this yields the expected results, while for
+    #  Fullangle=True the weights are halved
+    # as all angles are taken modulo pi
+    Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
+    Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/50))
+    Fullangle.append(False)
+
+    Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
+    Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
+    Fullangle.append(True)
+
+    detector_width = 4
+    image_width = 4
+    Ns = int(0.5*N)
+
+    for j in range(len(Angles)):
+        angles = Angles[j]
+        PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_gpu.shape,
+                                        angles,
+                                        Ns, image_width=image_width,
+                                        detector_width=detector_width,
+                                        detector_shift=0,
+                                        fullangle=Fullangle[j])
+
+        sino_gpu = gratopy.forwardprojection(img_gpu, PS)
+        backprojection_gpu = gratopy.backprojection(sino_gpu, PS)
+
+        # Check wether angles were created as expected
+        assert(np.linalg.norm(PS.angles - np.array(Angles_expected[j]))
+               < 0.01),\
+            (" The angles in "+str(j)+".th "
+             + "case-studie were not as expected")
+        assert(np.linalg.norm(PS.angle_weights
+               - np.array(Angle_weights_expected[j]))
+               < 0.001),\
+            (" The angles_weights in "+str(j)+".th "
+             + "case-studie were not as expected")
+        if PLOT:
+            plt.figure(j)
+            plt.subplot(1, 2, 1)
+            plt.imshow(sino_gpu.get()[:, :, 0])
+            plt.subplot(1, 2, 2)
+            plt.imshow(backprojection_gpu.get()[:, :, 0])
+
+    if PLOT:
+        plt.show()
 
 
 # test

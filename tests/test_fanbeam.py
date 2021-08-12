@@ -605,6 +605,16 @@ def test_fullangle():
                              name="backprojected image with incorrect"
                              + " fullangle setting")
 
+    # repair by setting angle_weights Suitable
+    PSincorrect.set_angle_weights(PScorrect.angle_weights)
+    backprojected_incorrect = gratopy.backprojection\
+        (sino_gpu_correct, PSincorrect).get()
+
+    evaluate_control_numbers(backprojected_incorrect,
+                             (N, N, Ns, len(angles), 2),
+                             expected_result=14025.02, classified="img",
+                             name="backprojected image with correction on "
+                             + "incorrect fullangle setting")
 
 def test_midpoint_shift():
     """

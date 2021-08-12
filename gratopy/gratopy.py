@@ -989,6 +989,13 @@ def read_angles(angles, geometry, fullangle):
             angles_sorted = np.sort(angles_current)
             current_angles_index = np.argsort(angles_current)
 
+            assert(len(angles_sorted)>=2)\
+                or (angles[j][0] is not None
+                    and angular_range[j][1] is not None),\
+                ("Only a single angle is given, but no angular_information was"
+                 + " given by the user.")
+
+
             # insert suitable angular range if it was not given beforehand
             if angular_range[j][0] is None:
                 angular_range[j] = (1.5*angles_sorted[0]
@@ -1450,6 +1457,73 @@ class ProjectionSettings():
         if dtype not in self.buf_upload:
             upload_bufs(self, dtype)
             self.buf_upload[dtype] = 1
+
+    def set_angle_weights(self, angle_weights):
+        """
+        Allows to set the angle_weights in the projection-setting to
+        arbitrary values.
+
+        :param angle_weights: The array with angles_weights to set to.
+        :type angle_weights: :class:`numpy.ndarray`
+
+        """
+
+        if self.is_parallel:
+            self.struct = radon_struct(self.queue, self.img_shape,
+                                       self.angles,
+                                       angle_weights=angle_weights,
+                                       n_detectors=self.n_detectors,
+                                       detector_width=self.detector_width,
+                                       image_width=self.image_width,
+                                       midpoint_shift=self.midpoint_shift,
+                                       detector_shift=self.detector_shift,
+                                       )
+
+            self.ofs_buf = self.struct[0]
+            self.angle_weights_buf = self.struct[4]
+            self.angle_weights = self.angle_weights_buf[
+                                            np.dtype("float")].copy()
+        if self.is_fan:
+            self.struct = fanbeam_struct(self.queue, self.img_shape,
+                                         self.angles,
+                                         angle_weights=angle_weights,
+                                         detector_width=self.detector_width,
+                                         source_detector_dist=self.R,
+                                         source_origin_dist=self.RE,
+                                         n_detectors=self.n_detectors,
+                                         detector_shift=self.detector_shift,
+                                         image_width=self.image_width,
+                                         midpoint_shift=self.midpoint_shift,
+                                         reverse_detector=self.reverse_detector
+                                         )
+
+            # extract relevant information from struct and write as attribute
+            self.ofs_buf = self.struct[2]
+            self.angle_weights_buf = self.struct[6]
+            self.angle_weights = self.angle_weights_buf[
+                                            np.dtype("float")].copy()
+
+        # Make sure bufs are uploaded if necesary
+        for dtype in [np.dtype("float32"), np.dtype("float64")]:
+            if dtype in self.buf_upload:
+                ofs = self.ofs_buf[dtype]
+                ofs_buf = cl.Buffer(self.queue.context,
+                                    cl.mem_flags.READ_ONLY, ofs.nbytes)
+                cl.enqueue_copy(self.queue, ofs_buf, ofs.data).wait()
+
+                # upload angle_weights
+                angle_weights = self.angle_weights_buf[dtype]
+                angle_weights_buf = cl.Buffer(self.queue.context,
+                                              cl.mem_flags.READ_ONLY,
+                                              angle_weights.nbytes)
+                cl.enqueue_copy(self.queue, angle_weights_buf,
+                                angle_weights.data).wait()
+
+                self.ofs_buf[dtype] = ofs_buf
+                self.angle_weights_buf[dtype] = angle_weights_buf
+
+
+
 
     def show_geometry(self, angle, figure=None, axes=None, show=True):
         """ Visualize the geometry associated with the projection settings.
