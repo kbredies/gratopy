@@ -72,7 +72,7 @@ The requirements.txt file contains references to Python packages
 relevant to the use of gratopy. Amongst them the most relevant ones are
 
 * `pyopencl>=2019.1 <https://pypi.org/project/pyopencl/>`_
-* `numpy>=1.16.0 <https://pypi.org/project/numpy/>`_
+* `numpy>=1.17.0 <https://pypi.org/project/numpy/>`_
 * `scipy>=1.3.0 <https://pypi.org/project/scipy/>`_
 * `matplotlib>=3.2.0 <https://pypi.org/project/matplotlib/>`_
 * `Pillow>=6.0.0 <https://pypi.org/project/Pillow/>`_
