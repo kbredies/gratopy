@@ -312,16 +312,17 @@ def radon_struct(queue, img_shape, angles, n_detectors=None,
 
     :param angles:  Determines which angles are considered for the
         projection.
-    :type angles: :class:`list[float]`
-
-    :param angle_weights: List of the weights associated to the angles, i.e.,
-        how much of the angular range is covered by this angle.
-    :type angle_weights: :class:`list[float]`
+    :type angles: :class:`numpy.ndarray`
 
     :param n_detectors: The number :math:`N_s` of considered (equi-spaced)
         detectors. If :obj:`None`, :math:`N_s` will be chosen as
         :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
+
+    :param angle_weights: The weights associated to the angles, i.e.,
+        how much of the angular range is covered by this angle.
+        This impacts the weighting of rays for the backprojection.
+    :type angle_weights: :class:`numpy.ndarray`
 
     :param detector_width: Physical length of the detector line.
     :type detector_width: :class:`float`, default 2.0
@@ -579,7 +580,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     :param angles:  Determines which angles are considered for the
         projection.
-    :type angles: :class:`list[float]`
+    :type angles: :class:`numpy.ndarray`
 
     :param detector_width: Physical length of the detector line.
     :type detector_width: :class:`float`, default 2.0
@@ -597,9 +598,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int` or :obj:`None`, default :obj:`None`
 
-    :param angle_weights: List of the weights associated to the angles, i.e.,
+    :param angle_weights: The weights associated to the angles, i.e.,
         how much of the angular range is covered by this angle.
-    :type angle_weights: :class:`list[float]`
+        This impacts the weighting of rays for the backprojection.
+    :type angle_weights: :class:`numpy.ndarray`
 
     :param detector_shift: Physical shift of the detector along
         the detector line in detector pixel offsets. Defaults to
@@ -1025,11 +1027,10 @@ def read_angles(angles, angle_weights, projectionsetting):
     elif np.isscalar(angle_weights):
         angle_weights = np.ones(na) * angle_weights
     elif isinstance(angle_weights, (list, np.ndarray)):
-        import pdb;pdb.set_trace()
         assert(na == len(angle_weights)),\
             ("The angle_weights given by the user do not have the same "
              + "length as the number of angles considered")
-        angle_weights=np.array(angle_weights)
+        angle_weights = np.array(angle_weights)
     return angles, angle_weights
 
 
@@ -1059,46 +1060,69 @@ class ProjectionSettings():
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
         :math:`[0,\\pi[`, :math:`[0,2\\pi[`
-        for Radon and fanbeam transform, respectively when fullangle is set
-        :obj:`True` (which it is by default). Alternatively, more precise
-        information can be given:
-        A list containing all angles (as floats in the angular range)
-        considered for the projection can be given
-        , though if they do not encompass the entirety of the angular range
-        (limited angles setting) one should set fullangle = :obj:`False`.
-        In particular when considering a limited angles setting with multiple
-        investigated sections (angular intervals), one can enter a list of
-        lists
-        each serving the purpose of giving the angles inside a section.
-        Note that discretization size of each angle
-        ( half the sum of distances to the two neighboring angles) impacts the
-        computation (in particular of the backprojection). Since for sparse
-        angle this is not possible
-        (due to the outermost angles having only one neighbor),
-        the algorithm will set the weight of those outermost angles  to the
-        distance to the sole neighbor, which is understood as the interval
-        discretized by these angles streching from the first/last angle
-        further outward by half the distance to the second/second to last
-        angle. Alternatively, one can give a list of tuples directly
-        specifying these intervals. These tuples contain as first entry an
-        integer (for uniform partition)
-        or a list of angles, and as second and third entry the lower
-        and upper ends of the angular section to be observed (carefull, this is
-        not the first/last angle but the interval covered by the angles).
-        In any case the attributes angle and angle_weights can be used to
-        observe that indeeed the desired angles and weights were created.
-        Those options for multiple angle sections can also be mixed.
+        for Radon and fanbeam transform, respectively.
+        Alternatively, the angles can be given explicitly as a :class:`list` or
+        :class:`numpy.ndarray`. These two options are associated to the
+        fullangle setting (as opposed to limited angle setting).
 
-    :type angles: :class:`int`, :class:`list[float]`,
-        :class:`list[list[float]]`, :class:`list[tuple(int, float, float)]``
-        or :class:`list[tuple(list[float], float, float)]``
+        For the limited angle setting, there are two ways to go.
+        First one can again use a list of angles
+        and set the :attr:`angle_weigths` (see below) to suitable values.
+
+        Alternatively a :class:`tuple` with (int or list[float], float, float)
+        with an integer or list of angles
+        as first entry and a lower bound and upper bound of the observed
+        angular section (angular interval) as second and  third entries.
+        When this first entry is an integer, the angular interval will be
+        uniformly partitioned by this number of angles (carefull the first
+        and last angles are not the lower/upper bound to ensure
+        uniform weights).
+        In particular when considering a limited angles setting with multiple
+        investigated sections, one can enter a list of such tuples, one for
+        each section.
+
+    :type angles: :class:`int`, :class:`list[float]` / :class:`numpy.ndarray`,
+        :class:`list[tuple(int, float, float)]`
+        or :class:`list[tuple(list[float], float, float)]`/
+        :class:`list[tuple(numpy.ndarray, float, float)]`
 
     :param n_detectors: The number :math:`N_s` of (equi-spaced) detectors
         pixels considered. When :obj:`None`, :math:`N_s`
         will be chosen as :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int`, default :obj:`None`
+
+    :param angle_weights: The weights associated to the angles,
+        which impact the weighting of rays for the backprojection.
+        It is natural to choose them according to a discretization size
+        of the angles
+        in the angular range in question. On the other hand, one might be
+        interested in simply weighting all values the same, e.g., with the
+        value 1, in particular in a sparse angle situation. See
+        :ref:`getting-started` for a more detailed interpretation.
+        When :obj:`None` (by default) is set, the weights are computed based
+        on the angles given as input.
+        In the fullangle setting this automatism considers partition of
+        the full sphere for fanbeam and half sphere for parallel beam
+        by the given angles, i.e., the mean distance
+        from an angle to its two neighbors (in the sense of a torus)
+        is chosen as weight.
+        Similarly, in the limited angle case each angle-section is
+        partitioned by the angles of this section and weights are chosen
+        accordingly.
+        When giving a scalar input, this scalar will be set as the
+        (constant) angle weights for all angles.
+        When giving a :class:`list[float]` or :class:`numpy.ndarray` of
+        suitable length, the angle_weights are set to this input.
+
+
+
+    :type angle_weights: :obj:`None`, :class:`int`,
+        :class:`list[float]` or :class:`numpy.ndarray`,
+        default = :obj:`None`
     :param detector_width: Physical length of the detector.
     :type detector_width: :class:`float`, default 2.0
+
+
 
     :param image_width: Physical size of the image
         indicated by the length of
@@ -1134,17 +1158,6 @@ class ProjectionSettings():
         shift of the image away from center of rotation.
         Defaults to the application of no shift.
     :type midpoint_shift:  :class:`list`, default [0.0, 0.0]
-
-    :param fullangle:
-        Indicates whether the entire angular range is represented by
-        **angles**. If :obj:`True`,
-        the entire angular range (:math:`[0,\\pi[`
-        for parallel beam, :math:`[0,2\\pi[` for fanbeam geometry)
-        is represented. :obj:`False` indicates a limited
-        angle setting, i.e., the angles only represent
-        a discretization of a proper subset of the angular range.
-        This impacts the weights in the backprojection.
-    :type fullangle: :class:`bool`, default :obj:`True`
 
     :param reverse_detector: When :attr:`True`, the detector direction
         is flipped in case of fanbeam geometry, i.e., the positive and
@@ -1191,11 +1204,12 @@ class ProjectionSettings():
     :vartype delta_ratio:  :class:`float`
 
     :ivar angle_weights: Represents the angular discretization
-        width for each angle which are used to weight the projections.
-        In the fullangle case, these sum up to
-        :math:`\\pi` and :math:`2\\pi` for parallel beam and
-        fanbeam geometry respectively, and to the sum of all angle-sections
-        observed in the limited angle (fullangle= :obj:`False`) setting.
+        width for each angle which are used to weight the projections, see
+        parameter angle_weights above. When none was given as input,
+        the angle_weights chosen by the automatism will be written to this
+        variable.
+
+
     :vartype angle_weights: :class:`numpy.ndarray`
 
     :ivar prg:  OpenCL program containing the gratopy OpenCL kernels.

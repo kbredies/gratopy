@@ -16,7 +16,7 @@ environment variable ``GRATOPY_TEST_PLOT`` needs to be set, e.g.
 the command
 
 ::
-   
+
    GRATOPY_TEST_PLOT=true pytest
 
 can be issued in the ``gratopy`` directory.
@@ -32,7 +32,7 @@ Radon transform
 .. autofunction:: tests.test_radon.test_weighting()
 .. autofunction:: tests.test_radon.test_adjointness()
 .. autofunction:: tests.test_radon.test_nonquadratic()
-.. autofunction:: tests.test_radon.test_fullangle()
+.. autofunction:: tests.test_radon.test_limited_angles()
 .. autofunction:: tests.test_radon.test_midpoint_shift()
 .. autofunction:: tests.test_radon.test_create_sparse_matrix()
 
@@ -47,7 +47,7 @@ Fanbeam transform
 .. autofunction:: tests.test_fanbeam.test_weighting()
 .. autofunction:: tests.test_fanbeam.test_adjointness()
 .. autofunction:: tests.test_fanbeam.test_nonquadratic()
-.. autofunction:: tests.test_fanbeam.test_fullangle()
+.. autofunction:: tests.test_fanbeam.test_limited_angles()
 .. autofunction:: tests.test_fanbeam.test_midpoint_shift()
 .. autofunction:: tests.test_fanbeam.test_angle_orientation()
 .. autofunction:: tests.test_fanbeam.test_range_check_walnut()

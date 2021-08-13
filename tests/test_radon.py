@@ -936,6 +936,21 @@ def test_angle_input_variant():
     if PLOT:
         plt.show()
 
+    # Test whether all possible inputs of angles and angle_weights are feasible
+    for j in range(len(Angles)):
+        angles = Angles[j]
+        na = len(Angle_weights_expected[j])
+        for angle_weights in [1, 1., np.ones(na), None]:
+            for geometry in [gratopy.PARALLEL, gratopy.FAN]:
+
+                PS = gratopy.ProjectionSettings(queue, geometry,
+                                                img_gpu.shape, angles, Ns,
+                                                angle_weights=angle_weights,
+                                                image_width=image_width,
+                                                R=8, RE=4,
+                                                detector_width=detector_width,
+                                                detector_shift=0)
+
 
 # test
 if __name__ == '__main__':
