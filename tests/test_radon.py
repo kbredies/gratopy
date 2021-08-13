@@ -174,8 +174,7 @@ def test_projection():
                                     angles,
                                     Ns, image_width=image_width,
                                     detector_width=detector_width,
-                                    detector_shift=0,
-                                    fullangle=True)
+                                    detector_shift=0)
 
     # compute Radon transform for given test images
     sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
@@ -411,8 +410,7 @@ def test_adjointness():
 
     # define projectionsetting
     PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img_shape, angles,
-                                    n_detectors=number_detectors,
-                                    fullangle=True)
+                                    n_detectors=number_detectors)
 
     # define zero images and sinograms
     sino2_gpu = cl.array.zeros(queue, PS.sinogram_shape, dtype=dtype,
@@ -463,10 +461,12 @@ def test_adjointness():
         tests adjointness-errors were bigger than '+str(eps)
 
 
-def test_fullangle():
-    """ Full-angle test. Tests and illustrates the impact of the **fullangle**
-    parameter, in particular showing artifacts resulting from the incorrect
-    use of the limited angle setting.
+def test_limited_angles():
+    """ Limited angle test. Tests and illustrates how to set the angles in case
+    of limited angle situation, in particular showing artifacts resulting
+    from the incorrect use for the limited angle setting. This can be achieved
+    through the format of the angle input, or by setting the angle_weights
+    directly as shown in the test.
     """
 
     # create PyOpenCL context
@@ -485,34 +485,54 @@ def test_fullangle():
 
     # angles cover only a part of the angular range, angles is a list of angles
     # while angular_range discribes the intervall covered by it
-    angles = np.linspace(0, np.pi*3/4., 180)+np.pi/8
-    # Alternatively, angular_range = [] (or simply not setting the value)
-    # yields the same result for these concrete angles
+    na = 180
+    delta = np.pi*3/4/(na-1)
+
+    # define angles as a list/np.array will let gratopy think this is a
+    # fullangle setting (in contratst to the limited angle setting
+    # we want to consider)
+    angles_incorrect = np.linspace(0, np.pi*3/4., na)+np.pi/8
+
+    # For limited angle setting define tuple (or list of tuples) with the
+    # angles and the intervall discretized by this angles
+    angles_correct = (np.linspace(0, np.pi*3/4., na)+np.pi/8,
+                      np.pi/8-delta/2, np.pi*7/8+delta/2)
 
     # create two projecetionsettings, one with the correct "fullangle=False"
     # parameter for limited-angle situation, incorrectly using "fullangle=True"
     PScorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
-                                           img_gpu.shape, angles, Ns,
+                                           img_gpu.shape, angles_correct, Ns,
                                            detector_width=detector_width,
-                                           detector_shift=shift,
-                                           fullangle=False)
+                                           detector_shift=shift)
     PSincorrect = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
-                                             img_gpu.shape, angles, Ns,
-                                             detector_width=detector_width,
+                                             img_gpu.shape, angles_incorrect,
+                                             Ns, detector_width=detector_width,
                                              detector_shift=shift)
+
+    # use the incorrect angles, but set the angle_weights directly
+    PScorrect2 = gratopy.ProjectionSettings(queue, gratopy.PARALLEL,
+                                            img_gpu.shape, angles_incorrect,
+                                            Ns, detector_width=detector_width,
+                                            detector_shift=shift,
+                                            angle_weights=delta)
 
     # forward and backprojection for the two settings
     sino_gpu_correct = gratopy.forwardprojection(img_gpu, PScorrect)
+    sino_gpu_correct2 = gratopy.forwardprojection(img_gpu, PScorrect2)
     sino_gpu_incorrect = gratopy.forwardprojection(img_gpu, PSincorrect)
     backprojected_gpu_correct = gratopy.backprojection(
         sino_gpu_correct, PScorrect)
+    backprojected_gpu_correct2 = gratopy.backprojection(
+        sino_gpu_correct2, PScorrect2)
     backprojected_gpu_incorrect = gratopy.backprojection(sino_gpu_correct,
                                                          PSincorrect)
 
     # write data from gpu onto cpu
     sino_correct = sino_gpu_correct.get()
+    sino_correct2 = sino_gpu_correct2.get()
     sino_incorrect = sino_gpu_incorrect.get()
     backprojected_correct = backprojected_gpu_correct.get()
+    backprojected_correct2 = backprojected_gpu_correct2.get()
     backprojected_incorrect = backprojected_gpu_incorrect.get()
     img = img_gpu.get()
 
@@ -539,36 +559,49 @@ def test_fullangle():
         plt.show()
 
     # Computing controlnumbers to quantitatively verify correctness
-    evaluate_control_numbers(img, (N, N, Ns, len(angles), 2),
+    evaluate_control_numbers(img, (N, N, Ns, len(angles_correct), 2),
                              expected_result=2949.3738,
                              classified="img", name="original image")
 
-    evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles), 2),
-                             expected_result=990.3170, classified="sino",
+    evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles_correct), 2),
+                             expected_result=433.08960, classified="sino",
                              name="sinogram with correct fullangle setting")
 
-    evaluate_control_numbers(sino_incorrect, (N, N, Ns, len(angles), 2),
-                             expected_result=990.3170, classified="sino",
+    evaluate_control_numbers(sino_incorrect,
+                             (N, N, Ns, len(angles_correct), 2),
+                             expected_result=433.08960, classified="sino",
                              name="sinogram with incorrect fullangle setting")
 
-    evaluate_control_numbers(backprojected_correct, (N, N, Ns, len(angles), 2),
+    evaluate_control_numbers(sino_correct2, (N, N, Ns, len(angles_correct), 2),
+                             expected_result=433.08960, classified="sino",
+                             name="second sinogram with correct "
+                             + "fullangle setting")
+
+    evaluate_control_numbers(backprojected_correct,
+                             (N, N, Ns, len(angles_correct), 2),
                              expected_result=1357.2650, classified="img",
                              name="backprojected image"
                              + "with correct fullangle setting")
 
     evaluate_control_numbers(backprojected_incorrect,
-                             (N, N, Ns, len(angles), 2),
+                             (N, N, Ns, len(angles_correct), 2),
                              expected_result=2409.5415, classified="img",
                              name="backprojected image with incorrect"
                              + "fullangle setting")
 
-    # repair by setting angle_weights Suitable
+    evaluate_control_numbers(backprojected_correct2,
+                             (N, N, Ns, len(angles_correct), 2),
+                             expected_result=1357.2650, classified="img",
+                             name="second backprojected image"
+                             + "with correct fullangle setting")
+
+    # repair by setting angle_weights suitable
     PSincorrect.set_angle_weights(PScorrect.angle_weights)
-    backprojected_incorrect = gratopy.backprojection\
-        (sino_gpu_correct, PSincorrect).get()
+    backprojected_incorrect = gratopy.backprojection(sino_gpu_correct,
+                                                     PSincorrect).get()
 
     evaluate_control_numbers(backprojected_incorrect,
-                             (N, N, Ns, len(angles), 2),
+                             (N, N, Ns, len(angles_correct), 2),
                              expected_result=1357.2650, classified="img",
                              name="backprojected image with correction on "
                              + "incorrect fullangle setting")
@@ -663,8 +696,7 @@ def test_create_sparse_matrix():
 
     # define projectionsetting
     PS = gratopy.ProjectionSettings(queue, gratopy.PARALLEL, img.shape, angles,
-                                    n_detectors=number_detectors,
-                                    fullangle=True)
+                                    n_detectors=number_detectors)
 
     # Create corresponding sparse matrix
     sparsematrix = PS.create_sparse_matrix(dtype=dtype, order=order)
@@ -800,42 +832,45 @@ def test_angle_input_variant():
     Angles = []
     Angles_expected = []
     Angle_weights_expected = []
-    Fullangle = []
+
+    # Separate (0,pi) in 100 angles, i.e. [0,pi/100,... 99*pi/100]
+    Angles.append(100)
+    Angles_expected.append(np.linspace(0, np.pi, 101)[:-1])
+    Angle_weights_expected.append(np.ones(100)*np.pi/100)
 
     # consider angles [0,pi/100,... 99*pi/100]
     Angles.append(np.linspace(0, np.pi, 101)[:-1])
     Angles_expected.append(np.linspace(0, np.pi, 101)[:-1])
     Angle_weights_expected.append(np.ones(100)*np.pi/100)
-    Fullangle.append(True)
 
     # consider angles [0,pi/300,...pi*99/300,pi/3, pi/3+pi/150,
     # ...pi*99/150, pi*2/3,... pi*299/300]
-    Angles.append([np.linspace(0, np.pi/3, 101)[:-1],
-                   np.linspace(np.pi/3, np.pi*2./3, 51)[:-1],
-                   np.linspace(np.pi*2/3, np.pi, 101)[:-1]])
+    Angles.append(list(np.linspace(0, np.pi/3, 101)[:-1])
+                  + list(np.linspace(np.pi/3, np.pi*2./3, 51)[:-1])
+                  + list(np.linspace(np.pi*2/3, np.pi, 101)[:-1]))
     Angles_expected.append(list(np.arange(0, np.pi/3-0.00001, np.pi/300))
                            + list(np.arange(np.pi/3, np.pi*2/3-0.00001,
                                             np.pi/150))
                            + list(np.arange(np.pi*2/3, np.pi-0.00001,
                                             np.pi/300)))
+
     Angle_weights_expected.append(list(np.ones(100)*np.pi/300)
                                   + list(np.ones(50)*np.pi/150)
                                   + list(np.ones(100)*np.pi/300))
-    Fullangle.append(False)
+    Angle_weights_expected[-1][100] = (np.pi/300+np.pi/150)*0.5
+    Angle_weights_expected[-1][150] = (np.pi/300+np.pi/150)*0.5
+
     # Consider multiple ways to define angles,
     # [(pi/400,pi*3/400... pi*99/400),
     # (pi*101/400, ... pi*199/400),
     # (pi*201/400,299/400)
     # (pi*301/400, 399/400)]
-    Angles.append([np.linspace(0, np.pi/4, 51)[:-1]+np.pi/400,
-                  (np.linspace(np.pi/4+np.pi/400, np.pi/2-np.pi/400, 50)),
-                  (50, np.pi/2, np.pi*3/4),
+    Angles.append([(50, np.pi/2, np.pi*3/4),
                   (np.linspace(np.pi*3/4, np.pi, 51)[:-1]+np.pi/4/100,
-                   None, np.pi)])
-    Angles_expected.append(list(np.arange(np.pi/400, np.pi-0.00001,
+                   np.pi*3/4, np.pi)])
+    Angles_expected.append(list(np.arange(np.pi*201/400, np.pi-0.00001,
                                 np.pi/200)))
-    Angle_weights_expected.append(np.ones(200)*np.pi/200)
-    Fullangle.append(False)
+    Angle_weights_expected.append(np.ones(100)*np.pi/200)
 
     # the interval (0,np.pi/3) is partioned
     # in 50 angles via np.pi/300,.. np.pi*99/300
@@ -847,13 +882,11 @@ def test_angle_input_variant():
                            + list(np.arange(np.pi*201/300, np.pi-0.00001,
                                             np.pi/150)))
     Angle_weights_expected.append(np.ones(100)*np.pi/150)
-    Fullangle.append(False)
 
     # Only a single angle pi/2 partitions (0,pi)
     Angles.append([(1, 0, np.pi)])
     Angles_expected.append(np.pi/2)
     Angle_weights_expected.append([np.pi])
-    Fullangle.append(True)
 
     # Partion of angles from 0 to 2 pi (altough only (0,pi) is supposed to be
     # considered) For Fullangle this yields the expected results, while for
@@ -861,13 +894,12 @@ def test_angle_input_variant():
     # as all angles are taken modulo pi
     Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
     Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))
-    Angle_weights_expected.append(list(np.ones(100)*np.pi/50))
-    Fullangle.append(False)
-
-    Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
-    Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))
     Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
-    Fullangle.append(True)
+
+    # Same case but with limited angle
+    Angles.append([(np.linspace(0, 2*np.pi, 101)[:-1]+np.pi/100, 0, 2*np.pi)])
+    Angles_expected.append(np.arange(np.pi/100, 2*np.pi-0.00001, np.pi/50))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/50))
 
     detector_width = 4
     image_width = 4
@@ -879,8 +911,7 @@ def test_angle_input_variant():
                                         angles,
                                         Ns, image_width=image_width,
                                         detector_width=detector_width,
-                                        detector_shift=0,
-                                        fullangle=Fullangle[j])
+                                        detector_shift=0)
 
         sino_gpu = gratopy.forwardprojection(img_gpu, PS)
         backprojection_gpu = gratopy.backprojection(sino_gpu, PS)
@@ -891,7 +922,7 @@ def test_angle_input_variant():
             (" The angles in "+str(j)+".th "
              + "case-studie were not as expected")
         assert(np.linalg.norm(PS.angle_weights
-               - np.array(Angle_weights_expected[j]))
+                              - np.array(Angle_weights_expected[j]))
                < 0.001),\
             (" The angles_weights in "+str(j)+".th "
              + "case-studie were not as expected")

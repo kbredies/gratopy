@@ -292,8 +292,8 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     return myevent
 
 
-def radon_struct(queue, img_shape, angles, angle_weights=None,
-                 n_detectors=None, detector_width=2.0, image_width=2.0,
+def radon_struct(queue, img_shape, angles, n_detectors=None,
+                 angle_weights=None, detector_width=2.0, image_width=2.0,
                  midpoint_shift=[0, 0], detector_shift=0.0):
     """
     Creates the structure storing geometry information required for
@@ -905,162 +905,132 @@ def upload_bufs(projectionsetting, dtype):
     projectionsetting.angle_weights_buf[dtype] = angle_weights_buf
 
 
-def read_angles(angles, geometry, fullangle):
-    # choose equidistant angles in [0,2pi[ or [0,pi]
-    # if no specific angles are given, but simply an integer
-    if isinstance(angles, int):
-        # Only works with fullangle, as otherwise it is unclear how to choose
-        # the angles
-        assert(fullangle is True), (
-            "Only an integer for angle is given, but full_angle is false, "
-            + "so it is unclear how to choose the angular range. Please "
-            + "set fullangle = True when the entire circle is to be "
-            + "considered, or give angles as "
-            + "[(" + str(angles) + ", lower_limit, upper_limit)] with "
-            + "lower_limit, upper_limit form the interval reprsenting "
-            + "the angular range.")
+def read_angles(angles, angle_weights, projectionsetting):
+    """
 
+    """
+    if np.isscalar(angles):
+        na = angles
         # dependent on the geometry, create angles of full / half circle
-        if geometry == 1:
+        if projectionsetting.is_fan:
             angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
-            angles_diff = np.ones(len(angles))*(2*np.pi/len(angles))
-        if geometry == 0:
+            if angle_weights is None:
+                angles_diff = np.ones(len(angles))*(2*np.pi/len(angles))
+        if projectionsetting.is_parallel:
             angles = np.linspace(0, np.pi, angles+1)[:-1]
-            angles_diff = np.ones(len(angles))*(np.pi/len(angles))
-        # make sure list array is considered
-        angles = [angles]
-
+            if angle_weights is None:
+                angles_diff = np.ones(len(angles))*(np.pi/len(angles))
     # In case a list of angles is given, also transform them to
     # list of list/array
-    if isinstance(angles[0], float):
-        angles = [angles]
-
-    # Go through list of angle informations
-    # (the previous cases both lead to this as well)
-    angles_new = []
-    angular_range = []
-    angles_diff = []
-    for j in range(len(angles)):
-        # simplest case where angles is a list of lists/np.array.
-        if isinstance(angles[j], list) or isinstance(angles[j],
-                                                     np.ndarray):
-            angles_current = np.array(angles[j])
-            angular_range.append((None, None))
-
-        # Case of more complex information via tuples
-        if isinstance(angles[j], tuple):
-            # case where first entry is integer, i.e. the number of angles to
-            # separate the angular range into, i.e. angles[i] = (n_a,a,b)
-            if isinstance(angles[j][0], int):
-                assert(len(angles[j]) == 3),\
-                    ("When integer is given as a "
-                     + "parameter, also angular bounds need to be given, i.e."
-                     + " tuple with number of angles and upper and lower "
-                     + "limit of range to be discretized")
-
-                # separate angular range (a,b) into na angles
-                na = angles[j][0]
-                a = angles[j][1]
-                b = angles[j][2]
-                delta = (b-a) / (na)*0.5
-                angles_current = np.linspace(a+delta, b-delta, na)
-                angular_range.append((a, b, ))
-
-            # case where a list of angles is given in the tuple
-            if isinstance(angles[j][0], (list, np.ndarray)):
-                angles_current = np.array(angles[j][0])
-                # try to access the angular_range information if given
-                if len(angles[j]) >= 2:
-                    a = angles[j][1]
-                else:
-                    a = None
-                if len(angles[j]) >= 3:
-                    b = angles[j][2]
-                else:
-                    b = None
-                angular_range.append((a, b))
-
-        # update angles with currently extracted angles
-        angles_new += list(angles_current)
-
-        # compute angle_weights in fullangle setting
-        if fullangle is False:
-            # reorder angles
-            angles_sorted = np.sort(angles_current)
-            current_angles_index = np.argsort(angles_current)
-
-            assert(len(angles_sorted)>=2)\
-                or (angles[j][0] is not None
-                    and angular_range[j][1] is not None),\
-                ("Only a single angle is given, but no angular_information was"
-                 + " given by the user.")
-
-
-            # insert suitable angular range if it was not given beforehand
-            if angular_range[j][0] is None:
-                angular_range[j] = (1.5*angles_sorted[0]
-                                    - 0.5*angles_sorted[1],
-                                    angular_range[j][1])
-            if angular_range[j][1] is None:
-                angular_range[j] = (angular_range[j][0],
-                                    1.5*angles_sorted[-1]
-                                    - 0.5*angles_sorted[-2])
-
-            # add suitable new angles, at front and beg
-            current_boundaries = angular_range[j]
-            angles_sorted_extended = np.array(np.hstack
-                ([2*current_boundaries[0] - angles_sorted[0],
-                  angles_sorted,
-                  2*current_boundaries[1] - angles_sorted[-1]]))
-
-            # compute differences to neighboring angles to compute the
-            # angle_weights
-            angles_diff_temp = 0.5*(abs(angles_sorted_extended
-                                        [2:len(angles_sorted_extended)]
-                                        - angles_sorted_extended
-                                        [0:len(angles_sorted_extended)-2]))
-
-            # update angle_diff with newly computed angle diffs
-            angles_diff += list(angles_diff_temp[current_angles_index])
-
-    # write angles_new and angles_diff as np.arrays (instead of lists)
-    angles_new = np.array(angles_new)
-    angles_diff = np.array(angles_diff)
-
-    # compute angle_weights in case of full angle
-    if fullangle:
-        if geometry == 1:  # fanbeam setting
+    elif np.isscalar(angles[0]):
+        na = len(angles)
+        angles = np.array(angles)
+        if projectionsetting.is_fan:
             # sort angles
-            angles_index = np.argsort(angles_new % (2*np.pi))
-            angles_sorted = angles_new[angles_index] % (2*np.pi)
-            angles_sorted = np.array(np.hstack([-2*np.pi+angles_sorted[-1],
-                                               angles_sorted, angles_sorted[0]
-                                               + 2*np.pi]))
-        if geometry == 0:  # parallel beam setting
+            angles_index = np.argsort(angles % (2*np.pi))
+            angles_sorted = angles[angles_index] % (2*np.pi)
+            angles_extended = np.array(np.hstack([-2*np.pi+angles_sorted[-1],
+                                                  angles_sorted,
+                                                  angles_sorted[0] + 2*np.pi]))
+        if projectionsetting.is_parallel:
             # sort angles
-            angles_index = np.argsort(angles_new % (np.pi))
-            angles_sorted = angles_new[angles_index] % (np.pi)
-            angles_sorted = np.array(np.hstack([-np.pi+angles_sorted[-1],
-                                               angles_sorted, angles_sorted[0]
-                                               + np.pi]))
+            angles_index = np.argsort(angles % (np.pi))
+            angles_sorted = angles[angles_index] % (np.pi)
+            angles_extended = np.array(np.hstack([-np.pi+angles_sorted[-1],
+                                                  angles_sorted,
+                                                  angles_sorted[0] + np.pi]))
 
         # add first angle at end and last angle at beginning
         # to create full circle, and then compute suitable difference
-        angles_diff = 0.5*(abs(angles_sorted[2:len(angles_sorted)]
-                               - angles_sorted[0:len(angles_sorted)-2]))
-        angles_diff = np.array(angles_diff)
+        angles_diff = 0.5*(abs(angles_extended[2:na+2]
+                               - angles_extended[0:na]))
         angles_diff = angles_diff[angles_index]
 
         # Special case when an angle appears twice (particular when angles in
         # [0,2pi] are considered instead of [0,pi] and mod pi has same value)
-        for i in range(len(angles)-1):
-            if abs(angles_sorted[i+1] - angles_sorted[i+2]) < 0.00001:
+        for i in range(na-2):
+            if abs(angles_sorted[i+1] - angles_sorted[i+2]) < 0.000001:
                 val = (angles_diff[angles_index[i]]
                        + angles_diff[angles_index[i+1]])*0.5
                 angles_diff[angles_index[i+1]] = val
                 angles_diff[angles_index[i]] = val
 
-    return angles_new, angles_diff
+    # Go through list of angle informations
+    # (the previous cases both lead to this as well)
+    elif isinstance(angles[0],tuple) or isinstance(angles,tuple):
+        if isinstance(angles, tuple):
+            angles=[angles]
+        na = len(angles)
+        for j in range(na):
+            assert(isinstance(angles[j],tuple)),\
+                ("When giving angles via tuples for limited angle setting "
+                 + " all subsets must be given in tuple form!")
+            assert(len(angles[j]) == 3),\
+                ("When tuples are given for the limited angle setting,"
+                 + " also angular bounds need to be given, i.e., "
+                 + "tuple consists of number of angles or angles themselves "
+                 + "as first entry and lower bound of  angular range as "
+                 + "second, upper bound as third entry!")
+        angles_new = []
+        angular_range = []
+        angles_diff = []
+        for j in range(len(angles)):
+            if isinstance(angles[j][0], int):
+                # separate angular range (a,b) into na angles
+                na = angles[j][0]
+                lower_bound = angles[j][1]
+                upper_bound = angles[j][2]
+                delta = (upper_bound-lower_bound) / (na)*0.5
+                angles_current = np.linspace(lower_bound+delta,
+                                             upper_bound-delta, na)
+
+            # case where a list of angles is given in the tuple
+            if isinstance(angles[j][0], (list, np.ndarray)):
+                angles_current = np.array(angles[j][0])
+                # try to access the angular_range information if given
+                lower_bound = angles[j][1]
+                upper_bound = angles[j][2]
+
+            # update angles with currently extracted angles
+            angles_new += list(angles_current)
+
+            # compute angle_weights in fullangle setting
+            if angle_weights is None:
+                # reorder angles
+                angles_sorted = np.sort(angles_current)
+                angles_index = np.argsort(angles_current)
+
+                # add suitable new angles, at front and beg
+                angles_extended = np.array(np.hstack
+                ([2*lower_bound - angles_sorted[0],
+                  angles_sorted,
+                  2*upper_bound - angles_sorted[-1]]))
+
+                # compute differences to neighboring angles to compute the
+                # angle_weights
+                angles_diff_temp = 0.5*(abs(angles_extended
+                                            [2:len(angles_extended)]
+                                            - angles_extended
+                                            [0:len(angles_extended)-2]))
+
+                # update angle_diff with newly computed angle diffs
+                angles_diff += list(angles_diff_temp[angles_index])
+
+        # write angles_new and angles_diff as np.arrays (instead of lists)
+        angles = np.array(angles_new)
+        na = len(angles)
+
+    if angle_weights is None:
+        angle_weights = np.array(angles_diff)
+    elif np.isscalar(angle_weights):
+        angle_weights = np.ones(na) * angle_weights
+    elif isinstance(angle_weights, (list, np.ndarray)):
+        import pdb;pdb.set_trace()
+        assert(na == len(angle_weights)),\
+            ("The angle_weights given by the user do not have the same "
+             + "length as the number of angles considered")
+        angle_weights=np.array(angle_weights)
+    return angles, angle_weights
 
 
 class ProjectionSettings():
@@ -1268,10 +1238,10 @@ class ProjectionSettings():
     #   pyopencl.
 
     def __init__(self, queue, geometry, img_shape, angles,
-                 n_detectors=None, detector_width=2.0,
-                 image_width=None, R=None, RE=None,
-                 detector_shift=0.0, midpoint_shift=[0., 0.],
-                 fullangle=True,  reverse_detector=False):
+                 n_detectors=None, angle_weights=None, detector_width=2.0,
+                 image_width=None, R=None, RE=None, detector_shift=0.0,
+                 midpoint_shift=[0., 0.],
+                 reverse_detector=False):
 
         self.geometry = geometry
         self.queue = queue
@@ -1350,9 +1320,8 @@ class ProjectionSettings():
                 (float64, 0, 1): self.prg.fanbeam_ad_double_fc,
                 (float64, 1, 1): self.prg.fanbeam_ad_double_cc}
 
-        self.fullangle = fullangle
         # extract suitable angles information
-        angles, angles_diff = read_angles(angles, self.is_fan, self.fullangle)
+        angles, angles_diff = read_angles(angles, angle_weights, self)
         self.n_angles = len(angles)
         self.angle_weights = angles_diff
         self.angles = angles
