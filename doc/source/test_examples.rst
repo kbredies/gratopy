@@ -33,6 +33,7 @@ Radon transform
 .. autofunction:: tests.test_radon.test_adjointness()
 .. autofunction:: tests.test_radon.test_nonquadratic()
 .. autofunction:: tests.test_radon.test_limited_angles()
+.. autofunction:: tests.test_radon.test_angle_input_variants()
 .. autofunction:: tests.test_radon.test_midpoint_shift()
 .. autofunction:: tests.test_radon.test_create_sparse_matrix()
 

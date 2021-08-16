@@ -813,10 +813,11 @@ def test_midpoint_shift():
                              classified="img", name="backprojected image")
 
 
-def test_angle_input_variant():
+def test_angle_input_variants():
     """
-    Illustrates how in a limited angle situation the angles can be centered
-    showing various different possible possibilities and there results.
+    Illustrates all posibilities to set angles and checks the resulting
+    angles and angle_weights, as well as testing the possibility to
+    set the angleweights by the user.
     """
     # create PyopenCL context
     ctx = cl.create_some_context(interactive=False)
