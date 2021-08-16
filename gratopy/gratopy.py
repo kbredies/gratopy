@@ -676,11 +676,14 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :var geo_dict:
         Dictionary mapping the allowed data types to an
         array containing the values
-        [source detector distance, source origin distance,
-        width of a detector_pixel, image midpoint x-coordinate,
-        image midpoint y-coordinate, detector line midpoint,
+        [source detector distance/delta_x, source origin distance/delta_x,
+        width of a detector_pixel relative to width of image_pixels
+        i.e. delta_s/delta_x,
+        image midpoint x-coordinate (in pixels),
+        image midpoint y-coordinate (in pixels),
+        detector line midpoint (in detector-pixels),
         img_shape[0], img_shape[1], sinogram_shape[0],
-        sinogram_shape[1], width of a pixel].
+        sinogram_shape[1], width of an image pixel (delta_x)].
     :vartype geo_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var angles_diff:
@@ -807,10 +810,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
         # collect various geometric information necessary for computations
         geometry_info = np.array([source_detector_dist,
-                                 source_origin_dist, detector_width/nd,
-                                 midpoint_x, midpoint_y, midpoint_detectors,
-                                 img_shape[0], img_shape[1], sinogram_shape[0],
-                                  sinogram_shape[1],
+                                  source_origin_dist, detector_width/nd,
+                                  midpoint_x, midpoint_y, midpoint_detectors,
+                                  img_shape[0], img_shape[1],
+                                  sinogram_shape[0], sinogram_shape[1],
                                   image_width/float(max(img_shape))],
                                  dtype=dtype, order='F')
 
