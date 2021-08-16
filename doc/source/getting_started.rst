@@ -89,7 +89,8 @@ projection and the backprojection. One particular feature is
 that forward projection and backprojection are adjoint operators,
 which is important, for instance, in the 
 context of optimization algorithms. Here, adjointness is achieved
-with respect to natural scalar products in image and sinogram space.
+with respect to natural scalar products in image and sinogram Hilbert space
+that we wish to clarify in the following.
 As described above, the discrete values in an image array are associated
 with values of piecewise constant functions inside square pixels
 (of area :math:`\delta_x^2`) in the image domain.
@@ -119,42 +120,6 @@ setting. When setting **angle_weights** to :math:`\frac {\delta_x^2}{\delta_s}`,
 the operators are adjoint with respect to the standard scalar products
 :math:`\langle \text{img1}, \text{img2} \rangle = \sum_{x,y}\text{img1}_{x,y}\text{img2}_{x,y}`
 and :math:`\langle \text{sino1}, \text{sino2} \rangle = \sum_{s,a} \text{sino1}_{s,a}\text{sino2}_{s,a}`.
-
-Adjointness in gratopy
-''''''''''''''''''''''
-
-Gratopy allows a great variety of settings in which to consider the
-projections, and naturally one wants to consider
-the forward- and backprojection as adjoint operators, in particular in the
-context of optimization algorithms. However, adjointness is a question
-of scalar products on Hilbert spaces and thus has some ambiguity in the choice;
-we wish to clarify in the following. As alluded to before,
-the discrete values in an image array are associated with values of  piecewise
-constant functions over square pixels with area :math:`\delta_x^2`.
-Considering the standard :math:`L^2` space for such functions
-results in the norm :math:`\|\text{img}\|=\sqrt{\sum_{x,y} \delta_x^2 \text{img}_{x,y}^2}` for an image array **img**.
-Similarly, the discrete values of the sinogram are associated with a piecewise
-constant function on the sinogram domain - the cartesian product of an interval of length
-detector_width (detector-position) with the angular domain. Consequently, the logical norm for sinograms is given by
-:math:`\|\text{sino}\|=\sqrt{\sum_{s,a} \delta_s \Delta_a \text{sino}_{s,a}^2}`, where :math:`\Delta_a`
-denotes a weight associated with the :math:`a`.th projection. It is natural to choose these weights as the angular range covered by (in the sense of piecewise constant discretization)
-by the angle in question (as is done by default, for more information on setting these angle_weights see :class:`gratopy.ProjectionSettings`).
-Hence the implementations of the forward and backprojection in gratopy are to be understood in this
-context, and in particular,  are adjoint to each other
-with respect to these spaces, as can be observed in test_adjointness, see :ref:`test-examples`.
-
-Though this is in a sense the inherent discretization and notion of adjointness, it might however be
-in the interest of some users to consider adjointness in different settings.
-These spaces can be altered by setting the angle weights :math:`(\Delta_a)_a`
-to arbitrary values by the user, which also changes the weights in the backprojection,
-always leading to an adjoint operator pair.
-
-For example, all angles can  be weighted equally with 1 in a sparse angle setting where all angles are weighted equally,
-or when setting the angle_weights to :math:`\frac {\delta_x^2}{\delta_s}`,
-the operators are adjoint in the trivial :math:`L^2` norms as sum of squares
-:math:`\sqrt{\sum_{x,y}\text{img}^2_{x,y}}`
-and :math:`\sqrt{\sum_{s,a}\text{sino}^2_{s,a}}`.
-
 
 First example: Radon transform
 ------------------------------
