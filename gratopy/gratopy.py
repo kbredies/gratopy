@@ -959,12 +959,12 @@ def read_angles(angles, angle_weights, projectionsetting):
 
     # Go through list of angle informations
     # (the previous cases both lead to this as well)
-    elif isinstance(angles[0],tuple) or isinstance(angles,tuple):
+    elif isinstance(angles[0], tuple) or isinstance(angles, tuple):
         if isinstance(angles, tuple):
-            angles=[angles]
+            angles = [angles]
         na = len(angles)
         for j in range(na):
-            assert(isinstance(angles[j],tuple)),\
+            assert(isinstance(angles[j], tuple)),\
                 ("When giving angles via tuples for limited angle setting "
                  + " all subsets must be given in tuple form!")
             assert(len(angles[j]) == 3),\
@@ -974,7 +974,6 @@ def read_angles(angles, angle_weights, projectionsetting):
                  + "as first entry and lower bound of  angular range as "
                  + "second, upper bound as third entry!")
         angles_new = []
-        angular_range = []
         angles_diff = []
         for j in range(len(angles)):
             if isinstance(angles[j][0], int):
@@ -1004,9 +1003,10 @@ def read_angles(angles, angle_weights, projectionsetting):
 
                 # add suitable new angles, at front and beg
                 angles_extended = np.array(np.hstack
-                ([2*lower_bound - angles_sorted[0],
-                  angles_sorted,
-                  2*upper_bound - angles_sorted[-1]]))
+                                           ([2*lower_bound - angles_sorted[0],
+                                            angles_sorted,
+                                            2*upper_bound - angles_sorted[-1]])
+                                           )
 
                 # compute differences to neighboring angles to compute the
                 # angle_weights
@@ -1505,9 +1505,6 @@ class ProjectionSettings():
                 self.ofs_buf[dtype] = ofs_buf
                 self.angle_weights_buf[dtype] = angle_weights_buf
 
-
-
-
     def show_geometry(self, angle, figure=None, axes=None, show=True):
         """ Visualize the geometry associated with the projection settings.
         This can be useful in checking that indeed, the correct input
@@ -1956,7 +1953,7 @@ def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
 
     # execute operation
     myevent = function(x.queue, [x.size], None, rhs.data, a, x.data,
-             wait_for=x.events+rhs.events+wait_for)
+                       wait_for=x.events+rhs.events+wait_for)
     rhs.add_event(myevent)
     return rhs
 
@@ -1973,7 +1970,7 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
 
     # execute operation
     myevent = function(x.queue, [x.size], None, rhs.data, a, x.data, y.data,
-             wait_for=x.events+y.events+rhs.events+wait_for)
+                       wait_for=x.events+y.events+rhs.events+wait_for)
     rhs.add_event(myevent)
     return rhs
 
@@ -2140,7 +2137,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     d = sino-forwardprojection(x, projectionsetting)
     p = backprojection(d, projectionsetting)
     q = clarray.empty_like(d, projectionsetting.queue)
-    q_rescaled=q.copy()
+    q_rescaled = q.copy()
     snew = backprojection(d, projectionsetting)
     sold = snew.copy()
 
@@ -2154,8 +2151,8 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
                              / (projectionsetting.delta_s)  # / norm(q)^2
                              * (clarray.vdot(sold, sold)
                                 / clarray.vdot(weight_sinogram(q,
-                                                projectionsetting, q_rescaled)
-                                               , q)).get())
+                                               projectionsetting, q_rescaled),
+                                               q)).get())
 
         equ_mul_add(x, +alpha, p, projectionsetting)  # x += alpha*p
         equ_mul_add(d, -alpha, q, projectionsetting)  # d -= alpha*q
@@ -2248,15 +2245,13 @@ def total_variation(sino, projectionsetting, mu,
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
+    float32 = np.dtype("float32")
+    float64 = np.dtype("float")
     update_lambda_ = {
-            (np.dtype("float32"), 0):
-                projectionsetting.prg.update_lambda_L2_float_f,
-            (np.dtype("float32"), 1):
-                projectionsetting.prg.update_lambda_L2_float_c,
-            (np.dtype("float"), 0):
-                projectionsetting.prg.update_lambda_L2_double_f,
-            (np.dtype("float"), 1):
-                projectionsetting.prg.update_lambda_L2_double_c}
+            (float32, 0): projectionsetting.prg.update_lambda_L2_float_f,
+            (float32, 1): projectionsetting.prg.update_lambda_L2_float_c,
+            (float64, 0): projectionsetting.prg.update_lambda_L2_double_f,
+            (float64, 1): projectionsetting.prg.update_lambda_L2_double_c}
     update_lambda = lambda lamb, Ku, f, sigma, mu, normest, wait_for=[]: \
         lamb.add_event(update_lambda_[lamb.dtype, lamb.flags.c_contiguous]
                        (lamb.queue, lamb.shape, None, lamb.data, Ku.data,
