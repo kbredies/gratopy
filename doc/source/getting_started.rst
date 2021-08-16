@@ -16,10 +16,10 @@ information to create the OpenCL kernels and precomputes as well as saves
 relevant quantities. Thus, virtually all functions of gratopy require an object of this class, usually referred to as **projectionsetting**.
 In particular, gratopy offers the implementation for two different geometric settings, the **parallel beam** and the **fanbeam** setting.
 
-The geometry of the parallel beam setting is mainly defined by the **image_width** -- the physical diameter of the object in question in arbitrary units, e.g., 3 corresponding to 3cm (or m etc.) -- and **detector_width** -- the physical width of the detector in arbitrary units --,
-both parameters of a **projectionsetting**. For most of standard examples for the Radon transform, these parameters coincide, i.e., the detector is exactly as wide as the diameter of the imaged object and thus captures exactly all rays passing through the object.
+The geometry of the parallel beam setting is mainly defined by the **image_width** -- the physical diameter of the object in question in arbitrary units, e.g., 3 corresponding to 3cm (or m, etc.) -- and **detector_width** -- the physical width of the detector in arbitrary units --,
+both parameters of a **projectionsetting**. For most standard examples for the Radon transform, these parameters coincide, i.e., the detector is exactly as wide as the diameter of the imaged object and thus captures exactly all rays passing through the object.
 
-For the fanbeam setting, the physical distance from source to the center of rotation, denoted by **RE**, and the physical distance from the source to the detector, denoted by **R**, are additionally necessary to define
+For the fanbeam setting, the physical distance from the source to the center of rotation, denoted by **RE**, and the physical distance from the source to the detector, denoted by **R**, are additionally necessary to define
 the geometry, see the figures below.
 
 Moreover, the projection requires discretization parameters, i.e., the shape of the image to project from and the number of detector pixels to map to. Note that these transforms are scaling-invariant in the sense that
@@ -46,7 +46,7 @@ Geometry of the parallel beam setting.
 Geometry of the fanbeam setting.
 
 The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`backprojection <gratopy.backprojection>`, which use a **projectionsetting** as the basis for computation and allow to project
-an image **img** onto an sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe the requirements for such images and sinograms, and how to interpret their corresponding values.
+an image **img** onto a sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe the requirements for such images and sinograms, and how to interpret their corresponding values.
 
 .. _compatible:
 
@@ -54,10 +54,10 @@ Images in gratopy
 '''''''''''''''''
 
 An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`
--- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equi-distant quadratic pixels of size :math:`\delta_x=\mathrm{image\_width}/\max\{N_x,N_y\}`,
+-- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equidistant quadratic pixels of size :math:`\delta_x=\mathrm{image\_width}/\max\{N_x,N_y\}`,
 where the associated values correspond to the average mass inside the area covered by each pixel. Usually, we think of the investigated object as being circular and contained in
-the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side length of an rectangular :math:`(N_x,N_y)` grid of quadratic image pixels
-which allow to consider *slim* objects.
+the rectangular image domain of **img**. More generally, **image_width** corresponds to the larger side length of a rectangular :math:`(N_x,N_y)` grid of quadratic image pixels
+which allows considering *slim* objects.
 The image domain is, however, always a rectangle or square
 that is aligned with the *x* and *y* axis.
 When using an image together with **projectionsetting** -- an instance of :class:`gratopy.ProjectionSettings` --  the values :math:`(N_x,N_y)` have to coincide with the attribute **img_shape** of **projectionsetting**, we say they need to be **compatible**. The data type
@@ -72,8 +72,8 @@ Sinograms in gratopy
 
 Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array`  of the shape :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` being the number of detectors and :math:`N_a` being the number of angles for which projections are considered.
 When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**.
-The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equi-distantly partitioning the detector line with detector pixel width
-:math:`\delta_s`. The angles, on the other hand, do not need to be equi-distant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
+The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equidistantly partitioning the detector line with detector pixel width
+:math:`\delta_s`. The angles, on the other hand, do not need to be equidistant or even partition the entire angular range. The values associated with pixels in the sinogram again correspond to the average
 intensity values of a continuous sinogram counterpart. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
 
 Adjointness in gratopy
@@ -82,30 +82,29 @@ Gratopy allows a great variety of settings in which to consider the
 forwardprojection and backprojection. Naturally one wants to consider
 the forward and backprojection as adjoint operators, in particular in the
 context of optimization algorithms. However, adjointness is naturally a question
-of which scalar products are considered on the Hilbert spaces. As eluded to before,
+of which scalar products are considered on the Hilbert spaces. As alluded to before,
 the discrete values in an image array are associated with values of  piecewise
 constant functions inside pixel squares (of size :math:`\delta_x^2`) in an image area.
-Consequently the image array is associated to a piecewise constant function
-on the image domain, and the classical :math:`L^2` norm on this space is considered,
-which boils down to :math:`\sqrt{\sum_{x,y} \delta_x^2 \text{img}_{x,y}^2}` for image array **img**.
+For such piecewise constant functions on the image domain, the classical :math:`L^2` norm is considered,
+resulting in the norm :math:`\sqrt{\sum_{x,y} \delta_x^2 \text{img}_{x,y}^2}` for an image array **img**.
 Similarly, the discrete values of the sinogram are associated to a piecewise
-discrete function on the cartesian product of the angular domain and an interval of length
-detector_width. Correspondingly the natural norm for the sinogram space is given by
-:math:`\sqrt{\sum_{s,a} \delta_s \Delta_a \text{sino}_{s,a})^2}`, where :math:`\Delta_a`
-denotes the angular range covered (in the sense of piecwise constant discretization)
+discrete function on the cartesian product of an interval of length
+detector_width (detector-position) with the angular domain. Correspondingly the natural norm for the sinogram space is given by
+:math:`\sqrt{\sum_{s,a} \delta_s \Delta_a \text{sino}_{s,a}^2}`, where :math:`\Delta_a`
+denotes the angular range covered (in the sense of piecewise constant discretization)
 by the a.th angle (for more information on these angle_weights see :class:`gratopy.ProjectionSettings`).
 Hence the implementations of the forward and backprojection in gratopy are to be understood in this
-context, and in particular the forwardprojection and backwardprojection operator are adjoint
-in the sense of these scalar products, as can be observed in test_adjointness, see :ref:`test-examples`.
+context, and in particular, the forwardprojection and backwardprojection operator are adjoint
+with respect to these scalar products, as can be observed in test_adjointness, see :ref:`test-examples`.
 
-Though this is in a sense the natural discretization, it might be
+Though this is in a sense the natural discretization and sense of adjointness, it might be
 in the interest of some users to consider adjointness in a different sense.
 These spaces can be altered by setting the angle weights :math:`(\Delta_a)_a`
 to desired values by the user, which changes the weights in the backprojection,
-but always leads to an adjoint operator in the sense of  afore
-mentioned norms but with these new weights.
+but always leads to an adjoint operator in the sense of  aforementioned
+norms but with these new weights.
 
-For example all angles can  be weighted equally with 1 in a sparse angle setting,
+For example, all angles can  be weighted equally with 1 in a sparse angle setting,
 or when setting the angle_weights to :math:`\frac {\delta_x^2}{\delta_s}`,
 the operators are adjoint in the trivial norms :math:`\sqrt{\sum_{x,y}\text{img}^2_{x,y}}`
 and :math:`\sqrt{\sum_{s,a}\text{sino}^2_{s,a}}`.
@@ -124,19 +123,21 @@ One can start in Python via
     import matplotlib.pyplot as plt
 
     # discretization parameters
-    number_angles=60
-    number_detector=300
-    Nx=300
+    number_angles = 60
+    number_detector = 300
+    Nx = 300
+    # Alternatively to number_angles one could give as angle input
+    # angles = np.linspace(0, np.pi, number_angles+1)[:-1]
 
     # create pyopencl context
     ctx = cl.create_some_context()
     queue = cl.CommandQueue(ctx)
 
-    # create phantom as test image (a pyopencl.array.Array of dimensions (Nx,Nx))
+    # create phantom as test image (a pyopencl.array.Array of dimensions (Nx, Nx))
     phantom=gratopy.phantom(queue,Nx)
 
     # create suitable projectionsettings
-    PS=gratopy.ProjectionSettings(queue, gratopy.RADON, phantom.shape,
+    PS = gratopy.ProjectionSettings(queue, gratopy.RADON, phantom.shape,
                                   number_angles, number_detector)
 
     # compute forward projection and backprojection of created sinogram
@@ -147,7 +148,7 @@ One can start in Python via
     # plot results
     plt.figure()
     plt.title("Generated Phantom")
-    plt.imshow(phantom.get(),cmap="gray")
+    plt.imshow(phantom.get(), cmap="gray")
 
     plt.figure()
     plt.title("Sinogram")
@@ -173,8 +174,8 @@ The following depicts the plots created by this example.
 Second example: Fanbeam transform
 ---------------------------------
 
-As a second example, we consider a fanbeam geometry which has a detector that is 120 (cm) wide, the distance from the source to the center of rotation is 100 (cm),
-while the distance from source to detector are 200 (cm). We do not choose the **image_width** but rather let gratopy automatically determine a suitable **image_width**. We visualize the defined geometry via the :class:`gratopy.ProjectionSettings.show_geometry` method.
+As a second example, we consider a fanbeam geometry that has a detector that is 120 (cm) wide, the distance from the the source to the center of rotation is 100 (cm),
+while the distance from the source to the detector is 200 (cm). We do not choose the **image_width** but rather let gratopy automatically determine a suitable **image_width**. We visualize the defined geometry via the :class:`gratopy.ProjectionSettings.show_geometry` method.
 ::
 
     # initial import
@@ -184,30 +185,30 @@ while the distance from source to detector are 200 (cm). We do not choose the **
     import matplotlib .pyplot as plt
 
     # discretization parameters
-    number_angles=60
-    number_detector=300
-    image_shape=(500,500)
+    number_angles = 60
+    number_detector = 300
+    image_shape = (500,500)
 
     # create pyopencl context
     ctx = cl.create_some_context()
     queue = cl.CommandQueue(ctx)
 
     # physical parameters
-    my_detector_width=120
-    my_R=200
-    my_RE=100
+    my_detector_width = 120
+    my_R = 200
+    my_RE = 100
 
     # fanbeam setting with automatic image_width
     PS1 = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                         img_shape=image_shape, angles=number_angles,
-			n_detectors=number_detector,
+			                  n_detectors=number_detector,
                         detector_width=my_detector_width, R=my_R,
-			RE=my_RE)
+			                  RE=my_RE)
 
     print("image_width chosen by gratopy: {:.2f}".format((PS1.image_width)))
 
     # fanbeam setting with set image_width
-    my_image_width=80
+    my_image_width = 80
     PS2 = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
         img_shape=image_shape,
         angles=number_angles, n_detectors=number_detector,
@@ -219,7 +220,8 @@ while the distance from source to detector are 200 (cm). We do not choose the **
     PS1.show_geometry(pi/4, figure=fig, axes=axes1, show=False)
     PS2.show_geometry(pi/4, figure=fig, axes=axes2, show=False)
     axes1.set_title("Geometry chosen by gratopy as: {:.2f}".format((PS1.image_width)))
-    axes2.set_title("Geometry for manually-chosen image_width as: {:.2f}".format((my_image_width)))
+    axes2.set_title("Geometry for manually-chosen image_width as: {:.2f}"
+                    .format((my_image_width)))
     plt.show()
 
 Once the geometry has been defined via the **projectionsetting**, forward and backprojections can be used just as for the Radon transform in the first example.
