@@ -465,8 +465,8 @@ def test_limited_angles():
     """ Limited angle test. Tests and illustrates how to set the angles in case
     of limited angle situation, in particular showing artifacts resulting
     from the incorrect use for the limited angle setting. This can be achieved
-    through the format of the angle input, or by setting the angle_weights
-    directly as shown in the test.
+    through the format of the **angles** parameter
+    or by setting the **angle_weights** directly as shown in the test.
     """
 
     # create PyOpenCL context
@@ -815,9 +815,11 @@ def test_midpoint_shift():
 
 def test_angle_input_variants():
     """
-    Illustrates all posibilities to set angles and checks the resulting
-    angles and angle_weights, as well as testing the possibility to
-    set the angleweights by the user.
+    Angle parameter input test.
+    Illustrates all posibilities to specify projection angles, checks 
+    the resulting **angles** and **angle_weights** as well as 
+    tests the possibility 
+    to set the **angle_weights** manually.
     """
     # create PyopenCL context
     ctx = cl.create_some_context(interactive=False)

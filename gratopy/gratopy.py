@@ -1042,11 +1042,11 @@ class ProjectionSettings():
     the projection geometry. Serves as a parameter for virtually all
     gratopy's functions.
 
-    :param queue: OpenCL command queue to which the computations
-        are to be associated.
+    :param queue: The OpenCL command queue with which the computations
+        are associated.
     :type queue: :class:`pyopencl.CommandQueue`
 
-    :param geometry: Represents whether parallel beam (:const:`gratopy.RADON`)
+    :param geometry: Determines whether parallel beam (:const:`gratopy.RADON`)
         or fanbeam geometry (:const:`gratopy.FANBEAM`)
         is considered.
 
