@@ -853,24 +853,46 @@ def test_angle_input_variant():
                                             np.pi/150))
                            + list(np.arange(np.pi*2/3, np.pi-0.00001,
                                             np.pi/300)))
-
     Angle_weights_expected.append(list(np.ones(100)*np.pi/300)
                                   + list(np.ones(50)*np.pi/150)
                                   + list(np.ones(100)*np.pi/300))
     Angle_weights_expected[-1][100] = (np.pi/300+np.pi/150)*0.5
     Angle_weights_expected[-1][150] = (np.pi/300+np.pi/150)*0.5
 
+
+
+    # Same as before, but with np.arrays
+    # consider angles [0,pi/300,...pi*99/300,pi/3, pi/3+pi/150,
+    # ...pi*99/150, pi*2/3,... pi*299/300]
+    Angles.append(np.array(list(np.linspace(0, np.pi/3, 101)[:-1])
+                  + list(np.linspace(np.pi/3, np.pi*2./3, 51)[:-1])
+                  + list(np.linspace(np.pi*2/3, np.pi, 101)[:-1])))
+    Angles_expected.append(list(np.arange(0, np.pi/3-0.00001, np.pi/300))
+                           + list(np.arange(np.pi/3, np.pi*2/3-0.00001,
+                                            np.pi/150))
+                           + list(np.arange(np.pi*2/3, np.pi-0.00001,
+                                            np.pi/300)))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/300)
+                                  + list(np.ones(50)*np.pi/150)
+                                  + list(np.ones(100)*np.pi/300))
+    Angle_weights_expected[-1][100] = (np.pi/300+np.pi/150)*0.5
+    Angle_weights_expected[-1][150] = (np.pi/300+np.pi/150)*0.5
+
+
+
     # Consider multiple ways to define angles,
     # [(pi/400,pi*3/400... pi*99/400),
     # (pi*101/400, ... pi*199/400),
     # (pi*201/400,299/400)
     # (pi*301/400, 399/400)]
-    Angles.append([(50, np.pi/2, np.pi*3/4),
+    Angles.append([(list(np.linspace(0, np.pi/2, 101)[:-1]+np.pi/4/100),
+                  0, np.pi/2),
+                  (50, np.pi/2, np.pi*3/4),
                   (np.linspace(np.pi*3/4, np.pi, 51)[:-1]+np.pi/4/100,
                    np.pi*3/4, np.pi)])
-    Angles_expected.append(list(np.arange(np.pi*201/400, np.pi-0.00001,
+    Angles_expected.append(list(np.arange(np.pi*1/400, np.pi-0.00001,
                                 np.pi/200)))
-    Angle_weights_expected.append(np.ones(100)*np.pi/200)
+    Angle_weights_expected.append(np.ones(200)*np.pi/200)
 
     # the interval (0,np.pi/3) is partioned
     # in 50 angles via np.pi/300,.. np.pi*99/300
