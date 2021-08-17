@@ -948,6 +948,7 @@ def test_range_check_walnut():
                      + "given operator")
 
         plt.show()
+        import pdb;pdb.set_trace()
 
 
 def test_landweber():

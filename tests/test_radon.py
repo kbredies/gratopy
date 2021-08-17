@@ -860,8 +860,6 @@ def test_angle_input_variants():
     Angle_weights_expected[-1][100] = (np.pi/300+np.pi/150)*0.5
     Angle_weights_expected[-1][150] = (np.pi/300+np.pi/150)*0.5
 
-
-
     # Same as before, but with np.arrays
     # consider angles [0,pi/300,...pi*99/300,pi/3, pi/3+pi/150,
     # ...pi*99/150, pi*2/3,... pi*299/300]
@@ -878,8 +876,6 @@ def test_angle_input_variants():
                                   + list(np.ones(100)*np.pi/300))
     Angle_weights_expected[-1][100] = (np.pi/300+np.pi/150)*0.5
     Angle_weights_expected[-1][150] = (np.pi/300+np.pi/150)*0.5
-
-
 
     # Consider multiple ways to define angles,
     # [(pi/400,pi*3/400... pi*99/400),
@@ -963,7 +959,8 @@ def test_angle_input_variants():
     for j in range(len(Angles)):
         angles = Angles[j]
         na = len(Angle_weights_expected[j])
-        for angle_weights in [1, 1., np.ones(na), None]:
+        for angle_weights in [1, 1., np.ones(na),
+                              list(np.ones(na)), None]:
             for geometry in [gratopy.PARALLEL, gratopy.FAN]:
 
                 PS = gratopy.ProjectionSettings(queue, geometry,
