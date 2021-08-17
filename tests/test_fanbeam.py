@@ -1013,7 +1013,7 @@ def test_landweber():
     # Computing controlnumbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(ULW, (Nx, Ny, number_detectors, len(angles), 2),
-                             expected_result=0.89971, classified="img",
+                             expected_result=0.971266, classified="img",
                              name=" Landweber-reconstruction")
 
 
@@ -1079,7 +1079,7 @@ def test_conjugate_gradients():
     # Compute control numbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(UCG, (Nx, Ny, number_detectors, len(angles), 2),
-                             expected_result=0.77610, classified="img",
+                             expected_result=0.75674, classified="img",
                              name=" conjugate gradients reconstruction")
 
 
@@ -1195,13 +1195,13 @@ def test_total_variation():
     [Nx, Ny] = img_shape
     evaluate_control_numbers(UTV,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=-1.164750, classified="img",
+                             expected_result=0.251590, classified="img",
                              name="total-variation reconstruction"
                              + "with true data")
 
     evaluate_control_numbers(UTV2,
                              (Nx, Ny, number_detectors, numberofangles, 1),
-                             expected_result=-1.190727, classified="img",
+                             expected_result=0.038413, classified="img",
                              name="total-variation reconstruction"
                              + "with noisy data")
 

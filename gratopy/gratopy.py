@@ -353,9 +353,9 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
     :type detector_shift: :class:`list[float]`, default 0.0
 
 
-    :return:
-        Tuple (**ofs_dict**, **img_shape**, **sinogram_shape**,
-        **geo_dict**, **angles_diff**).
+    :return: Struct dictionary with the following variables as entries,
+        where the keys are strings of the same names\\:
+    :rtype: :class:`dict`
 
     :var ofs_dict:
         Dictionary containing the relevant angular information as
@@ -459,8 +459,10 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
                                   nd, n_angles], dtype=dtype, order='F')
         geo_dict[dtype] = geometry_info
 
-    return (ofs_dict, img_shape, sinogram_shape, geo_dict,
-            angle_diff_dict)
+    struct = {"ofs_dict": ofs_dict, "img_shape": img_shape,
+              "sinogram_shape": sinogram_shape, "geo_dict": geo_dict,
+              "angle_diff_dict": angle_diff_dict}
+    return struct
 
 
 def fanbeam(sino, img, projectionsetting, wait_for=[]):
@@ -633,9 +635,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         is flipped.
     :type reverse_detector: :class:`bool`, default :obj:`False`
 
-    :return:
-        Tuple (**img_shape**, **sinogram_shape**, **ofs_dict**,
-        **sdpd_dict**, **image_width**, **geo_dict**, **angles_diff**).
+
+    :return: Struct dictionary with the following variables as entries,
+        where the keys are strings of the same names\\:
+    :rtype: :class:`dict`
 
     :var img_shape:
         Tuple of integers :math:`(N_x,N_y)` representing the size
@@ -831,8 +834,11 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
         angle_diff_dict[dtype] = np.array(angle_weights, dtype=dtype)
 
-    return (img_shape, sinogram_shape, ofs_dict, sdpd_dict,
-            image_width, geo_dict, angle_diff_dict)
+    struct = {"img_shape": img_shape, "sinogram_shape": sinogram_shape,
+              "ofs_dict": ofs_dict, "sdpd_dict": sdpd_dict,
+              "image_width": image_width, "geo_dict": geo_dict,
+              "angle_diff_dict": angle_diff_dict}
+    return struct
 
 
 def create_code():
@@ -1226,18 +1232,17 @@ class ProjectionSettings():
         the angle_weights chosen by the automatism will be written to this
         variable.
 
-
     :vartype angle_weights: :class:`numpy.ndarray`
 
     :ivar prg:  OpenCL program containing the gratopy OpenCL kernels.
         For the corresponding code, see :class:`gratopy.create_code`
     :vartype prg:  :class:`gratopy.Program`
 
-    :ivar struct: Various data used in the projection operator.
-        Contains in particular a
-        :class:`numpy.ndarray`
+    :ivar struct: Data used in the projection operator.
+        Contains in particular dictionaries of
+        :class:`numpy.ndarray` associated to precision single and double
         with the angular information necessary for computations.
-    :vartype struct: :class:`tuple`, see :func:`radon_struct` and
+    :vartype struct: :class:`dict` see :func:`radon_struct` and
         :func:`fanbeam_struct` returns
     """
 
@@ -1383,13 +1388,12 @@ class ProjectionSettings():
                                          midpoint_shift=self.midpoint_shift,
                                          reverse_detector=self.reverse_detector
                                          )
-
             # extract relevant information from struct and write as attribute
-            self.ofs_buf = self.struct[2]
-            self.sdpd_buf = self.struct[3]
-            self.image_width = self.struct[4]
-            self.geometry_information = self.struct[5]
-            self.angle_weights_buf = self.struct[6]
+            self.ofs_buf = self.struct["ofs_dict"]
+            self.sdpd_buf = self.struct["sdpd_dict"]
+            self.image_width = self.struct["image_width"]
+            self.geometry_information = self.struct["geo_dict"]
+            self.angle_weights_buf = self.struct["angle_diff_dict"]
             self.angle_weights = self.angle_weights_buf[
                                             np.dtype("float")].copy()
             self.delta_x = self.image_width/max(img_shape)
@@ -1403,7 +1407,7 @@ class ProjectionSettings():
 
             # create radon_struct
             self.struct = radon_struct(queue=self.queue,
-                                       img_shape= self.img_shape,
+                                       img_shape=self.img_shape,
                                        angles=self.angles,
                                        angle_weights=self.angle_weights,
                                        n_detectors=self.n_detectors,
@@ -1414,12 +1418,12 @@ class ProjectionSettings():
                                        )
 
             # extract relevant information from struct and write as attribute
-            self.ofs_buf = self.struct[0]
+            self.ofs_buf = self.struct["ofs_dict"]
             self.delta_x = self.image_width/max(self.img_shape)
             self.delta_s = self.detector_width/self.n_detectors
             self.delta_ratio = self.delta_s/self.delta_x
-            self.geometry_information = self.struct[3]
-            self.angle_weights_buf = self.struct[4]
+            self.geometry_information = self.struct["geo_dict"]
+            self.angle_weights_buf = self.struct["angle_diff_dict"]
             self.angle_weights = self.angle_weights_buf[
                                             np.dtype("float")].copy()
 
@@ -1454,10 +1458,6 @@ class ProjectionSettings():
                                        detector_shift=self.detector_shift,
                                        )
 
-            self.ofs_buf = self.struct[0]
-            self.angle_weights_buf = self.struct[4]
-            self.angle_weights = self.angle_weights_buf[
-                                            np.dtype("float")].copy()
         if self.is_fan:
             self.struct = fanbeam_struct(self.queue, self.img_shape,
                                          self.angles,
@@ -1471,12 +1471,10 @@ class ProjectionSettings():
                                          midpoint_shift=self.midpoint_shift,
                                          reverse_detector=self.reverse_detector
                                          )
-
-            # extract relevant information from struct and write as attribute
-            self.ofs_buf = self.struct[2]
-            self.angle_weights_buf = self.struct[6]
-            self.angle_weights = self.angle_weights_buf[
-                                            np.dtype("float")].copy()
+        self.ofs_buf = self.struct["ofs_dict"]
+        self.angle_weights_buf = self.struct["angle_diff_dict"]
+        self.angle_weights = self.angle_weights_buf[
+                                        np.dtype("float")].copy()
 
         # Make sure bufs are uploaded if necesary
         for dtype in [np.dtype("float32"), np.dtype("float64")]:
