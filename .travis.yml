@@ -4,6 +4,11 @@ python:
   - "3.7"
   - "3.8"
   - "3.9"
+before_install:
+  - if [ $TRAVIS_OS_NAME = "linux" ]; then
+      sudo apt-get -qq update
+      sudo apt-get install pocl
+    fi;
 # command to install dependencies
 install:
   - pip install -r requirements.txt
