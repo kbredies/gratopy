@@ -12,7 +12,7 @@ import gratopy
 plot_parameter = os.environ.get("GRATOPY_TEST_PLOT")
 if (plot_parameter is None):
     plot_parameter = '0'
-if plot_parameter != '0':
+if plot_parameter.lower() not in ['0', 'false']:
     PLOT = True
 else:
     PLOT = False
@@ -146,7 +146,8 @@ def test_projection():
     """
     Basic projection test. Simply computes forward and backprojection
     of the Radon transform for two test images in order to visually confirm
-    the correctness of the method.
+    the correctness of the method. This projection is repeated 10 times to
+    estimate the required time per execution.
     """
 
     print("Projection test")
@@ -390,7 +391,8 @@ def test_adjointness():
     """ Adjointness test. Creates random images
     and sinograms to check whether forward and backprojection are indeed
     adjoint to one another (by comparing the corresponding dual pairings).
-    This comparison is carried out for multiple experiments.
+    This comparison is carried out for 100 experiments to affirm adjointness
+    with some certainty.
     """
     print("Adjointness test")
 
@@ -462,9 +464,11 @@ def test_adjointness():
 
 
 def test_limited_angles():
-    """ Limited angle test. Tests and illustrates how to set the angles in case
+    """
+    Limited angle test. Tests and illustrates how to set the angles in case
     of limited angle situation, in particular showing artifacts resulting
-    from the incorrect use for the limited angle setting. This can be achieved
+    from the incorrect use for the limited angle setting
+    (leading to undesired angle\\_weights). This can be achieved
     through the format of the **angles** parameter
     or by setting the **angle_weights** directly as shown in the test.
     """
@@ -678,7 +682,7 @@ def test_create_sparse_matrix():
     <gratopy.ProjectionSettings.create_sparse_matrix>`
     method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
-    backprojection by matrix multiplication.
+    backprojection via matrix multiplication.
     """
     # create PyOpenCL context
     ctx = cl.create_some_context(interactive=False)
@@ -816,9 +820,9 @@ def test_midpoint_shift():
 def test_angle_input_variants():
     """
     Angle parameter input test.
-    Illustrates all posibilities to specify projection angles, checks 
-    the resulting **angles** and **angle_weights** as well as 
-    tests the possibility 
+    Illustrates all posibilities to specify projection angles, checks
+    the resulting **angles** and **angle_weights** as well as
+    tests the possibility
     to set the **angle_weights** manually.
     """
     # create PyopenCL context

@@ -14,7 +14,7 @@ import gratopy
 plot_parameter = os.environ.get("GRATOPY_TEST_PLOT")
 if (plot_parameter is None):
     plot_parameter = '0'
-if plot_parameter != '0':
+if plot_parameter.lower() not in ['0', 'false']:
     PLOT = True
 else:
     PLOT = False
@@ -153,7 +153,8 @@ def test_projection():
     """
     Basic projection test. Computes the forward and backprojection of
     the fanbeam transform for two test images to visually confirm the
-    correctness of the method.
+    correctness of the method. This projection is repeated 10 times to
+    estimate the required time per execution.
     """
 
     print("Projection test")
@@ -336,7 +337,7 @@ def test_weighting():
     wider than the original object was, as the width of the fan grows linearly
     with the distance it travels. Consequently, also the total mass on the
     detector is rougly the multiplication of the total mass in the
-    object by the ratio of **R** and **RE**. This estimate is verified
+    object by the ratio **R** to **RE**. This estimate is verified
     numerically.
     """
     print("Weighting test")
@@ -400,7 +401,8 @@ def test_adjointness():
     Adjointness test. Creates random images
     and sinograms to check whether forward and backprojection are indeed
     adjoint to one another (by comparing the corresponding dual pairings).
-    This comparison is carried out for multiple experiments.
+    This comparison is carried out for 100 experiments to affirm adjointness
+    with some certainty.
     """
 
     print("Adjointness test")
@@ -475,7 +477,8 @@ def test_adjointness():
 def test_limited_angles():
     """ Limited angle test. Tests and illustrates how to set the angles in case
     of limited angle situation, in particular showing artifacts resulting
-    from the incorrect use for the limited angle setting. This can be achieved
+    from the incorrect use for the limited angle setting
+    (leading to undesired angle\\_weights). This can be achieved
     through the format of the **angles** parameter
     or by setting the **angle_weights** directly as shown in the test.
     """
@@ -719,7 +722,7 @@ def test_angle_orientation():
     """
     Angle orientation test.
     Considers projections with parallel and fanbeam geometry to illustrate that
-    the projection orientation is indeed correct (and not rotated by an angle).
+    the projection orientation is indeed correct (and not somehow rotated).
     """
 
     # create PyopenCL context
@@ -834,7 +837,7 @@ def test_range_check_walnut():
     the forward projection of this solution corresponds to the projection
     of data onto the range of the operator. As depicted in the
     plots of the residual data shown by this test,
-    the walnut projection data admit, after midpoint adjustment,
+    the walnut projection data admit, after detector\\_shift correction,
     only slight intensity variations as systematic error.
 
     .. [HHKKNS2015] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and
@@ -854,7 +857,7 @@ def test_range_check_walnut():
 
     # Geometric and discretization information
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles =  -np.linspace(0, 2*np.pi, 121)[:-1]
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
     # read sinogram data and write to device
@@ -887,10 +890,10 @@ def test_range_check_walnut():
     # Execute conjugate gradients. resulting in the minimal norm least squares
     # solution,
     UCG_correct = gratopy.conjugate_gradients(sino_gpu, PS_correct,
-                                              number_iterations=5,
+                                              number_iterations=50,
                                               x0=mynoise)
     UCG_incorrect = gratopy.conjugate_gradients(sino_gpu, PS_incorrect,
-                                                number_iterations=5,
+                                                number_iterations=50,
                                                 x0=mynoise)
     # The residue is orthogonal to the range of the operator and in particular
     # the projection of the solution is the projection of data onto the range
@@ -948,7 +951,6 @@ def test_range_check_walnut():
                      + "given operator")
 
         plt.show()
-
 
 
 def test_landweber():
@@ -1279,7 +1281,7 @@ def test_create_sparse_matrix():
     <gratopy.ProjectionSettings.create_sparse_matrix>`
     method to create a sparse matrix
     associated with the transform, and tests it by appling forward and
-    backprojection by matrix multiplication.
+    backprojection via matrix multiplication.
     """
 
     # create PyOpenCL context

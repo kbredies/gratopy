@@ -9,8 +9,8 @@ setuptools_ or pip_.
 .. _setuptools: https://pypi.org/project/setuptools/
 .. _pip: https://pypi.org/project/pip/
 
-Installation via pip
---------------------
+Installation in python
+----------------------
 
 The gratopy toolbox can easily be installed using pip_
 ::
@@ -22,10 +22,17 @@ Alternatively, the release can be downloaded from https://github.com/kbredies/gr
 
     pip install .
 
+In case pip is not used, setuptools is also supported for installation via
+::
+
+    python setup.py install
+
 In case installation fails due to the dependency on other packages (see `requirements.txt <https://github.com/kbredies/gratopy/blob/master/requirements.txt>`_), it is advised to install the packages by hand before retrying to install gratopy. In particular, the PyOpenCL package may require some additional
 effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to the documentation of PyOpenCL_.
 
 .. _pyopencl: https://documen.tician.de/pyopencl/
+
+
 
 Testing correct installation
 ----------------------------
@@ -47,7 +54,7 @@ In case multiple OpenCL devices are registered in :mod:`pyopencl`, but the defau
 
     export PYOPENCL_CTX=<context_number>
 
-The context number can, for instance, be determined by
+The context number can, for instance, be determined in python by
 ::
 
    import pyopencl
@@ -69,7 +76,7 @@ Requirements
 ------------
 
 The requirements.txt file contains references to Python packages
-relevant to the use of gratopy. Amongst them the most relevant ones are
+relevant to the use of gratopy. Amongst them the most relevant are
 
 * `pyopencl>=2019.1 <https://pypi.org/project/pyopencl/>`_
 * `numpy>=1.17.0 <https://pypi.org/project/numpy/>`_
