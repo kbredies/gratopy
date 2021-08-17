@@ -11,6 +11,7 @@ A cornerstone in applying projection methods is to define for which geometry the
 Thus, the first step in using gratopy is always creating an instance of :class:`gratopy.ProjectionSettings` defining the geometry, and thus internally precomputing relevant quantities.
 
 .. autoclass:: gratopy.ProjectionSettings
+	:exclude-members: ensure_dtype, set_angle_weights
 	:members:
 
 Transforms
