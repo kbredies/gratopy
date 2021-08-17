@@ -931,19 +931,26 @@ def read_angles(angles, angle_weights, projectionsetting):
 
     """
     if np.isscalar(angles):
-        na = angles
+        na = abs(angles)
+        my_reverse = False
+        if angles < 0:
+            my_reverse = True
         # dependent on the geometry, create angles of full / half circle
         if projectionsetting.is_fan:
-            angles = np.linspace(0, 2*np.pi, angles+1)[:-1]
+            angles = np.linspace(0, 2*np.pi, abs(angles)+1)[:-1]
             if angle_weights is None:
                 angles_diff = np.ones(len(angles))*(2*np.pi/len(angles))
         if projectionsetting.is_parallel:
-            angles = np.linspace(0, np.pi, angles+1)[:-1]
+            angles = np.linspace(0, np.pi, abs(angles)+1)[:-1]
             if angle_weights is None:
                 angles_diff = np.ones(len(angles))*(np.pi/len(angles))
+        if my_reverse:
+            angles = np.flip(angles)
+            if angle_weights is None:
+                angles_diff = np.flip(angles_diff)
     # In case a list of angles is given, also transform them to
     # list of list/array
-    elif np.isscalar(angles[0]):
+    elif (isinstance(angles, (list, np.ndarray)) and np.isscalar(angles[0])):
         na = len(angles)
         angles = np.array(angles)
         if projectionsetting.is_fan:
@@ -997,13 +1004,14 @@ def read_angles(angles, angle_weights, projectionsetting):
         for j in range(len(angles)):
             if isinstance(angles[j][0], int):
                 # separate angular range (a,b) into na angles
-                na = angles[j][0]
+                na = abs(angles[j][0])
                 lower_bound = angles[j][1]
                 upper_bound = angles[j][2]
                 delta = (upper_bound-lower_bound) / (na)*0.5
                 angles_current = np.linspace(lower_bound+delta,
                                              upper_bound-delta, na)
-
+                if angles[j][0] < 0:
+                    angles_current = np.flip(angles_current)
             # case where a list of angles is given in the tuple
             if isinstance(angles[j][0], (list, np.ndarray)):
                 angles_current = np.array(angles[j][0])
@@ -1079,7 +1087,9 @@ class ProjectionSettings():
         the projection. An integer is interpreted as the number :math:`N_a`
         of uniformly distributed angles in the angular range
         :math:`[0,\\pi[`, :math:`[0,2\\pi[`
-        for Radon and fanbeam transform, respectively.
+        for Radon and fanbeam transform, respectively, where for negative
+        integers the same angles according to its modulus but with reversed
+        order are generated.
         Alternatively, the angles can be given explicitly as a :class:`list` or
         :class:`numpy.ndarray`. These two options also imply a full angle
         setting (as opposed to limited angle setting).
@@ -1096,7 +1106,8 @@ class ProjectionSettings():
         uniformly partitioned into this number of angles
         (note that the first
         and last angles are not the lower/upper bounds to ensure
-        uniform angle weights). Otherwise, a list or array
+        uniform angle weights) again in increasing or decreasing order.
+        Otherwise, a list or array
         specifying the individual angles is expected.
         In particular, multiple angular sections can be specified,
         by passing a list of angular range sections.

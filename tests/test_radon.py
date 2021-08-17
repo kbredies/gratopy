@@ -926,6 +926,22 @@ def test_angle_input_variants():
     Angles_expected.append(np.arange(np.pi/100, 2*np.pi-0.00001, np.pi/50))
     Angle_weights_expected.append(list(np.ones(100)*np.pi/50))
 
+    # negative angle_directions
+    Angles.append(-np.linspace(0, np.pi, 101)[:-1])
+    Angles_expected.append(np.arange(0, -(np.pi-0.00001),  -np.pi/100))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
+
+    # reversed angles
+    Angles.append((-100, 0, np.pi))
+    Angles_expected.append(np.flip(np.arange(np.pi/200, np.pi-0.00001,
+                           np.pi/100)))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
+
+    # negative angle_directions
+    Angles.append(-100)
+    Angles_expected.append(np.flip(np.arange(0, (np.pi-0.00001),  np.pi/100)))
+    Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
+
     detector_width = 4
     image_width = 4
     Ns = int(0.5*N)

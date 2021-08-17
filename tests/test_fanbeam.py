@@ -857,7 +857,7 @@ def test_range_check_walnut():
 
     # Geometric and discretization information
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
     img_shape = (600, 600)
 
     # read sinogram data and write to device
@@ -975,7 +975,7 @@ def test_landweber():
 
     # Geometric and discretization quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
     reverse = True
     img_shape = (600, 600)
 
@@ -1040,7 +1040,7 @@ def test_conjugate_gradients():
 
     # geometric quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
     reverse = True
     img_shape = (600, 600)
 
@@ -1103,7 +1103,7 @@ def test_total_variation():
     # relevant quantities
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
     reverse = True
     img_shape = (400, 400)
 
