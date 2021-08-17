@@ -1103,10 +1103,11 @@ class ProjectionSettings():
         :class:`tuple(int, float, float)`
         or :class:`tuple(list[float], float, float)`.
         If the first element is an integer, the angular interval will be
-        uniformly partitioned into this number of angles
+        uniformly partitioned into the modulus number of angles
         (note that the first
         and last angles are not the lower/upper bounds to ensure
-        uniform angle weights) again in increasing or decreasing order.
+        uniform angle weights) again in increasing or decreasing order,
+        depending on the sign.
         Otherwise, a list or array
         specifying the individual angles is expected.
         In particular, multiple angular sections can be specified,
