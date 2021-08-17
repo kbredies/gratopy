@@ -545,7 +545,7 @@ def test_limited_angles():
         plt.figure(1)
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
         plt.figure(2)
-        plt.title("Sinograms with vs without fullangle")
+        plt.title("sinograms with vs. without full angle")
         plt.imshow(np.vstack([np.hstack([sino_correct[:, :, 0],
                                          sino_correct[:, :, 1]]),
                               np.hstack([sino_incorrect[:, :, 0],
@@ -553,7 +553,7 @@ def test_limited_angles():
                    cmap=plt.cm.gray)
 
         plt.figure(3)
-        plt.title("Backprojection with vs without fullangle")
+        plt.title("backprojection with vs. without full angle")
         plt.imshow(np.vstack([np.hstack([backprojected_correct[:, :, 0],
                                          backprojected_correct[:, :, 1]]),
                               np.hstack([backprojected_incorrect[:, :, 0],
@@ -648,7 +648,7 @@ def test_nonquadratic():
     # plot results
     if PLOT:
         plt.figure(1)
-        plt.title("original non square images")
+        plt.title("original non-square images")
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
         plt.figure(2)
         plt.title("Radon sinogram for non-square image")
@@ -795,11 +795,11 @@ def test_midpoint_shift():
         plt.figure(1)
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
         plt.figure(2)
-        plt.title("Sinogram with shifted midpoint")
+        plt.title("sinogram with shifted midpoint")
         plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
                    cmap=plt.cm.gray)
         plt.figure(3)
-        plt.title("Backprojection with shifted midpoint")
+        plt.title("backprojection with shifted midpoint")
         plt.imshow(np.hstack([backprojected[:, :, 0], backprojected[:, :, 1]]),
                    cmap=plt.cm.gray)
         plt.show()

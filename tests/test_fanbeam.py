@@ -215,11 +215,11 @@ def test_projection():
         plt.figure(2)
         plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
                    cmap=plt.cm.gray)
-        plt.title('Fanbeam transformed image')
+        plt.title('fanbeam transformed image')
         plt.figure(3)
         plt.imshow(np.hstack([backprojected[:, :, 0],
                    backprojected[:, :, 1]]), cmap=plt.cm.gray)
-        plt.title('Backprojected image')
+        plt.title('backprojected image')
         plt.show()
 
     # Computing controlnumbers to quantitatively verify correctness
@@ -582,7 +582,7 @@ def test_limited_angles():
         plt.figure(1)
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
         plt.figure(2)
-        plt.title("Sinograms with vs without fullangle")
+        plt.title("sinograms with vs. without full angle")
         plt.imshow(np.vstack([np.hstack([sino_correct[:, :, 0],
                               sino_correct[:, :, 1]]),
                               np.hstack([sino_incorrect[:, :, 0],
@@ -590,7 +590,7 @@ def test_limited_angles():
                    cmap=plt.cm.gray)
 
         plt.figure(3)
-        plt.title("Backprojection with vs without fullangle")
+        plt.title("backprojection with vs. without full angle")
         plt.imshow(np.vstack([np.hstack([backprojected_correct[:, :, 0],
                                          backprojected_correct[:, :, 1]]),
                               np.hstack([backprojected_incorrect[:, :, 0],
@@ -695,11 +695,11 @@ def test_midpoint_shift():
         plt.figure(1)
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
         plt.figure(2)
-        plt.title("Sinogram with shifted midpoint")
+        plt.title("sinogram with shifted midpoint")
         plt.imshow(np.hstack([sino[:, :, 0], sino[:, :, 1]]),
                    cmap=plt.cm.gray)
         plt.figure(3)
-        plt.title("Backprojection with shifted midpoint")
+        plt.title("backprojection with shifted midpoint")
         plt.imshow(np.hstack([backprojected[:, :, 0], backprojected[:, :, 1]]),
                    cmap=plt.cm.gray)
         plt.show()
@@ -777,27 +777,27 @@ def test_angle_orientation():
     # plot results
     if PLOT:
         plt.figure(1)
-        plt.title("Original image 1")
+        plt.title("original image 1")
         plt.imshow(img1)
 
         plt.figure(2)
-        plt.title("Sinogram of parallel setting for image 1")
+        plt.title("sinogram of parallel transformed image 1")
         plt.imshow(sino_par1)
 
         plt.figure(3)
-        plt.title("Sinogram of fanbeam setting for image 1")
+        plt.title("sinogram of fanbeam transformed image 1")
         plt.imshow(sino_fan1)
 
         plt.figure(4)
-        plt.title("Original image 2")
+        plt.title("original image 2")
         plt.imshow(img2)
 
         plt.figure(5)
-        plt.title("Sinogram of parallel setting for image 2")
+        plt.title("sinogram of parallel transformed image 2")
         plt.imshow(sino_par2)
 
         plt.figure(6)
-        plt.title("Sinogram of fanbeam setting for image 2")
+        plt.title("sinogram of fanbeam transformed image 2")
         plt.imshow(sino_fan2)
 
         plt.show()
@@ -846,7 +846,7 @@ def test_range_check_walnut():
                     https://arxiv.org/abs/1502.04064
     """
 
-    # create PyPpenCL context
+    # create PyOpenCL context
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
 
@@ -857,7 +857,7 @@ def test_range_check_walnut():
 
     # Geometric and discretization information
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
+    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
     img_shape = (600, 600)
 
     # read sinogram data and write to device
@@ -911,7 +911,7 @@ def test_range_check_walnut():
     # plot results
     if PLOT:
         plt.figure(1)
-        plt.suptitle("reconstructions of Walnut data via CG")
+        plt.suptitle("reconstructions of walnut data via CG")
         plt.subplot(1, 2, 1)
         plt.title("conjugate gradients reconstruction with shift correction")
         plt.imshow(UCG_correct.get(), cmap=plt.cm.gray)
@@ -922,31 +922,31 @@ def test_range_check_walnut():
 
         plt.figure(2)
         plt.subplot(1, 3, 1)
-        plt.title("Best approximation")
+        plt.title("best approximation")
         plt.imshow(best_approximation_correct.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 2)
-        plt.title("Given data")
+        plt.title("given data")
         plt.imshow(sino_gpu.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 3)
-        plt.title("Residual")
+        plt.title("residual")
         plt.imshow(abs(sino_gpu.get()-best_approximation_correct.get()))
         plt.colorbar()
-        plt.suptitle("Sinogram associated to reconstruction with shift "
+        plt.suptitle("sinogram associated with reconstruction with shift "
                      + "correction, i.e., best possible approximation "
-                     + "with given operator.")
+                     + "with given operator")
 
         plt.figure(3)
         plt.subplot(1, 3, 1)
-        plt.title("Best approximation")
+        plt.title("best approximation")
         plt.imshow(best_approximation_incorrect.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 2)
-        plt.title("Given data")
+        plt.title("given data")
         plt.imshow(sino_gpu.get(), cmap=plt.cm.gray)
         plt.subplot(1, 3, 3)
-        plt.title("Residual")
+        plt.title("residual")
         plt.imshow(abs(sino_gpu.get()-best_approximation_incorrect.get()))
         plt.colorbar()
-        plt.suptitle("Sinogram associated to reconstruction without shift "
+        plt.suptitle("sinogram associated with reconstruction without shift "
                      " correction, i.e., best possible approximation with "
                      + "given operator")
 
@@ -975,7 +975,8 @@ def test_landweber():
 
     # Geometric and discretization quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1]
+    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    reverse = True
     img_shape = (600, 600)
 
     # create projectionsetting
@@ -984,7 +985,8 @@ def test_landweber():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27)
+                                    detector_shift=-0.27,
+                                    reverse_detector=reverse)
 
     # create phantom and compute its sinogram for additional data
     my_phantom = gratopy.phantom(queue, img_shape)
@@ -1034,12 +1036,12 @@ def test_conjugate_gradients():
 
     # load and rescale image
     walnut = mpimg.imread(TESTWALNUTSINOGRAM)
-
     walnut /= np.mean(walnut)
 
     # geometric quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1]
+    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    reverse = True
     img_shape = (600, 600)
 
     # create projectionsetting
@@ -1049,7 +1051,8 @@ def test_conjugate_gradients():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27)
+                                    detector_shift=-0.27,
+                                    reverse_detector=reverse)
 
     my_phantom = gratopy.phantom(queue, img_shape)
     my_phantom_sinogram = gratopy.forwardprojection(my_phantom, PS)
@@ -1100,7 +1103,8 @@ def test_total_variation():
     # relevant quantities
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1]
+    angles =  -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    reverse = True
     img_shape = (400, 400)
 
     # create projectionsetting
@@ -1109,7 +1113,8 @@ def test_total_variation():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27)
+                                    detector_shift=-0.27,
+                                    reverse_detector=reverse)
 
     # load and rescale sinogram
     walnut = mpimg.imread(TESTWALNUTSINOGRAM)
@@ -1169,7 +1174,7 @@ def test_total_variation():
         plt.imshow(np.hstack(
                 [sinoreprojected-walnut, walnut]),
                 cmap=plt.cm.gray)
-        plt.title("comparison residue(left) with true data(right)")
+        plt.title("comparison residual (left) with true data (right)")
 
         plt.figure(4)
         plt.imshow(UTV2, cmap=plt.cm.gray)
@@ -1180,7 +1185,7 @@ def test_total_variation():
         plt.title("reprojected sinogram of solution with noisy data")
 
         plt.figure(6)
-        plt.title("comparison residue(left) with noisy data(right)")
+        plt.title("comparison residual (left) with noisy data (right)")
         plt.imshow(np.hstack(
             [sinoreprojected2-walnut, walnut]),
             cmap=plt.cm.gray)
@@ -1247,7 +1252,7 @@ def test_nonquadratic():
 
         # plot results
         plt.figure(1)
-        plt.title("original non square images")
+        plt.title("original non-square images")
         plt.imshow(np.hstack([img[:, :, 0], img[:, :, 1]]), cmap=plt.cm.gray)
 
         plt.figure(2)
