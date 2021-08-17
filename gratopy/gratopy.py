@@ -1096,7 +1096,7 @@ class ProjectionSettings():
         will be chosen as :math:`\\sqrt{N_x^2+N_y^2}`.
     :type n_detectors:  :class:`int`, default :obj:`None`
 
-    :param angle_weights: The weights :math:`(\Delta_a)_a`
+    :param angle_weights: The weights :math:`(\\Delta_a)_a`
         associated with the angles,
         which influences the weighting of the rays for the backprojection.
         See :ref:`adjointness` for a more detailed description.
