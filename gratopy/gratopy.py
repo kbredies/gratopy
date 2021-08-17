@@ -759,13 +759,13 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     # unit vector associated to the angle
     # (vector showing from source to detector)
     detector_orientation = {True: -1, False: 1}[reverse_detector]
-    thetaX = np.cos(angles+np.pi*0.5)*detector_orientation
-    thetaY = np.sin(angles+np.pi*0.5)*detector_orientation
+    thetaX = np.cos(angles+np.pi*0.5)
+    thetaY = np.sin(angles+np.pi*0.5)
 
     # Direction vector along the detector line normed to the length of a
     # single detector pixel (i.e. delta_s (in the scale of delta_x=1))
-    XD = thetaY*detector_width/nd
-    YD = -thetaX*detector_width/nd
+    XD = thetaY*detector_width/nd*detector_orientation
+    YD = -thetaX*detector_width/nd*detector_orientation
 
     # Direction vector leading to source from origin (with proper length RE)
     Qx = -thetaX*source_origin_dist
@@ -1065,25 +1065,25 @@ class ProjectionSettings():
         :math:`[0,\\pi[`, :math:`[0,2\\pi[`
         for Radon and fanbeam transform, respectively.
         Alternatively, the angles can be given explicitly as a :class:`list` or
-        :class:`numpy.ndarray`. These two options also imply a full angle 
+        :class:`numpy.ndarray`. These two options also imply a full angle
         setting (as opposed to limited angle setting).
 
         A limited angle setting can be specified in two ways.
         First, a list of angular range sections can be passed as input.
         An angular range section is a :class:`tuple` with either
-        an integer or a list/array of angles (first element) together with a 
+        an integer or a list/array of angles (first element) together with a
         pair specifying the lower and upper bound of the angular range
-        interval (second and third element), i.e., of type 
-        :class:`tuple(int, float, float)` 
-        or :class:`tuple(list[float], float, float)`. 
+        interval (second and third element), i.e., of type
+        :class:`tuple(int, float, float)`
+        or :class:`tuple(list[float], float, float)`.
         If the first element is an integer, the angular interval will be
         uniformly partitioned into this number of angles
         (note that the first
         and last angles are not the lower/upper bounds to ensure
-        uniform angle weights). Otherwise, a list or array 
+        uniform angle weights). Otherwise, a list or array
         specifying the individual angles is expected.
-        In particular, multiple angular sections can be specified, 
-        by passing a list of angular range sections. 
+        In particular, multiple angular sections can be specified,
+        by passing a list of angular range sections.
 
         Alternatively, one can use a list of angles
         and set **angle_weigths** (see below) manually
@@ -1100,22 +1100,22 @@ class ProjectionSettings():
         associated with the angles,
         which influences the weighting of the rays for the backprojection.
         See :ref:`adjointness` for a more detailed description.
-        If :obj:`None` (by default), the weights are computed 
+        If :obj:`None` (by default), the weights are computed
         automatically based on the **angles** parameter.
-        In the full angle setting, this automatism considers a partition 
+        In the full angle setting, this automatism considers a partition
         of the half circle for parallel beam
-        and the full circle for fanbeam geometry based on the 
+        and the full circle for fanbeam geometry based on the
         given angles and sets the angle weight to the average of
-        the distances from of an angle to its two neighbors 
+        the distances from of an angle to its two neighbors
         (in the sense of a circle).
         Similarly, in the limited angle case, each angle section is
-        partitioned by the angles associated with this section and 
-        the weights are chosen taking additionally 
-        the boundary of the section into 
+        partitioned by the angles associated with this section and
+        the weights are chosen taking additionally
+        the boundary of the section into
         account.
         In case of a scalar input, this scalar will be used as the
         (constant) angle weight for all angles.
-        Further, all angle weights can directly be set by passing 
+        Further, all angle weights can directly be set by passing
         an input of type :class:`list[float]` or :class:`numpy.ndarray` of
         suitable length.
     :type angle_weights: :obj:`None`, :class:`float`,

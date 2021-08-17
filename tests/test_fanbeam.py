@@ -854,7 +854,7 @@ def test_range_check_walnut():
 
     # Geometric and discretization information
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = np.linspace(0, 2*np.pi, 121)[:-1]
+    angles =  -np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
     # read sinogram data and write to device
@@ -887,10 +887,10 @@ def test_range_check_walnut():
     # Execute conjugate gradients. resulting in the minimal norm least squares
     # solution,
     UCG_correct = gratopy.conjugate_gradients(sino_gpu, PS_correct,
-                                              number_iterations=50,
+                                              number_iterations=5,
                                               x0=mynoise)
     UCG_incorrect = gratopy.conjugate_gradients(sino_gpu, PS_incorrect,
-                                                number_iterations=50,
+                                                number_iterations=5,
                                                 x0=mynoise)
     # The residue is orthogonal to the range of the operator and in particular
     # the projection of the solution is the projection of data onto the range
@@ -948,7 +948,7 @@ def test_range_check_walnut():
                      + "given operator")
 
         plt.show()
-        import pdb;pdb.set_trace()
+
 
 
 def test_landweber():
