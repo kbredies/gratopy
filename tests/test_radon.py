@@ -809,11 +809,11 @@ def test_midpoint_shift():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=1810.5192,
+                             expected_result=2342.26,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
-                             expected_result=3570.1789,
+                             expected_result=6269.703,
                              classified="img", name="backprojected image")
 
 

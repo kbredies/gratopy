@@ -710,19 +710,21 @@ def test_midpoint_shift():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=-613.781,
+                             expected_result=775.469,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
-                             expected_result=14599.89,
+                             expected_result=12217.92,
                              classified="img", name="backprojected image")
 
 
-def test_angle_orientation():
+def test_geometric_orientation():
     """
-    Angle orientation test.
-    Considers projections with parallel and fanbeam geometry to illustrate that
-    the projection orientation is indeed correct (and not somehow rotated).
+    Geometric orientation test.
+    Considers projections with parallel and fanbeam geometry for very simple
+    images in different shifted geometries to illustrate how the geometry of
+    the projection work and that they indeed behave analogously
+    for parallel and fanbeam setting.
     """
 
     # create PyopenCL context
@@ -731,93 +733,137 @@ def test_angle_orientation():
 
     # create test image, first an image which is only active in the upper left
     # corner, and the second active only on the upper side
-    Nx = 1200
+    Nx = 600
     img1 = np.zeros([Nx, Nx])
     img1[0:int(Nx*0.3)][:, 0:int(Nx*0.3)] = 1
     img2 = img1.copy()
     img2[0:int(Nx*0.3)][:, 0:int(Nx)] = 1
 
+    image_width = 94.39
     # Sinogram parameters
     Ns = 300
     angles = 360
 
-    # Define setting for projection
-    PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
-                                        img_shape=img1.shape, angles=angles,
-                                        detector_width=400, RE=200, R=752,
-                                        n_detectors=Ns,
-                                        detector_shift=0,
-                                        image_width=None)
+    # Consider different Parameters for detector_shift and image_shift
+    Parameters = [(0, 0, 0), (50, 0, 0), (0, 20, 0), (0, -20, 0),
+                  (0, 0, 30), (0, 0, -30)]
+    # Corresponding Controlnumber
+    Controlnumbers = [(549.3719, 845.340, 171.913, 526.20),
+                      (-31.3966, -119.031, 271.039, 1283.59),
+                      (1039.13, 1425.09, 455.979, 623.49),
+                      (271.730, 344.363, 9.1860, -208.64),
+                      (178.309, 330.839, 225.540, 324.739),
+                      (-343.86, 407.75, 647.71, 1234.71)]
+    # Go through the parameters
+    for j in range(len(Parameters)):
+        # Set parameters accordingly
+        detector_shift = Parameters[j][0]
+        midpoint_shift = [Parameters[j][1], Parameters[j][2]]
 
-    PS_par = gratopy.ProjectionSettings(queue, gratopy.RADON,
-                                        img_shape=img1.shape, angles=angles,
-                                        n_detectors=Ns,
-                                        detector_shift=0)
+        # Define projectionsetting
+        PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
+                                            img_shape=img1.shape,
+                                            angles=angles,
+                                            detector_width=170, RE=200, R=350,
+                                            n_detectors=Ns,
+                                            detector_shift=detector_shift,
+                                            image_width=image_width,
+                                            midpoint_shift=midpoint_shift)
 
-    # compute the projection of the first image in the parallel setting
-    img_gpu_par1 = clarray.to_device(queue, img1)
-    sino_gpu_par1 = gratopy.forwardprojection(img_gpu_par1, PS_par)
-    sino_par1 = sino_gpu_par1.get()
+        PS_par = gratopy.ProjectionSettings(queue, gratopy.RADON,
+                                            img_shape=img1.shape,
+                                            angles=angles,
+                                            image_width=image_width,
+                                            detector_width=image_width,
+                                            n_detectors=Ns,
+                                            detector_shift=detector_shift,
+                                            midpoint_shift=midpoint_shift)
 
-    # compute the projection of the first image in the fanbeam setting
-    img_gpu_fan1 = clarray.to_device(queue, img1)
-    sino_gpu_fan1 = gratopy.forwardprojection(img_gpu_fan1, PS_fan)
-    sino_fan1 = sino_gpu_fan1.get()
+        # compute the projection of the first image in the parallel setting
+        img_gpu_par1 = clarray.to_device(queue, img1)
+        sino_gpu_par1 = gratopy.forwardprojection(img_gpu_par1, PS_par)
+        sino_par1 = sino_gpu_par1.get()
 
-    # compute the projection of the second image in the parallel setting
-    img_gpu_par2 = clarray.to_device(queue, img2)
-    sino_gpu_par2 = gratopy.forwardprojection(img_gpu_par2, PS_par)
-    sino_par2 = sino_gpu_par2.get()
+        # compute the projection of the first image in the fanbeam setting
+        img_gpu_fan1 = clarray.to_device(queue, img1)
+        sino_gpu_fan1 = gratopy.forwardprojection(img_gpu_fan1, PS_fan)
+        sino_fan1 = sino_gpu_fan1.get()
 
-    # compute the projection of the second image in the fanbeam setting
-    img_gpu_fan2 = clarray.to_device(queue, img2)
-    sino_gpu_fan2 = gratopy.forwardprojection(img_gpu_fan2, PS_fan)
-    sino_fan2 = sino_gpu_fan2.get()
+        # compute the projection of the second image in the parallel setting
+        img_gpu_par2 = clarray.to_device(queue, img2)
+        sino_gpu_par2 = gratopy.forwardprojection(img_gpu_par2, PS_par)
+        sino_par2 = sino_gpu_par2.get()
 
-    # plot results
+        # compute the projection of the second image in the fanbeam setting
+        img_gpu_fan2 = clarray.to_device(queue, img2)
+        sino_gpu_fan2 = gratopy.forwardprojection(img_gpu_fan2, PS_fan)
+        sino_fan2 = sino_gpu_fan2.get()
+
+        # plot results
+        if PLOT:
+            a = 3
+            b = 3
+            plt.figure(j)
+            plt.suptitle("Results for detector_shift " + str(detector_shift)
+                         + ", and midpoint_shift "+str(midpoint_shift) + ".")
+            plt.subplot(a, b, 1)
+            plt.title("original image 1")
+            plt.imshow(img1)
+
+            plt.subplot(a, b, 2)
+            plt.title("sinogram of parallel transformed image 1")
+            plt.imshow(sino_par1)
+
+            plt.subplot(a, b, 3)
+            plt.title("sinogram of fanbeam transformed image 1")
+            plt.imshow(sino_fan1)
+
+            PS_par.show_geometry(0, axes=plt.subplot(a, b, 8))
+
+            plt.subplot(a, b, 4)
+            plt.title("original image 2")
+            plt.imshow(img2)
+
+            plt.subplot(a, b, 5)
+            plt.title("sinogram of parallel transformed image 2")
+            plt.imshow(sino_par2)
+
+            plt.subplot(a, b, 6)
+            plt.title("sinogram of fanbeam transformed image 2")
+            plt.imshow(sino_fan2)
+
+            PS_fan.show_geometry(0, axes=plt.subplot(a, b, 9))
+
+            # plt.savefig(os.path.join("orientaionfiles",
+            #             str(Parameters[j])+".png"))
+
+        # Compute controlnumbers
+        evaluate_control_numbers(sino_par1, (Nx, Nx, Ns, angles, 1),
+                                 expected_result=Controlnumbers[j][0],
+                                 classified="sino",
+                                 name="sinogram of first radon example with "
+                                 + "parameters " + str(Parameters[j]))
+
+        evaluate_control_numbers(sino_par2, (Nx, Nx, Ns, angles, 1),
+                                 expected_result=Controlnumbers[j][1],
+                                 classified="sino",
+                                 name="sinogram of second radon example with "
+                                 + "parameters " + str(Parameters[j]))
+
+        evaluate_control_numbers(sino_fan1, (Nx, Nx, Ns, angles, 1),
+                                 expected_result=Controlnumbers[j][2],
+                                 classified="sino",
+                                 name="sinogram of first fanbeam example with"
+                                 + " parameters " + str(Parameters[j]))
+
+        evaluate_control_numbers(sino_fan2, (Nx, Nx, Ns, angles, 1),
+                                 expected_result=Controlnumbers[j][3],
+                                 classified="sino",
+                                 name="sinogram of second fanbeam example with"
+                                 + " parameters " + str(Parameters[j]))
+
     if PLOT:
-        plt.figure(1)
-        plt.title("original image 1")
-        plt.imshow(img1)
-
-        plt.figure(2)
-        plt.title("sinogram of parallel transformed image 1")
-        plt.imshow(sino_par1)
-
-        plt.figure(3)
-        plt.title("sinogram of fanbeam transformed image 1")
-        plt.imshow(sino_fan1)
-
-        plt.figure(4)
-        plt.title("original image 2")
-        plt.imshow(img2)
-
-        plt.figure(5)
-        plt.title("sinogram of parallel transformed image 2")
-        plt.imshow(sino_par2)
-
-        plt.figure(6)
-        plt.title("sinogram of fanbeam transformed image 2")
-        plt.imshow(sino_fan2)
-
         plt.show()
-
-    evaluate_control_numbers(sino_par1, (Nx, Nx, Ns, angles, 1),
-                             expected_result=11.64580,
-                             classified="sino",
-                             name="sinogram of first radon example")
-
-    evaluate_control_numbers(sino_par2, (Nx, Nx, Ns, angles, 1),
-                             expected_result=17.9159, classified="sino",
-                             name="sinogram of second radon example")
-
-    evaluate_control_numbers(sino_fan1, (Nx, Nx, Ns, angles, 1),
-                             expected_result=184.857, classified="sino",
-                             name="sinogram of second fanbeam example")
-
-    evaluate_control_numbers(sino_fan2, (Nx, Nx, Ns, angles, 1),
-                             expected_result=558.4474, classified="sino",
-                             name="sinogram of second fanbeam example")
 
 
 def test_range_check_walnut():

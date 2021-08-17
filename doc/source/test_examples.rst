@@ -50,7 +50,7 @@ Fanbeam transform
 .. autofunction:: tests.test_fanbeam.test_nonquadratic()
 .. autofunction:: tests.test_fanbeam.test_limited_angles()
 .. autofunction:: tests.test_fanbeam.test_midpoint_shift()
-.. autofunction:: tests.test_fanbeam.test_angle_orientation()
+.. autofunction:: tests.test_fanbeam.test_geometric_orientation()
 .. autofunction:: tests.test_fanbeam.test_range_check_walnut()
 .. autofunction:: tests.test_fanbeam.test_landweber()
 .. autofunction:: tests.test_fanbeam.test_conjugate_gradients()

@@ -418,7 +418,7 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
     delta_s = float(detector_width)/nd
 
     # Compute the midpoints of geometries
-    midpoint_domain = np.array([img_shape[0]-1, img_shape[1]-1])/2.0 +\
+    midpoint_domain = np.array([img_shape[0]-1, img_shape[1]-1])/2.0 -\
         np.array(midpoint_shift)/delta_x
     midpoint_detectors = (nd-1.0)/2.0
 
@@ -758,10 +758,10 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     # Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center)
-    midpoint_x = (midpointshift[0]*image_pixels
-                  / float(image_width)+(img_shape[0]-1)/2.)
-    midpoint_y = (midpointshift[1]*image_pixels
-                  / float(image_width)+(img_shape[1]-1)/2.)
+    midpoint_x = (img_shape[0]-1)*0.5 - (midpointshift[0]*image_pixels
+                                       / float(image_width))
+    midpoint_y = (img_shape[1]-1)*0.5 - (midpointshift[1]*image_pixels
+                                        / float(image_width))
 
     # adjust distances to pixel units, i.e. 1 unit corresponds
     # to the length of one image pixel
@@ -1558,7 +1558,7 @@ class ProjectionSettings():
             midpoint_shift = self.midpoint_shift
 
             # switch around for x,y directions (for xy vs indices xy)
-            midpoint_shift = [midpoint_shift[1], midpoint_shift[0]]
+            midpoint_shift = [midpoint_shift[1], - midpoint_shift[0]]
 
             # suitable axis-bounds
             maxsize = max(self.RE, np.sqrt((self.R-self.RE)**2
@@ -1641,7 +1641,7 @@ class ProjectionSettings():
             midpoint_shift = self.midpoint_shift
 
             # switch around for x,y directions (for xy vs indices xy)
-            midpoint_shift = [midpoint_shift[1], midpoint_shift[0]]
+            midpoint_shift = [midpoint_shift[1], - midpoint_shift[0]]
 
             # Rotation matrix
             angle = -angle
