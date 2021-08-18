@@ -7,11 +7,12 @@ The code is based in a powerful OpenCL/GPU implementation, resulting in high exe
 Hence this can efficiently be paired with other PyOpenCL code, in particular OpenCL based optimization algorithms.
 
 ## Highlights
-* Easy to use tomography toolbox.
-* High-quality projection operators.
-* Fast projection due to custom OpenCL/GPU-implementation.
+* Easy-to-use tomographic projection toolbox.
+* High-quality 2D projection operators.
+* Fast projection due to custom OpenCL/GPU implementation.
 * Seamless integration into PyOpenCL.
-* Contains various reconstruction schemes.
+* Basic reconstruction schemes included (Landweber, CG, total variation).
+* Comprehensive documentation, tests and example code.
 
 ## Installation
 
