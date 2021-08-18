@@ -880,7 +880,7 @@ def test_range_check_walnut():
     the forward projection of this solution corresponds to the projection
     of data onto the range of the operator. As depicted in the
     plots of the residual data shown by this test,
-    the walnut projection data admit, after detector\\_shift correction,
+    the walnut projection data admit, after **detector_shift** correction,
     only slight intensity variations as systematic error.
 
     .. [HHKKNS2015] Keijo Hämäläinen and Lauri Harhanen and Aki Kallonen and

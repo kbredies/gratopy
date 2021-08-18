@@ -27,7 +27,7 @@ Solvers
 -------
 
 Based on these forward and backward operators, one can implement a variety of reconstruction algorithms, where the toolbox's focus is on iterative methods (as those in particular are dependent on efficient implementation).
-The following constitute a few easy-to-use examples which also serve as illustration on how gratopy can be included in custom pyopencl implementations.
+The following constitute a few easy-to-use examples which also serve as illustration on how gratopy can be included in custom :mod:`pyopencl` implementations.
 
 
 .. autofunction:: gratopy.landweber

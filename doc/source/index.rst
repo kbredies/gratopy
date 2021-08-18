@@ -18,10 +18,11 @@ Hence, gratopy can efficiently be combined with other PyOpenCL code and is well-
 **Highlights**
 
 * Easy-to-use tomographic projection toolbox.
-* High-quality projection operators.
-* Fast projection due to custom OpenCL/GPU-implementation.
+* High-quality 2D projection operators.
+* Fast projection due to custom OpenCL/GPU implementation.
 * Seamless integration into PyOpenCL.
-* Various reconstruction schemes included.
+* Basic reconstruction schemes included (Landweber, CG, total variation).
+* Comprehensive documentation, tests and example code.
 
 .. toctree::
    :maxdepth: 2

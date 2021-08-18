@@ -9,7 +9,7 @@ setuptools_ or pip_.
 .. _setuptools: https://pypi.org/project/setuptools/
 .. _pip: https://pypi.org/project/pip/
 
-Installation in python
+Installation in Python
 ----------------------
 
 The gratopy toolbox can easily be installed using pip_
@@ -22,7 +22,7 @@ Alternatively, the release can be downloaded from https://github.com/kbredies/gr
 
     pip install .
 
-In case pip is not used, setuptools is also supported for installation via
+In case pip is not used, setuptools_ is also supported for installation via
 ::
 
     python setup.py install
@@ -54,7 +54,7 @@ In case multiple OpenCL devices are registered in :mod:`pyopencl`, but the defau
 
     export PYOPENCL_CTX=<context_number>
 
-The context number can, for instance, be determined in python by
+The context number can, for instance, be determined in Python by
 ::
 
    import pyopencl
@@ -62,10 +62,10 @@ The context number can, for instance, be determined in python by
 
 following the interactive instructions and observing the console output.
 
-By default the plots of the tests are disabled, but can be activated by
+By default, the plots of the tests are disabled, but can be activated, e.g., by
 ::
 
-    export GRATOPY_TEST_PLOT=1
+    export GRATOPY_TEST_PLOT=true
 
 Moreover, the :ref:`getting-started` guide contains two example code segments which can be executed to quickly check that no errors occur and the output is as desired.
 
