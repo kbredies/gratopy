@@ -983,16 +983,33 @@ def read_angles(angles, angle_weights, projectionsetting):
         # to create full circle, and then compute suitable difference
         angles_diff = 0.5*(abs(angles_extended[2:na+2]
                                - angles_extended[0:na]))
-        angles_diff = angles_diff[angles_index]
 
-        # Special case when an angle appears twice (particular when angles in
-        # [0,2pi] are considered instead of [0,pi] and mod pi has same value)
-        for i in range(na-2):
-            if abs(angles_sorted[i+1] - angles_sorted[i+2]) < 0.000001:
-                val = (angles_diff[angles_index[i]]
-                       + angles_diff[angles_index[i+1]])*0.5
-                angles_diff[angles_index[i+1]] = val
-                angles_diff[angles_index[i]] = val
+        # Correct for multiple occurrence of angles, for example
+        # angles in [0,2pi] are considered instead of [0,pi]
+        # and mod pi has same value)
+        tol = 0.000001
+        na = len(angles_sorted)
+        i = 0
+        while i < na-1:
+            count = 1
+            sum = angles_diff[i]
+            while abs(angles_sorted[i] - angles_sorted[i+count]) < tol:
+                sum += angles_diff[i+count]
+                count += 1
+                if i+count > na-1:
+                    break
+
+            val = sum/count
+            for j in range(i, i+count):
+                angles_diff[j] = val
+            i += count
+
+        angles_diff_temp2 = np.zeros(angles_diff.shape)
+        angles_diff_temp2[angles_index] = angles_diff
+
+        angles_diff2 = np.zeros(angles_diff.shape)
+        angles_diff2[angles_index] = angles_diff
+        angles_diff = angles_diff2
 
     # Go through list of angle informations
     # (the previous cases both lead to this as well)
@@ -1053,8 +1070,30 @@ def read_angles(angles, angle_weights, projectionsetting):
                                             - angles_extended
                                             [0:len(angles_extended)-2]))
 
+                # Correct for multiple occurrence of angles, for example
+                # angles in [0,2pi] are considered instead of [0,pi]
+                # and mod pi has same value)
+                tol = 0.000001
+                na = len(angles_sorted)
+                i = 0
+                while i < na-1:
+                    count = 1
+                    sum = angles_diff_temp[i]
+                    while abs(angles_sorted[i] - angles_sorted[i+count]) < tol:
+                        sum += angles_diff_temp[i+count]
+                        count += 1
+                        if i+count > na-1:
+                            break
+
+                    val = sum/count
+                    for j in range(i, i+count):
+                        angles_diff_temp[j] = val
+                    i += count
+
+                angles_diff_temp2 = np.zeros(angles_diff_temp.shape)
+                angles_diff_temp2[angles_index] = angles_diff_temp
                 # update angle_diff with newly computed angle diffs
-                angles_diff += list(angles_diff_temp[angles_index])
+                angles_diff += list(angles_diff_temp2)
 
         # write angles_new and angles_diff as np.arrays (instead of lists)
         angles = np.array(angles_new)

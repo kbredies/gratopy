@@ -454,7 +454,6 @@ def test_adjointness():
                                              abs(pairing_sino)) > eps:
             count += 1
             Error.append((pairing_img, pairing_sino))
-            print (pairing_img, pairing_sino, abs(pairing_img - pairing_sino))
 
     # Anounce how many errors occurred
     print('Adjointness: Number of Errors: '+str(count)+' out of'
@@ -942,6 +941,21 @@ def test_angle_input_variants():
     Angles.append(-100)
     Angles_expected.append(np.flip(np.arange(0, (np.pi-0.00001),  np.pi/100)))
     Angle_weights_expected.append(list(np.ones(100)*np.pi/100))
+
+    # Multiple use of same angle
+    Angles.append(([0, 0, np.pi/2, np.pi/2, np.pi/2, np.pi*2/3, 0], 0, np.pi))
+    Angles_expected.append([0, 0, np.pi/2, np.pi/2, np.pi/2, np.pi*2/3, 0])
+    Angle_weights_expected.append([np.pi/12, np.pi/12, (np.pi/4+np.pi/12)/3,
+                                  (np.pi/4+np.pi/12)/3, (np.pi/4+np.pi/12)/3,
+                                  (np.pi/12+np.pi/3), np.pi/12])
+
+    # Multiple use of angle
+    Angles.append([0, 0, np.pi/2, np.pi/2, np.pi/2, np.pi*2/3, 0])
+    Angles_expected.append([0, 0, np.pi/2, np.pi/2, np.pi/2, np.pi*2/3, 0])
+    Angle_weights_expected.append([(np.pi/4+np.pi/6)/3, (np.pi/4+np.pi/6)/3,
+                                   (np.pi/4+np.pi/12)/3,
+                                   (np.pi/4+np.pi/12)/3, (np.pi/4+np.pi/12)/3,
+                                   np.pi/6+np.pi/12, (np.pi/4+np.pi/6)/3])
 
     detector_width = 4
     image_width = 4
