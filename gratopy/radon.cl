@@ -67,6 +67,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
 	// Extract angular information
   //o = (cos,sin,offset,1/max(|cos|,|sin|))
   real4 o = ofs[a].s0123;
+	real reverse_mask = ofs[a].s5;
 
 	// Dummy variable for switching from horizontal to vertical lines
   int Nxx=Nx;
@@ -74,7 +75,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
   int horizontal=1;
 
 	// When line is horizontal rather than vertical, switch x and y dimensions
-  if (fabs(o.x)<=fabs(o.y))
+  if(reverse_mask != 0.)
     {
       horizontal=0;
       o.xy = (real2)(o.y,o.x);
@@ -254,14 +255,14 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *
 	// Extract angular information
   //o = (cos,sin,offset,1/cos)
   real4 o = ofs[a].s0123;
-
+	real reverse_mask = ofs[a].s5;
 	// Dummy variable in case of vertical/horizontal switch
   int Nxx=Nx;
   int Nyy=Ny;
 
 	// In case rays are vertical rather than horizontal, swap x and y dimensions
   int horizontal=1;
-  if (fabs(o.x)<=fabs(o.y))
+  if(reverse_mask != 0)
     {
       horizontal=0;
       o.xy = (real2)(o.y, o.x);

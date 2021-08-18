@@ -233,11 +233,11 @@ def test_projection():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=1221.2257,
+                             expected_result=4737.367,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
-                             expected_result=7427.7049,
+                             expected_result=7427.70,
                              classified="img", name="backprojected image")
 
 
@@ -317,7 +317,7 @@ def test_types_contiguity():
 
                 evaluate_control_numbers(sino,
                                          (Nx, Nx, number_detectors, angles, 1),
-                                         expected_result=6.9605,
+                                         expected_result=6.69419,
                                          classified="sino",
                                          name="sinogram with "+str(dtype)
                                               + str(order1) + str(order2))
@@ -407,7 +407,7 @@ def test_adjointness():
     # discretization parameters
     Nx = 400
     number_detectors = 230
-    angles = 360
+    angles = 180
     img_shape = (Nx, Nx)
 
     # define projectionsetting
@@ -454,6 +454,7 @@ def test_adjointness():
                                              abs(pairing_sino)) > eps:
             count += 1
             Error.append((pairing_img, pairing_sino))
+            print (pairing_img, pairing_sino, abs(pairing_img - pairing_sino))
 
     # Anounce how many errors occurred
     print('Adjointness: Number of Errors: '+str(count)+' out of'
@@ -568,34 +569,34 @@ def test_limited_angles():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles_correct), 2),
-                             expected_result=433.08960, classified="sino",
+                             expected_result=340.93, classified="sino",
                              name="sinogram with correct fullangle setting")
 
     evaluate_control_numbers(sino_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=433.08960, classified="sino",
+                             expected_result=340.93, classified="sino",
                              name="sinogram with incorrect fullangle setting")
 
     evaluate_control_numbers(sino_correct2, (N, N, Ns, len(angles_correct), 2),
-                             expected_result=433.08960, classified="sino",
+                             expected_result=340.93, classified="sino",
                              name="second sinogram with correct "
                              + "fullangle setting")
 
     evaluate_control_numbers(backprojected_correct,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=1357.2650, classified="img",
+                             expected_result=3385.137, classified="img",
                              name="backprojected image"
                              + "with correct fullangle setting")
 
     evaluate_control_numbers(backprojected_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=2409.5415, classified="img",
+                             expected_result=3453.203, classified="img",
                              name="backprojected image with incorrect"
                              + "fullangle setting")
 
     evaluate_control_numbers(backprojected_correct2,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=1357.2650, classified="img",
+                             expected_result=3385.137, classified="img",
                              name="second backprojected image"
                              + "with correct fullangle setting")
 
@@ -606,7 +607,7 @@ def test_limited_angles():
 
     evaluate_control_numbers(backprojected_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=1357.2650, classified="img",
+                             expected_result=3385.137, classified="img",
                              name="backprojected image with correction on "
                              + "incorrect fullangle setting")
 
@@ -668,7 +669,7 @@ def test_nonquadratic():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N1, N2, Ns, angles, 2),
-                             expected_result=-782.3489,
+                             expected_result=2401.26,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N1, N2, Ns, angles, 2),
@@ -740,7 +741,7 @@ def test_create_sparse_matrix():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 1),
-                             expected_result=-1.06132,
+                             expected_result=6.5315,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backproj, (Nx, Nx, number_detectors, angles, 1),
@@ -809,7 +810,7 @@ def test_midpoint_shift():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=2342.26,
+                             expected_result=2083.80,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),

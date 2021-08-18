@@ -374,8 +374,14 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
         +---+-------------------+
         | 4 | angular weight    |
         +---+-------------------+
+        | 5 | reverse_mask      |
+        +---+-------------------+
 
         The remaining columns are unused.
+        The reverse_mask is 1 if instead of the inverse of cosine
+        the inverse sine is saved in the 4.th entry
+        (which corresponds to internal flipping of x and y dimensions for
+        numerical reasons).
     :vartype ofs_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var shape:
@@ -423,18 +429,21 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
     midpoint_detectors = (nd-1.0)/2.0
 
     # Vector in projection-direction (from source toward detector)
-    X = np.cos(angles)/relative_detector_pixel_width
-    Y = np.sin(angles)/relative_detector_pixel_width
+    X = np.cos(angles-np.pi*0.5)/relative_detector_pixel_width
+    Y = np.sin(angles-np.pi*0.5)/relative_detector_pixel_width
+
+    Xinv = np.zeros(X.size)
     Xinv = 1.0/X
 
     # set near vertical lines to horizontal
-    mask = np.where(abs(X) <= abs(Y))
+    mask = np.where(abs(X) < abs(Y))
     Xinv[mask] = 1.0/Y[mask]
-
+    reverse_mask = np.zeros(Xinv.shape)
+    reverse_mask[mask] = 1.
     # X*x+Y*y=detectorposition, offset is error in midpoint of
     # the sinogram (in shifted detector setting)
     offset = midpoint_detectors - X*midpoint_domain[0]\
-        - Y*midpoint_domain[1] + detector_shift/delta_s
+        - Y*midpoint_domain[1] - detector_shift/delta_s
 
     # Save for datatype float64 and float32 the relevant additional information
     # required for the computations
@@ -451,6 +460,7 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
         ofs[2, :] = offset
         ofs[3, :] = Xinv
         ofs[4, :] = angle_weights
+        ofs[5, :] = reverse_mask
         ofs_dict[dtype] = ofs
 
         angle_diff_dict[dtype] = np.array(angle_weights, dtype=dtype)
@@ -725,7 +735,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     # compute midpoints of geometries
     midpoint_detectors = (nd-1.0)/2.0
-    midpoint_detectors = midpoint_detectors+detector_shift*nd\
+    midpoint_detectors = midpoint_detectors-detector_shift*nd\
         / detector_width
 
     # ensure that indeed detector on the opposite side of the source
@@ -759,9 +769,9 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     # Determine midpoint (in scaling 1 = 1 pixelwidth,
     # i.e., index of center)
     midpoint_x = (img_shape[0]-1)*0.5 - (midpointshift[0]*image_pixels
-                                       / float(image_width))
+                                         / float(image_width))
     midpoint_y = (img_shape[1]-1)*0.5 - (midpointshift[1]*image_pixels
-                                        / float(image_width))
+                                         / float(image_width))
 
     # adjust distances to pixel units, i.e. 1 unit corresponds
     # to the length of one image pixel
@@ -771,8 +781,8 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
 
     # unit vector associated to the angle
     # (vector showing from source to detector)
-    thetaX = np.cos(angles+np.pi*0.5)
-    thetaY = np.sin(angles+np.pi*0.5)
+    thetaX = np.cos(angles)
+    thetaY = np.sin(angles)
 
     # Direction vector along the detector line normed to the length of a
     # single detector pixel (i.e. delta_s (in the scale of delta_x=1))
@@ -928,7 +938,8 @@ def upload_bufs(projectionsetting, dtype):
 
 def read_angles(angles, angle_weights, projectionsetting):
     """
-
+    Interprets angle set and computes (if necessary) the
+    angle_weights suitably.
     """
     if np.isscalar(angles):
         na = abs(angles)
@@ -1558,7 +1569,7 @@ class ProjectionSettings():
             midpoint_shift = self.midpoint_shift
 
             # switch around for x,y directions (for xy vs indices xy)
-            midpoint_shift = [midpoint_shift[1], - midpoint_shift[0]]
+            midpoint_shift = [midpoint_shift[0], midpoint_shift[1]]
 
             # suitable axis-bounds
             maxsize = max(self.RE, np.sqrt((self.R-self.RE)**2
@@ -1572,9 +1583,9 @@ class ProjectionSettings():
             # relevant positions for geometry with angle = 0
             sourceposition = [-source_origin_dist, 0]
             upper_detector = [source_detector_dist-source_origin_dist,
-                              detector_width*0.5+self.detector_shift]
+                              detector_width*0.5-self.detector_shift]
             lower_detector = [source_detector_dist-source_origin_dist,
-                              - detector_width*0.5+self.detector_shift]
+                              - detector_width*0.5-self.detector_shift]
             central_detector = [
                source_detector_dist-source_origin_dist, 0]
 
@@ -1608,15 +1619,15 @@ class ProjectionSettings():
             # draw rectangle representing the image
             color = (1, 1, 0)
             rect = plt.Rectangle(midpoint_shift-0.5
-                                 * np.array([image_width*self.img_shape[1]
+                                 * np.array([image_width*self.img_shape[0]
                                              / np.max(self.img_shape),
-                                             image_width*self.img_shape[0]
+                                             image_width*self.img_shape[1]
                                              / np.max(self.img_shape)]),
                                  image_width
-                                 * self.img_shape[1]
+                                 * self.img_shape[0]
                                  / np.max(self.img_shape),
                                  image_width
-                                 * self.img_shape[0]
+                                 * self.img_shape[1]
                                  / np.max(self.img_shape),
                                  facecolor=color, edgecolor=color)
             axes.add_artist(rect)
@@ -1641,7 +1652,7 @@ class ProjectionSettings():
             midpoint_shift = self.midpoint_shift
 
             # switch around for x,y directions (for xy vs indices xy)
-            midpoint_shift = [midpoint_shift[1], - midpoint_shift[0]]
+            midpoint_shift = [midpoint_shift[0], midpoint_shift[1]]
 
             # Rotation matrix
             angle = -angle
@@ -1649,16 +1660,16 @@ class ProjectionSettings():
                           [-np.sin(angle), np.cos(angle)]])
 
             # relevant positions for geometry with angle = 0
-            center_source = [-image_width, self.detector_shift]
-            center_detector = [image_width, self.detector_shift]
+            center_source = [-image_width, -self.detector_shift]
+            center_detector = [image_width, -self.detector_shift]
             upper_source = [-image_width,
-                            self.detector_shift+0.5*detector_width]
+                            -self.detector_shift+0.5*detector_width]
             lower_source = [-image_width,
-                            self.detector_shift-0.5*detector_width]
+                            -self.detector_shift-0.5*detector_width]
             upper_detector = [image_width,
-                              self.detector_shift+0.5*detector_width]
+                              -self.detector_shift+0.5*detector_width]
             lower_detector = [image_width,
-                              self.detector_shift-0.5*detector_width]
+                              -self.detector_shift-0.5*detector_width]
 
             # Rotate these positions around
             center_source = np.dot(A, center_source)
@@ -1693,14 +1704,14 @@ class ProjectionSettings():
             color = (1, 1, 0)
             draw_rectangle = matplotlib.patches.Rectangle(
                                 midpoint_shift
-                                - 0.5*np.array([image_width*self.img_shape[1]
+                                - 0.5*np.array([image_width*self.img_shape[0]
                                                 / np.max(self.img_shape),
                                                 image_width
-                                                * self.img_shape[0]
+                                                * self.img_shape[1]
                                                 / np.max(self.img_shape)]),
-                                image_width * self.img_shape[1]
-                                / np.max(self.img_shape),
                                 image_width * self.img_shape[0]
+                                / np.max(self.img_shape),
+                                image_width * self.img_shape[1]
                                 / np.max(self.img_shape),
                                 facecolor=color,
                                 edgecolor=color)

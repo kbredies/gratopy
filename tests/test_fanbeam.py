@@ -228,7 +228,7 @@ def test_projection():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 2),
-                             expected_result=63928.25,
+                             expected_result=94031.43,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected,
@@ -316,7 +316,7 @@ def test_types_contiguity():
 
                 evaluate_control_numbers(sino,
                                          (Nx, Nx, number_detectors, angles, 1),
-                                         expected_result=490.26,
+                                         expected_result=416.107,
                                          classified="sino",
                                          name="sinogram with "+str(dtype)
                                               + str(order1) + str(order2))
@@ -604,34 +604,34 @@ def test_limited_angles():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino_correct, (N, N, Ns, len(angles_correct), 2),
-                             expected_result=410.598, classified="sino",
+                             expected_result=-131.00, classified="sino",
                              name="sinogram with correct fullangle setting")
 
     evaluate_control_numbers(sino_correct2, (N, N, Ns, len(angles_correct), 2),
-                             expected_result=410.598, classified="sino",
+                             expected_result=-131.00, classified="sino",
                              name="sinogram with second correct fullangle "
                              + "setting")
 
     evaluate_control_numbers(sino_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=410.598, classified="sino",
+                             expected_result=-131.00, classified="sino",
                              name="sinogram with incorrect fullangle setting")
 
     evaluate_control_numbers(backprojected_correct,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=14025.02, classified="img",
+                             expected_result=19495.96, classified="img",
                              name="backprojected image with correct"
                              + " fullangle setting")
 
     evaluate_control_numbers(backprojected_correct2,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=14025.02, classified="img",
+                             expected_result=19495.96, classified="img",
                              name="backprojected image with second correct"
                              + " fullangle setting")
 
     evaluate_control_numbers(backprojected_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=21871., classified="img",
+                             expected_result=23043.191, classified="img",
                              name="backprojected image with incorrect"
                              + " fullangle setting")
 
@@ -642,7 +642,7 @@ def test_limited_angles():
 
     evaluate_control_numbers(backprojected_incorrect,
                              (N, N, Ns, len(angles_correct), 2),
-                             expected_result=14025.02, classified="img",
+                             expected_result=19495.96, classified="img",
                              name="backprojected image with correction on "
                              + "incorrect fullangle setting")
 
@@ -710,7 +710,7 @@ def test_midpoint_shift():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N, N, Ns, angles, 2),
-                             expected_result=775.469,
+                             expected_result=297.880,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N, N, Ns, angles, 2),
@@ -748,12 +748,12 @@ def test_geometric_orientation():
     Parameters = [(0, 0, 0), (50, 0, 0), (0, 20, 0), (0, -20, 0),
                   (0, 0, 30), (0, 0, -30)]
     # Corresponding Controlnumber
-    Controlnumbers = [(549.3719, 845.340, 171.913, 526.20),
-                      (-31.3966, -119.031, 271.039, 1283.59),
-                      (1039.13, 1425.09, 455.979, 623.49),
-                      (271.730, 344.363, 9.1860, -208.64),
-                      (178.309, 330.839, 225.540, 324.739),
-                      (-343.86, 407.75, 647.71, 1234.71)]
+    Controlnumbers = [(-22.6691, 1760.90, 131.301, 1157.280),
+                      (51.959, -61.3725, 85.7716, 1058.5918),
+                      (-703.53, 881.399, 542.11, 1050.41),
+                      (390.100, 173.108, 110.7186, 1202.997),
+                      (935.812, 1775.13, 578.73, 951.169),
+                      (51.3383, 1225.368, -322.945, 579.33)]
     # Go through the parameters
     for j in range(len(Parameters)):
         # Set parameters accordingly
@@ -843,19 +843,16 @@ def test_geometric_orientation():
                                  classified="sino",
                                  name="sinogram of first radon example with "
                                  + "parameters " + str(Parameters[j]))
-
         evaluate_control_numbers(sino_par2, (Nx, Nx, Ns, angles, 1),
                                  expected_result=Controlnumbers[j][1],
                                  classified="sino",
                                  name="sinogram of second radon example with "
                                  + "parameters " + str(Parameters[j]))
-
         evaluate_control_numbers(sino_fan1, (Nx, Nx, Ns, angles, 1),
                                  expected_result=Controlnumbers[j][2],
                                  classified="sino",
                                  name="sinogram of first fanbeam example with"
                                  + " parameters " + str(Parameters[j]))
-
         evaluate_control_numbers(sino_fan2, (Nx, Nx, Ns, angles, 1),
                                  expected_result=Controlnumbers[j][3],
                                  classified="sino",
@@ -903,7 +900,7 @@ def test_range_check_walnut():
 
     # Geometric and discretization information
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
     # read sinogram data and write to device
@@ -926,7 +923,7 @@ def test_range_check_walnut():
                                             detector_width=Detectorwidth,
                                             R=FDD, RE=FOD,
                                             n_detectors=number_detectors,
-                                            detector_shift=-0.27,
+                                            detector_shift=0.27,
                                             reverse_detector=reverse)
 
     # Choose random starting point
@@ -1021,7 +1018,7 @@ def test_landweber():
 
     # Geometric and discretization quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (600, 600)
 
@@ -1031,7 +1028,7 @@ def test_landweber():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27,
+                                    detector_shift=0.27,
                                     reverse_detector=reverse)
 
     # create phantom and compute its sinogram for additional data
@@ -1086,7 +1083,7 @@ def test_conjugate_gradients():
 
     # geometric quantities
     (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
-    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (600, 600)
 
@@ -1097,7 +1094,7 @@ def test_conjugate_gradients():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27,
+                                    detector_shift=0.27,
                                     reverse_detector=reverse)
 
     my_phantom = gratopy.phantom(queue, img_shape)
@@ -1149,7 +1146,7 @@ def test_total_variation():
     # relevant quantities
     number_detectors = 328
     (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
-    angles = -np.linspace(0, 2*np.pi, 121)[:-1] - 0.5*np.pi
+    angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (400, 400)
 
@@ -1159,7 +1156,7 @@ def test_total_variation():
                                     detector_width=Detectorwidth,
                                     R=FDD, RE=FOD,
                                     n_detectors=number_detectors,
-                                    detector_shift=-0.27,
+                                    detector_shift=0.27,
                                     reverse_detector=reverse)
 
     # load and rescale sinogram
@@ -1318,7 +1315,7 @@ def test_nonquadratic():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (N1, N2, Ns, angles, 2),
-                             expected_result=1078.80,
+                             expected_result=530.45,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backprojected, (N1, N2, Ns, angles, 2),
@@ -1392,11 +1389,11 @@ def test_create_sparse_matrix():
                              classified="img", name="original image")
 
     evaluate_control_numbers(sino, (Nx, Nx, number_detectors, angles, 1),
-                             expected_result=212.594,
+                             expected_result=233.96,
                              classified="sino", name="sinogram")
 
     evaluate_control_numbers(backproj, (Nx, Nx, number_detectors, angles, 1),
-                             expected_result=2765.528,
+                             expected_result=2690.00,
                              classified="img", name="backprojected image")
 
 
