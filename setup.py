@@ -24,7 +24,7 @@ with open("requirements.txt", "r") as fh:
 
 setup(name=name,
       version=version,
-      description='The Graz accelerated tomographic projection for Python (Gratopy) is a software tool developed to allow for efficient, high quality execution of projection methods such as Radon and fanbeam transform.',
+      description='Gratopy - Graz accelerated tomographic projections for Python',
       long_description=long_description,
       long_description_content_type="text/markdown",
       url='https://github.com/kbredies/gratopy',
