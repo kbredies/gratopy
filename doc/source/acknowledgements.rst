@@ -17,7 +17,7 @@ If you find the toolbox useful, please cite the following associated publication
 
 * Kristian Bredies and Richard Huber. (2021). *Convergence analysis of pixel-driven Radon and fanbeam transforms.* SIAM Journal on Numerical Analysis 59(3), 1399–1432. https://doi.org/10.1137/20M1326635.
 
-* Kristian Bredies and Richard Huber. (2021). *Gratopy 0.1* [Software]. Zenodo.
+* Kristian Bredies and Richard Huber. (2021). *Gratopy 0.1* [Software]. Zenodo. https://doi.org/10.5281/zenodo.5221442
 
 Funding
 '''''''
