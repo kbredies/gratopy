@@ -17,9 +17,9 @@ Hence this can efficiently be paired with other PyOpenCL code, in particular Ope
 *The fanbeam projection of a walnut and gratopy’s Landweber and total variation reconstructions (from left to right).*
 <table>
   <tr>
-    <td width="20%" style="text-align:center"><img src="doc/source/graphics/walnut_sinogram.png" height=250></td>
-    <td width="40%" style="text-align:center"><img src="doc/source/graphics/conjugate_gradients.png" height=250></td>
-    <td width="40%" style="text-align:center"><img src="doc/source/graphics/total_variation.png" height=250></td>
+    <td width="20%" align="center"><img src="doc/source/graphics/walnut_sinogram.png" height=250></td>
+    <td width="40%" align="center"><img src="doc/source/graphics/conjugate_gradients.png" height=250></td>
+    <td width="40%" align="center"><img src="doc/source/graphics/total_variation.png" height=250></td>
   </tr>
  </table>
 
