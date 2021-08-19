@@ -29,40 +29,37 @@ The toolbox can easily be installed using pip:
 pip install gratopy
 ```
 
-or alternatively directly download, unpack the tar file and install inside the folder via
+Alternatively, a release or snapshot archive file can directly be downloaded, unpacked and installed by
+calling
 
 ```bash
 pip install .
 ```
-or via the wheel file
 
-```bash
-pip install gratopy*.whl
-```
-Setuptools is also supported for installation:
+inside the main folder. In particular, gratopy supports setuptools for installation:
 
 ```bash
 python setup.py install
 ```
 
-For more details we refer to the [documentation](https://gratopy.readthedocs.io/en/latest/index.html).
+For more details we refer to the [documentation](https://gratopy.readthedocs.io/).
 
-Alternatively, if no dedicated installation is needed for the toolbox, the code can simply be downloaded and the contents of the `gratopy` directory can be imported as a module. Make sure to have the following Python modules installed, most of which should be standard.
+As a further alternative, if no dedicated installation is needed for the toolbox, the code can simply be downloaded and the contents of the `gratopy` directory can be imported as a module. Please make sure to have the following Python modules installed, most of which should be standard.
 
 ## Requirements
-
 
 * [pyopencl>=2019.1](https://pypi.org/project/pyopencl/)
 * [numpy>=1.17.0](https://pypi.org/project/numpy/)
 * [scipy>=1.3.0](https://pypi.org/project/scipy/)
 * [matplotlib>=3.2.0](https://pypi.org/project/matplotlib/)
 * [Pillow>=6.0.0](https://pypi.org/project/Pillow/)
+* [Mako>=1.1.0](https://pypi.org/project/Mako/)
 
 Note that in particular, correctly installing and configuring PyOpenCL might take some time, as dependent on the used platform/GPU, suitable drivers must be installed. We refer to [PyOpenCL's documentation](https://documen.tician.de/pyopencl/).
 
 
 ## Getting started
-We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/latest/index.html), in particular to the [getting started](https://gratopy.readthedocs.io/en/latest/getting_started.html) guide, as well as to the test files for the [Radon transform](https://gratopy.readthedocs.io/en/latest/_modules/test_radon.html) and [fanbeam transform](https://gratopy.readthedocs.io/en/latest/_modules/test_fanbeam.html). The following [rudimentary example](https://gratopy.readthedocs.io/en/latest/getting_started.html#first-example-radon-transform) is also included in the documentation.
+We refer to the extensive [documentation](https://gratopy.readthedocs.io/), in particular to the [getting started](https://gratopy.readthedocs.io/en/latest/getting_started.html) guide, as well as to the test files for the [Radon transform](https://gratopy.readthedocs.io/en/latest/_modules/test_radon.html) and [fanbeam transform](https://gratopy.readthedocs.io/en/latest/_modules/test_fanbeam.html). The following [rudimentary example](https://gratopy.readthedocs.io/en/latest/getting_started.html#first-example-radon-transform) is also included in the documentation.
 
 ```python
 
