@@ -366,25 +366,26 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
         and :attr:`numpy.float64`.
         The arrays have dimension :math:`(8, N_a)` with columns:
 
-        +---+-------------------+
-        | 0 | weighted cosine   |
-        +---+-------------------+
-        | 1 | weighted sine     |
-        +---+-------------------+
-        | 2 | detector offset   |
-        +---+-------------------+
-        | 3 | inverse of cosine |
-        +---+-------------------+
-        | 4 | angular weight    |
-        +---+-------------------+
-        | 5 | reverse_mask      |
-        +---+-------------------+
+        +---+------------------------+
+        | 0 | weighted cosine        |
+        +---+------------------------+
+        | 1 | weighted sine          |
+        +---+------------------------+
+        | 2 | detector offset        |
+        +---+------------------------+
+        | 3 | inverse of cosine/sine |
+        +---+------------------------+
+        | 4 | angular weight         |
+        +---+------------------------+
+        | 5 | flipped                |
+        +---+------------------------+
 
         The remaining columns are unused.
-        The reverse_mask is 1 if instead of the inverse of cosine
-        the inverse sine is saved in the 4.th entry
-        (which corresponds to internal flipping of x and y dimensions for
-        numerical reasons).
+        The value **flipped** indicates whether the x and y
+        axis are flipped (1) or not (0), which is done for
+        reasons of numerical stability. 
+        The 4th entry contains the inverse of sine if the axes
+        are flipped and the inverse of cosine otherwise.
     :vartype ofs_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
 
     :var shape:
