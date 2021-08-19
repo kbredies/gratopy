@@ -14,11 +14,12 @@ Hence this can efficiently be paired with other PyOpenCL code, in particular Ope
 * Basic iterative reconstruction schemes included (Landweber, CG, total variation).
 * Comprehensive documentation, tests and example code.
 
+*The fanbeam projection of a walnut and gratopy’s Landweber and total variation reconstructions (from left to right).*
 <table>
   <tr>
-    <td width="20%"><img src="doc/source/graphics/walnut_sinogram.png" width=100 height=100></td>
-    <td width="40%"><img src="doc/source/graphics/conjugate_gradients.png" width=100 height=100></td>
-    <td width="40%"><img src="doc/source/graphics/total_variation.png" width=100 height=100></td>
+    <td width="20%" style="text-align:center"><img src="doc/source/graphics/walnut_sinogram.png" height=250></td>
+    <td width="40%" style="text-align:center"><img src="doc/source/graphics/conjugate_gradients.png" height=250></td>
+    <td width="40%" style="text-align:center"><img src="doc/source/graphics/total_variation.png" height=250></td>
   </tr>
  </table>
 
