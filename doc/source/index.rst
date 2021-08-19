@@ -7,8 +7,9 @@
 Welcome to gratopy's documentation!
 *************************************
 
-The **Gr**\az **a**\ccelerated **to**\mographic projections for **Py**\thon **(gratopy)**  is a Python3 software toolbox for the efficient and high-quality computation of Radon transforms, fanbeam transforms as well as the associated backprojections. The included operators are based on pixel-driven projection methods which were shown to possess `favorable approximation properties <https://epubs.siam.org/doi/abs/10.1137/20M1326635>`_. The toolbox offers a powerful parallel OpenCL/GPU implementation which admits high execution speed and allows for seamless integration into PyOpenCL_. Gratopy can efficiently be combined with other PyOpenCL code and is well-suited for the development of iterative tomographic reconstruction approaches, in particular, for those involving optimization algorithms.
+The gratopy_ (**Gr**\az **a**\ccelerated **to**\mographic projections for **Py**\thon) toolbox is a Python3 software package for the efficient and high-quality computation of Radon transforms, fanbeam transforms as well as the associated backprojections. The included operators are based on pixel-driven projection methods which were shown to possess `favorable approximation properties <https://epubs.siam.org/doi/abs/10.1137/20M1326635>`_. The toolbox offers a powerful parallel OpenCL/GPU implementation which admits high execution speed and allows for seamless integration into PyOpenCL_. Gratopy can efficiently be combined with other PyOpenCL code and is well-suited for the development of iterative tomographic reconstruction approaches, in particular, for those involving optimization algorithms.
 
+.. _gratopy: https://github.com/kbredies/gratopy/
 .. _pyopencl: https://documen.tician.de/pyopencl/
 
 **Highlights**
@@ -19,9 +20,6 @@ The **Gr**\az **a**\ccelerated **to**\mographic projections for **Py**\thon **(g
 * Seamless integration into PyOpenCL.
 * Basic iterative reconstruction schemes included (Landweber, CG, total variation).
 * Comprehensive documentation, tests and example code.
-
-
-
 
 .. |beginfigref| raw:: latex
 
