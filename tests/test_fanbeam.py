@@ -724,7 +724,9 @@ def test_geometric_orientation():
     Considers projections with parallel and fanbeam geometry for very simple
     images in different shifted geometries to illustrate how the geometry of
     the projection work and that they indeed behave analogously
-    for parallel and fanbeam setting.
+    for parallel and fanbeam setting. Note that the axes of images shown
+    via :func:`matplotlib.pyplot.imshow` are always rotated by 90
+    degree compared to the standard x,y-axes.
     """
 
     # create PyopenCL context

@@ -29,10 +29,13 @@ rescaling all *physical* quantities by the same factor creates operators which a
 physical system unchanged and simply reflects a finer/coarser discretization.
 
 The angular range for the parallel beam setting is :math:`[0,\pi[`, while for the fanbeam setting, it is :math:`[0,2\pi[`.
-By default, it is assumed that the given angles completely partition the angular range. In case this is not desired  and a limited-angle situation
+By default, it is assumed that the given angles completely partition the angular range.
+In case this is not desired  and a limited-angle situation
 can be considered by adapting the **angles** and **angle_weights** parameters of :py:class:`gratopy.ProjectionSettings`, impacting, for instance, the backprojection operator.
 Note also that the projections considered are rotation-invariant in the sense, that projection of a rotated image yields a sinogram which is translated in the angular dimension.
 
+Note that the angles are measured (counterclockwise) from the positive *x* axis and reflect the projection-direction. The positive detector-direction is the clockwise
+rotation of the projection-direction by :math:`\frac \pi 2`.
 
 .. image:: graphics/radon-1.png
     :width: 5000
@@ -46,6 +49,8 @@ Geometry of the parallel beam setting.
     :alt: Depiction of fan beam geometry
 
 Geometry of the fanbeam setting.
+
+
 
 The main functions of gratopy are  :func:`forwardprojection <gratopy.forwardprojection>` and :func:`backprojection <gratopy.backprojection>`, which use a **projectionsetting** as the basis for computation and allow to project
 an image **img** onto a sinogram **sino** and to backproject **sino** onto **img**, respectively. Next, we describe how to use and interpret images and sinograms in gratopy.
@@ -68,6 +73,9 @@ of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., sing
 
 .. _contiguity: https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array
 
+Note that in the array the first dimension corresponds to the *x* variable and the second dimension
+corresponds to the *y* variable for x,y-axes as depicted in the figures above.
+
 .. _compatible-sino:
 
 Sinograms in gratopy
@@ -78,6 +86,7 @@ When used together with a **projectionsetting** of class :class:`gratopy.Project
 The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equidistantly partitioning the detector line with detector pixel width
 :math:`\delta_s=\text{detector\_width}/N_s`. The angles, on the other hand, do not need to be equidistant or even partition the entire angular range; gratopy allows for rather general angle sets. The values associated with pixels in the sinogram again correspond to the average
 intensity values of a continuous sinogram counterpart and thus can be associated with a piecewise constant function. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
+
 
 .. _adjointness:
 

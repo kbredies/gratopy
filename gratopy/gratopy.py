@@ -383,7 +383,7 @@ def radon_struct(queue, img_shape, angles, angle_weights, n_detectors=None,
         The remaining columns are unused.
         The value **flipped** indicates whether the x and y
         axis are flipped (1) or not (0), which is done for
-        reasons of numerical stability. 
+        reasons of numerical stability.
         The 4th entry contains the inverse of sine if the axes
         are flipped and the inverse of cosine otherwise.
     :vartype ofs_dict: :class:`dict{numpy.dtype: numpy.ndarray}`
@@ -1686,10 +1686,6 @@ class ProjectionSettings():
                                                     color='k')
             axes.add_artist(draw_circle)
 
-            # set the axis-limits
-            axes.set_xlim([-maxsize, maxsize])
-            axes.set_ylim([-maxsize, maxsize])
-
         if self.is_parallel:
             detector_width = self.detector_width
             image_width = self.image_width
@@ -1773,8 +1769,11 @@ class ProjectionSettings():
 
             # set suitable axis-limits
             maxsize = np.sqrt(image_width**2+detector_width**2)
-            axes.set_xlim([-maxsize, maxsize])
-            axes.set_ylim([-maxsize, maxsize])
+
+        axes.set_xlim([-maxsize, maxsize])
+        axes.set_ylim([-maxsize, maxsize])
+        axes.set_xlabel("x-direction")
+        axes.set_ylabel("y-direction")
 
         # show plot if show parameter is set
         if show and (figure is not None):
