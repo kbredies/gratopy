@@ -21,7 +21,7 @@ Hence, gratopy can efficiently be combined with other PyOpenCL code and is well-
 * High-quality 2D projection operators.
 * Fast projection due to custom OpenCL/GPU implementation.
 * Seamless integration into PyOpenCL.
-* Basic reconstruction schemes included (Landweber, CG, total variation).
+* Basic iterative reconstruction schemes included (Landweber, CG, total variation).
 * Comprehensive documentation, tests and example code.
 
 
@@ -36,7 +36,7 @@ Hence, gratopy can efficiently be combined with other PyOpenCL code and is well-
 
                    \end{minipage}
 
-.. table:: The sinogram of a walnut obtained via fanbeam projection, as well as the corresponding Landweber and Total Variation reconstructions
+.. table:: The fanbeam projection of a walnut and gratopy's Landweber and total variation reconstructions (from left to right).
     :widths: 20 40 40
 
     +----------------------------------------+-------------------------------------+------------------------------------------+

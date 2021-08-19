@@ -11,7 +11,7 @@ Hence this can efficiently be paired with other PyOpenCL code, in particular Ope
 * High-quality 2D projection operators.
 * Fast projection due to custom OpenCL/GPU implementation.
 * Seamless integration into PyOpenCL.
-* Basic reconstruction schemes included (Landweber, CG, total variation).
+* Basic iterative reconstruction schemes included (Landweber, CG, total variation).
 * Comprehensive documentation, tests and example code.
 
 ## Installation

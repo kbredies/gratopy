@@ -22,7 +22,7 @@ copyright = '2021, Kristian Bredies, Richard Huber'
 author = 'Kristian Bredies, Richard Huber'
 
 # The full version, including alpha/beta/rc tags
-release = '0.1.0rc0.dev0'
+release = '0.1.0rc0'
 
 
 # -- General configuration ---------------------------------------------------
