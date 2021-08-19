@@ -6,10 +6,7 @@ version='0.1.0rc1'
 long_description="""
 [![Documentation Status](https://readthedocs.org/projects/gratopy/badge/?version=latest)](https://gratopy.readthedocs.io/?badge=latest)
 
-The **Gr**az **a**ccelerated **to**mographic projection for **Py**thon **(Gratopy)**  is a software tool for Python3 developed to allow for efficient, high quality execution of projection methods
-such as Radon and fanbeam transform.  The operations contained in the toolbox are based on pixel-driven projection methods, which were shown to possess suitable approximation properties.
-The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into [PyOpenCL](https://documen.tician.de/pyopencl/).
-Hence this can efficiently be paired with other PyOpenCL code, in particular OpenCL based optimization algorithms.
+The **Gr**az **a**ccelerated **to**mographic projections for **Py**thon **(gratopy)** toolbox is a Python3 software package for the efficient and high-quality computation of Radon transforms, fanbeam transforms as well as the associated backprojections. The included operators are based on pixel-driven projection methods which were shown to possess [favorable approximation properties](https://epubs.siam.org/doi/abs/10.1137/20M1326635). The toolbox offers a powerful parallel OpenCL/GPU implementation which admits high execution speed and allows for seamless integration into [PyOpenCL](https://documen.tician.de/pyopencl/). Gratopy can efficiently be combined with other PyOpenCL code and is well-suited for the development of iterative tomographic reconstruction approaches, in particular, for those involving optimization algorithms.
 
 ## Highlights
 * Easy-to-use tomographic projection toolbox.
