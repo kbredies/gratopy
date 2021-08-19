@@ -1,4 +1,4 @@
-from .gratopy import RADON, PARALLEL, FAN, FANBEAM
+from .gratopy import RADON, PARALLEL, FAN, FANBEAM, VERSION
 from .gratopy import forwardprojection, backprojection, ProjectionSettings, \
     landweber, conjugate_gradients, total_variation, normest, weight_sinogram
 from .phantom import ct_shepp_logan as phantom

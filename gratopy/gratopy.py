@@ -8,6 +8,9 @@ import pyopencl.array as clarray
 import scipy
 import scipy.sparse
 
+# Version number
+VERSION = '0.1.0rc0'
+
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
@@ -20,7 +23,7 @@ FAN = 2
 
 
 ###########
-# Programm created from the gpu_code
+# Program created from the gpu_code
 class Program(object):
     def __init__(self, ctx, code):
 
