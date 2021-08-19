@@ -1,9 +1,7 @@
 # Gratopy
-[![Documentation Status](https://readthedocs.org/projects/gratopy/badge/?version=latest)](https://gratopy.readthedocs.io/?badge=latest)
-
 The **Gr**az **a**ccelerated **to**mographic projection for **Py**thon **(Gratopy)**  is a software tool for Python3 developed to allow for efficient, high quality execution of projection methods
 such as Radon and fanbeam transform.  The operations contained in the toolbox are based on pixel-driven projection methods, which were shown to possess suitable approximation properties.
-The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into [PyOpenCL](https://documen.tician.de/pyopencl/). 
+The code is based in a powerful OpenCL/GPU implementation, resulting in high execution speed, while allowing for seamless integration into [PyOpenCL](https://documen.tician.de/pyopencl/).
 Hence this can efficiently be paired with other PyOpenCL code, in particular OpenCL based optimization algorithms.
 
 ## Highlights
@@ -13,6 +11,14 @@ Hence this can efficiently be paired with other PyOpenCL code, in particular Ope
 * Seamless integration into PyOpenCL.
 * Basic reconstruction schemes included (Landweber, CG, total variation).
 * Comprehensive documentation, tests and example code.
+
+<table>
+  <tr>
+    <td width="20%"><img src="doc/source/graphics/walnut_sinogram.png" width=100 height=100></td>
+    <td width="40%"><img src="doc/source/graphics/conjugate_gradients.png" width=100 height=100></td>
+    <td width="40%"><img src="doc/source/graphics/total_variation.png" width=100 height=100></td>
+  </tr>
+ </table>
 
 ## Installation
 
@@ -41,7 +47,7 @@ python setup.py install
 For more details we refer to the [documentation](https://gratopy.readthedocs.io/en/latest/index.html).
 
 Alternatively, if no dedicated installation is needed for the toolbox, the code can simply be downloaded and the contents of the `gratopy` directory can be imported as a module. Make sure to have the following Python modules installed, most of which should be standard.
- 
+
 ## Requirements
 
 
@@ -59,46 +65,49 @@ We refer to the extensive [documentation](https://gratopy.readthedocs.io/en/late
 
 ```python
 
-    # initial import
-    from numpy import *
-    import pyopencl as cl
-    import gratopy
-    import matplotlib.pyplot as plt
-    
-    # discretization parameters
-    number_angles=60
-    number_detector=300
-    Nx=300
+# initial import
+import numpy as np
+import pyopencl as cl
+import matplotlib.pyplot as plt
 
-    # create pyopencl context
-    ctx = cl.create_some_context()
-    queue = cl.CommandQueue(ctx)
-	
-    # create phantom as test image (a pyopencl.array.Array of dimensions (Nx,Nx))
-    phantom=gratopy.phantom(queue,Nx)
-	
-    # create suitable projectionsettings
-    PS=gratopy.ProjectionSettings(queue, gratopy.RADON, phantom.shape,
-                                  number_angles, number_detector)
-		
-    # compute forward projection and backprojection of created sinogram
-    # results are pyopencl arrays	
-    sino = gratopy.forwardprojection(phantom, PS)
-    backproj = gratopy.backprojection(sino, PS)
+import gratopy
 
-    # plot results
-    plt.figure()
-    plt.title("Generated Phantom")
-    plt.imshow(phantom.get(),cmap="gray")
-    
-    plt.figure()
-    plt.title("Sinogram")
-    plt.imshow(sino.get(),cmap="gray")
+# discretization parameters
+number_angles = 60
+number_detectors = 300
+Nx = 300
+# Alternatively to number_angles one could give as angle input
+# angles = np.linspace(0, np.pi, number_angles+1)[:-1]
 
-    plt.figure()
-    plt.title("Backprojection")
-    plt.imshow(backproj.get(),cmap="gray")
-    plt.show()
+# create pyopencl context
+ctx = cl.create_some_context()
+queue = cl.CommandQueue(ctx)
+
+# create phantom as test image (a pyopencl.array.Array of dimensions (Nx, Nx))
+phantom = gratopy.phantom(queue,Nx)
+
+# create suitable projectionsettings
+PS = gratopy.ProjectionSettings(queue, gratopy.RADON, phantom.shape,
+                                number_angles, number_detectors)
+
+# compute forward projection and backprojection of created sinogram
+# results are pyopencl arrays
+sino = gratopy.forwardprojection(phantom, PS)
+backproj = gratopy.backprojection(sino, PS)
+
+# plot results
+plt.figure()
+plt.title("Generated Phantom")
+plt.imshow(phantom.get(), cmap="gray")
+
+plt.figure()
+plt.title("Sinogram")
+plt.imshow(sino.get(), cmap="gray")
+
+plt.figure()
+plt.title("Backprojection")
+plt.imshow(backproj.get(), cmap="gray")
+plt.show()
 ```
 
 ## Authors
