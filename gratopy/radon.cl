@@ -75,7 +75,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
   int horizontal=1;
 
 	// When line is horizontal rather than vertical, switch x and y dimensions
-  if(reverse_mask != 0.)
+  if(reverse_mask != (real)0.)
     {
       horizontal=0;
       o.xy = (real2)(o.y,o.x);
@@ -85,7 +85,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
     }
 
   // accumulation variable
-  real acc = 0.0f;
+  real acc = (real)0.;
 
 	// shift image to correct z-dimension (as this will remain fixed), particularly relevant for
 	// "F" contiguity of image
@@ -106,7 +106,7 @@ __kernel void radon_\my_variable_type_\order1\order2(__global real *sino,
     x_high = (int)((1 - d)*o.w);
 
 		// case the direction is decreasing switch high and low
-    if (o.w<0)
+    if (o.w< (real)0.)
       {
 			int trade = x_low;
 			x_low = x_high;
@@ -172,7 +172,7 @@ __kernel void radon_ad_\my_variable_type_\order1\order2(__global real *img,
 
 
   // Accumulation variable
-  real acc = 0.0f;
+  real acc = (real)0.;
   real2 c = (real2)(x,y);
 
 	// shift sinogram to correct z-dimension (as this will remain fixed),
@@ -262,7 +262,7 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *
 
 	// In case rays are vertical rather than horizontal, swap x and y dimensions
   int horizontal=1;
-  if(reverse_mask != 0)
+  if(reverse_mask != (real)0.)
     {
       horizontal=0;
       o.xy = (real2)(o.y, o.x);
@@ -275,7 +275,7 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *
     }
 
   //accumulation variable
-  real acc = 0.0f;
+  real acc = (real)0.;
 
   int x_low, x_high;
 
@@ -287,7 +287,7 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *
   x_high = (int)((ss+1 - d)*o.w);
 
 	// In case the detector moves download, switch low and upper bound
-  if (o.w<0)
+  if (o.w < (real)0.)
     {
       int trade = x_low;
       x_low = x_high;
@@ -302,8 +302,8 @@ __kernel void single_line_radon_\my_variable_type_\order1\order2(__global real *
   if((x_low<=x) && (x<=x_high))
 	{
     //anterpolation weight via normal distance
-    real weight = 1.0 - fabs(x*o.x + d - ss);
-    if (weight > 0.0f)
+	  real weight = (real)1. - fabs(x*o.x + d - ss);
+    if (weight > (real)0.)
 			{  acc = weight;}
   }
 

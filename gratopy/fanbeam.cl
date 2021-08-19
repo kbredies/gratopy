@@ -76,7 +76,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
   real2 d0 = (real2)(o.s4, o.s5);
 
   //accumulation variable
-  real acc=0;
+  real acc= (real)0.;
 
   // compute direction vector from source to detector pixels above dp (for i+1) and below dm (for i-1).
   real2 dp = d0 + d*(-midpoint_det+s+1) - q;
@@ -137,7 +137,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
   real xhigh = q.x-dp.x*(q.y+midpoint.y);
 
   //switch roles of dm and dp if necessary (to switch xlow and xhigh)
-  if ((q.y)*(dm.x-dp.x)<0)
+  if ((q.y)*(dm.x-dp.x)<(real)0.)
     {
       real trade=xhigh;
       xhigh=xlow;
@@ -156,7 +156,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
   __global real *img0 = img + pos_img_\order2(0,0,z,Nx,Ny,Nz);
 
 	// stride representing one index_step in x dimension (dependent on horizontal/vertical)
-  size_t stride_x = horizontal == 1 ? pos_img_\order2(1,0,0,Nx,Ny,Nz) : pos_img_\order2(0,1,0,Nx,Ny,Nz);
+  size_t stride_x = (horizontal != 0) ? pos_img_\order2(1,0,0,Nx,Ny,Nz) : pos_img_\order2(0,1,0,Nx,Ny,Nz);
 
   //For loop going through all y values
   for (int y=0;y<Nyy;y++)
@@ -182,7 +182,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
       real ss=d.x*(xlowint-midpoint.x)+d.y*(y-midpoint.y);
 
 			// shift image to relevant positions
-      if (horizontal == 1)
+      if (horizontal != 0)
 				img = img0 + pos_img_\order2(xlowint,y,0,Nx,Ny,Nz);
       if (horizontal == 0)
 				img = img0 + pos_img_\order2(y,xlowint,0,Nx,Ny,Nz);
@@ -195,7 +195,7 @@ __kernel void fanbeam_\my_variable_type_\order1\order2(__global real *sino,
 
 			  //Weight corresponds to distance of projected detector position
 			  //divided by the distance from the source
-			  real Weight = (1-fabs(s_midpoint_det-xi))/t;
+			  real Weight = ((real)1.-fabs(s_midpoint_det-xi))/t;
 
 			  //cut of ray when hits detector (in case detector inside imaging object)
 			  //if(t>1)
@@ -269,14 +269,14 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global real *img,
   real2 P = (real2)(xx,yy) - midpoint;
 
   // accumulation variable
-  real acc=0;
+  real acc= (real)0.;
 
 	// Shift sinogram to suitable z-position
   sino += pos_sino_\order2(0,0,z,Ns,Na,Nz);
 
 	// precompute scaling parameters
-	real R_sqr_inv = 1/(R*R);
-  real delta_xi_sqr_inv = 1/(delta_xi*delta_xi);
+  real R_sqr_inv = (real)1./(R*R);
+  real delta_xi_sqr_inv = (real)1./(delta_xi*delta_xi);
 
 	// for loop through all angles
   for (int a=0;a< Na;a++)
@@ -316,8 +316,8 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(__global real *img,
       int xip = xim+1;
 
       // compute corresponding weights
-      real Weightp = 1-(xip-xi);
-      real Weightm = 1-(xi-xim);
+      real Weightp = (real)1.-(xip-xi);
+      real Weightm = (real)1.-(xi-xim);
 
       // set weight to zero in case adjacent detector position is outside
       // the detector range and weight with corresponding sdpd=sqrt(xi^2+R^2)
@@ -457,7 +457,7 @@ __kernel void single_line_fan_\my_variable_type_\order1\order2(__global real *si
   real xhigh=q.x-dp.x*(q.y+midpoint.y);
 
   //switch roles of dm and dp if necessary (to switch xlow and xhigh)
-  if ((q.y)*(dm.x-dp.x)<0)
+  if ((q.y)*(dm.x-dp.x)< (real)0.)
     {
       real trade=xhigh;
       xhigh=xlow;
@@ -488,7 +488,7 @@ __kernel void single_line_fan_\my_variable_type_\order1\order2(__global real *si
 
       //Weight corresponds to distance of projected detector position
       //divided by the distance from the source
-      real Weight=(1-fabs(s-xi-midpoint_det))/(R*t);
+      real Weight=((real)1.-fabs(s-xi-midpoint_det))/(R*t);
 
       //accumulation
       acc = Weight;
