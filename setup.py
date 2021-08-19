@@ -28,6 +28,7 @@ setup(name=name,
       long_description=long_description,
       long_description_content_type="text/markdown",
       url='https://github.com/kbredies/gratopy',
+      project_urls={ "Documentation": "https://gratopy.readthedocs.io/"},
       author='Kristian Bredies, Richard Huber',
       classifiers=[
           "Environment :: Console",
