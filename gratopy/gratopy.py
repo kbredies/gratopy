@@ -2106,7 +2106,7 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
     :rtype: :class:`pyopencl.array.Array`
 
     .. [L1951] Landweber, L. "An iteration formula for Fredholm integral
-               equations of the first kind." Amer. J. Math. 73, 615–624
+               equations of the first kind." Amer. J. Math. 73, 615--624
                (1951). https://doi.org/10.2307/2372313
     """
     # Order to consider solution in
@@ -2169,7 +2169,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     .. [HS1952] Hestenes, M. R., Stiefel, E. "Methods of Conjugate Gradients
                 for Solving Linear Systems." Journal of Research of
                 the National
-                Bureau of Standards, 49:409–436 (1952).
+                Bureau of Standards, 49:409--436 (1952).
                 https://doi.org/10.6028/jres.049.044
     """
 
@@ -2284,7 +2284,7 @@ def total_variation(sino, projectionsetting, mu,
 
     .. [CP2011] Chambolle, A., Pock, T. "A First-Order Primal-Dual Algorithm
                 for Convex Problems with Applications to Imaging." J Math
-                Imaging Vis 40, 120–145 (2011).
+                Imaging Vis 40, 120--145 (2011).
                 https://doi.org/10.1007/s10851-010-0251-1
     """
     # Establish queue and context
