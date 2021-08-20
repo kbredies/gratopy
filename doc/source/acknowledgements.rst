@@ -31,11 +31,11 @@ The development of this software was supported by the following projects:
 Used data sets and code
 -----------------------
 
-The walnut data set included in this toolbox is licenced under `CC BY 4.0 <https://creativecommons.org/licenses/by/4.0/>`_ and available on Zenodo_:
+The walnut data set included in this toolbox is licensed under `CC BY 4.0 <https://creativecommons.org/licenses/by/4.0/>`_ and available on Zenodo_:
 
 * Keijo Hämäläinen, Lauri Harhanen, Aki Kallonen, Antti Kujanpää, Esa Niemi and Samuli Siltanen. (2015). *Tomographic X-ray data of a walnut* (Version 1.0.0) [Data set]. Zenodo. http://doi.org/10.5281/zenodo.1254206
 
-The phantom creation code is based on Phantominator_, copyright by its contributors and licenced under `GPLv3 <https://github.com/mckib2/phantominator/blob/master/LICENSE>`_. See https://github.com/mckib2/phantominator.
+The phantom creation code is based on Phantominator_, copyright by its contributors and licensed under `GPLv3 <https://github.com/mckib2/phantominator/blob/master/LICENSE>`_. See https://github.com/mckib2/phantominator.
 
 .. _phantominator: https://github.com/mckib2/phantominator
 .. _zenodo: https://zenodo.org

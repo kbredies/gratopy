@@ -7,7 +7,7 @@ Basic principles of gratopy
 ---------------------------
 
 We start by explaining some recurring relevant quantities and concepts in gratopy, in particular the :class:`ProjectionSettings <gratopy.ProjectionSettings>`
-class as well as the use of images and sinograms and the connection of forwardprojection to backprojection in the context of gratopy.
+class as well as the use of images and sinograms and the connection of forward projection to backprojection in the context of gratopy.
 
 ProjectionSettings
 ''''''''''''''''''
@@ -62,7 +62,7 @@ Images in gratopy
 
 An image **img** is represented in gratopy by a :class:`pyopencl.array.Array` of dimensions :math:`(N_x,N_y)`
 -- or :math:`(N_x,N_y,N_z)` for multiple slices -- representing a rectangular grid of equidistant quadratic pixels of size :math:`\delta_x=\mathrm{image\_width}/\max\{N_x,N_y\}`,
-where the associated values correspond to the average mass inside the area covered by each pixel. The area covered by the pixes is called the image domain, and the image array
+where the associated values correspond to the average mass inside the area covered by each pixel. The area covered by the pixels is called the image domain, and the image array
 can be associated with a piecewise constant function on the image domain. Usually, we think of the investigated object as being circular and contained in
 the rectangular image domain. More generally, **image_width** corresponds to the larger side length of a rectangular :math:`(N_x,N_y)` grid of quadratic image pixels
 which allows considering *slim* objects.
