@@ -9,7 +9,7 @@ import scipy
 import scipy.sparse
 
 # Version number
-VERSION = '0.1.0rc1'
+VERSION = '0.1.0rc1.post1'
 
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
@@ -29,7 +29,7 @@ class Program(object):
 
         # activate warnings
         os.environ['PYOPENCL_COMPILER_OUTPUT'] = '1'
-        # build opencl code
+        # build OpenCL code
         self._cl_prg = cl.Program(ctx, code)
         self._cl_prg.build()
         # add the kernels functions to the local dictionary
@@ -232,7 +232,7 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with approrpiate dtype
+    # choose function with appropriate dtype
     function = projectionsetting.functions[(dtype,
                                             sino.flags.c_contiguous,
                                             img.flags.c_contiguous)]
@@ -286,7 +286,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with approrpiate dtype
+    # choose function with appropriate dtype
     function = projectionsetting.functions_ad[(dtype,
                                                img.flags.c_contiguous,
                                                sino.flags.c_contiguous)]
@@ -517,7 +517,7 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     sdpd_buf = projectionsetting.sdpd_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with approrpiate dtype
+    # choose function with appropriate dtype
     function = projectionsetting.functions[(dtype, sino.flags.c_contiguous,
                                             img.flags.c_contiguous)]
 
@@ -721,7 +721,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
     :vartype angles_diff: :class:`dict{numpy.dtype: numpy.ndarray}`
     """
 
-    # ensure physical quantites are suitable
+    # ensure physical quantities are suitable
     detector_width = float(detector_width)
     source_detector_dist = float(source_detector_dist)
     source_origin_dist = float(source_origin_dist)
@@ -770,7 +770,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
             + np.linalg.norm(midpointshift) < source_origin_dist),\
         ('The source is not outside the image domain')
 
-    # Determine midpoint (in scaling 1 = 1 pixelwidth,
+    # Determine midpoint (in scaling 1 = 1 pixel width,
     # i.e., index of center)
     midpoint_x = (img_shape[0]-1)*0.5 - (midpointshift[0]*image_pixels
                                          / float(image_width))
@@ -823,7 +823,7 @@ def fanbeam_struct(queue, img_shape, angles, detector_width,
         ofs[6] = angle_weights
         ofs_dict[dtype] = ofs
 
-        # determine source detectorpixel-distance (=sqrt(R+xi**2))
+        # determine source detector-pixel distance (=sqrt(R+xi**2))
         # for scaling
         xi = (np.arange(0, nd) - midpoint_detectors)*detector_width/nd
         source_detectorpixel_distance = np.sqrt((xi)**2
@@ -1216,7 +1216,7 @@ class ProjectionSettings():
         **image_width** is chosen as 2.0.
         For fanbeam geometry, when :obj:`None`, **image_width** is chosen
         such that the projections exactly capture the image domain.
-        To illustrate, chosing **image_width** = **detector_width** results
+        To illustrate, choosing **image_width** = **detector_width** results
         in  the standard Radon transform with each projection touching
         the entire object, while **img_width** = 2 **detector_width**
         results in each projection capturing only
@@ -1321,7 +1321,7 @@ class ProjectionSettings():
         self.geometry = geometry
         self.queue = queue
 
-        # build program containing opencl code
+        # build program containing OpenCL code
         self.adjusted_code = create_code()
         self.prg = Program(queue.context, self.adjusted_code)
 
@@ -1542,7 +1542,7 @@ class ProjectionSettings():
         self.angle_weights = self.angle_weights_buf[
                                         np.dtype("float")].copy()
 
-        # Make sure bufs are uploaded if necesary
+        # Make sure buffers are uploaded if necessary
         for dtype in [np.dtype("float32"), np.dtype("float64")]:
             if dtype in self.buf_upload:
                 ofs = self.ofs_buf[dtype]
@@ -1639,16 +1639,16 @@ class ProjectionSettings():
             lower_detector = np.dot(A, lower_detector)
             central_detector = np.dot(A, central_detector)
 
-            # Connect upper and lower detector edge to create detectorline
+            # Connect upper and lower detector edge to create detector line
             axes.plot([upper_detector[0], lower_detector[0]],
                       [upper_detector[1], lower_detector[1]], "k")
-            # Connect sourceposition with upper and lower detectoredge
+            # Connect source position with upper and lower detector edge
             axes.plot([sourceposition[0], upper_detector[0]],
                       [sourceposition[1], upper_detector[1]], "g")
             axes.plot([sourceposition[0], lower_detector[0]],
                       [sourceposition[1], lower_detector[1]], "g")
 
-            # connect source with cental detector_positoin
+            # connect source with central detector_positoin
             axes.plot([sourceposition[0], central_detector[0]],
                       [sourceposition[1], central_detector[1]], "g")
 
@@ -1729,7 +1729,7 @@ class ProjectionSettings():
             axes.plot([upper_source[0], upper_detector[0]],
                       [upper_source[1], upper_detector[1]], "g")
 
-            # connect lower with upper detector edge creating the detectorline
+            # connect lower with upper detector edge creating the detector line
             axes.plot([lower_detector[0], upper_detector[0]],
                       [lower_detector[1], upper_detector[1]], "k")
 
@@ -1740,7 +1740,7 @@ class ProjectionSettings():
                                                     color='r')
             axes.add_artist(draw_circle)
 
-            # draw rectangle represinting the image-area
+            # draw rectangle representing the image-area
             color = (1, 1, 0)
             draw_rectangle = matplotlib.patches.Rectangle(
                                 midpoint_shift
@@ -1801,7 +1801,7 @@ class ProjectionSettings():
 
         """
 
-        # Suitable kernels dependen on data types
+        # Suitable kernels dependent on data types
         if self.is_parallel:
             functions = {
                 (np.dtype("float32"), 0): self.prg.single_line_radon_float_ff,
@@ -2193,7 +2193,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
 
     x = x0.copy()
 
-    # preliminery initializations
+    # preliminary initializations
     d = sino-forwardprojection(x, projectionsetting)
     p = backprojection(d, projectionsetting)
     q = clarray.empty_like(d, projectionsetting.queue)
@@ -2219,7 +2219,7 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
         backprojection(d, projectionsetting, img=snew)  # snew=T*d
         beta = (clarray.vdot(snew, snew)  # beta = norm(snew)^2/norm(sold)^2
                 / clarray.vdot(sold, sold)).get()
-        (sold, snew) = (snew, sold)  # switch arround snew and sold
+        (sold, snew) = (snew, sold)  # swap snew and sold
         mul_add_add(p, beta, p, sold, projectionsetting)  # p = beta*p+sold
         residue = np.sqrt(np.sum(clarray.vdot(d, d).get())
                           / np.sum(clarray.vdot(sino, sino).get()))
@@ -2238,13 +2238,13 @@ def total_variation(sino, projectionsetting, mu,
                     number_iterations=1000, slice_thickness=1.0,
                     stepsize_weighting=10.):
     """
-    Peforms a primal-dual algorithm [CP2011]_ to solve a total-variation
+    Performs a primal-dual algorithm [CP2011]_ to solve a total-variation
     regularized reconstruction problem associated with a given
     projection operator and sinogram. This corresponds to the approximate
     solution of
     :math:`\\min_{u} {\\frac\\mu2}\\|\\mathcal{P}u-f\\|_{L^2}^2+\\mathrm{TV}(u)`
     for :math:`\\mathcal{P}` the projection operator, :math:`f` the sinogram
-    and :math:`\\mu` a positive regluarization parameter (i.e.,
+    and :math:`\\mu` a positive regularization parameter (i.e.,
     an :math:`L^2-\\mathrm{TV}` reconstruction approach).
 
     :param sino: Sinogram data to invert.

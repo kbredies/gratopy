@@ -87,7 +87,7 @@ def create_control_numbers():
     rng = np.random.default_rng(1)
     mylist = []
 
-    # Create Radom variables
+    # Create random variables
     mylist.append(rng.integers(0, M, m))  # s
     mylist.append(rng.integers(0, M, m))  # phi
     mylist.append(rng.integers(0, M, m))  # z
@@ -115,7 +115,7 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     test_x = []
     test_y = []
 
-    # Read saved rng
+    # Read saved random numbers
     text = myfile.readlines()
     for i in range(m):
         test_s.append(int(text[i]) % Ns)
@@ -307,7 +307,7 @@ def test_types_contiguity():
                 sino = sino_gpu.get()
                 backprojected = backprojected_gpu.get()
 
-                # Computing controlnumbers to quantitatively verify correctness
+                # Computing control numbers to quantitatively verify correctness
                 evaluate_control_numbers(img,
                                          (Nx, Nx, number_detectors, angles, 1),
                                          expected_result=7.8922043,
@@ -336,7 +336,7 @@ def test_weighting():
     Due to the fan geometry, the width of a projected object on the detector is
     wider than the original object was, as the width of the fan grows linearly
     with the distance it travels. Consequently, also the total mass on the
-    detector is rougly the multiplication of the total mass in the
+    detector is roughly the multiplication of the total mass in the
     object by the ratio **R** to **RE**. This estimate is verified
     numerically.
     """
@@ -349,7 +349,7 @@ def test_weighting():
     # determine which dtype to use
     dtype = np.dtype("float32")
 
-    # Execute for different number of detectors, to ensure
+    # execute for different number of detectors, to ensure
     # resolution independence
     for number_detectors in [50, 100, 200, 400, 800, 1600]:
 
@@ -358,10 +358,10 @@ def test_weighting():
         img = np.ones([Nx, Nx])
         angles = 720
 
-        # Rescaling parameter for geometry
+        # rescaling parameter for geometry
         rescaling = 1/40.*np.sqrt(2)
 
-        # Set the geometry of the system (to change the size of the object)
+        # set the geometry of the system (to change the size of the object)
         detector_width = 400*rescaling
         R = 1200.*rescaling
         RE = 200.*rescaling
@@ -452,7 +452,7 @@ def test_adjointness():
         gratopy.forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         gratopy.backprojection(sino1_gpu, PS, img=img2_gpu)
 
-        # dual pairing in image domain (weighted bei delta_x^2)
+        # dual pairing in image domain (weighted by delta_x^2)
         pairing_img = cl.array.dot(img1_gpu, img2_gpu)*PS.delta_x**2
         # dual pairing in sinogram domain (weighted by delta_s)
         pairing_sino = cl.array.dot(gratopy.weight_sinogram(sino1_gpu, PS),
@@ -598,7 +598,7 @@ def test_limited_angles():
                    cmap=plt.cm.gray)
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, len(angles_correct), 2),
                              expected_result=2949.3738,
                              classified="img", name="original image")
@@ -724,9 +724,9 @@ def test_geometric_orientation():
     Considers projections with parallel and fanbeam geometry for very simple
     images in different shifted geometries to illustrate how the geometry of
     the projection work and that they indeed behave analogously
-    for parallel and fanbeam setting. Note that the axes of images shown
-    via :func:`matplotlib.pyplot.imshow` are always rotated by 90
-    degree compared to the standard x,y-axes.
+    for parallel and fanbeam setting. Note that the axes of the images shown
+    by :func:`matplotlib.pyplot.imshow` are always rotated by 90
+    degrees compared to the standard (*x*, *y*)-axes.
     """
 
     # create PyopenCL context
@@ -749,7 +749,7 @@ def test_geometric_orientation():
     # Consider different Parameters for detector_shift and image_shift
     Parameters = [(0, 0, 0), (50, 0, 0), (0, 20, 0), (0, -20, 0),
                   (0, 0, 30), (0, 0, -30)]
-    # Corresponding Controlnumber
+    # Corresponding control numbers
     Controlnumbers = [(-22.6691, 1760.90, 131.301, 1157.280),
                       (51.959, -61.3725, 85.7716, 1058.5918),
                       (-703.53, 881.399, 542.11, 1050.41),
@@ -909,7 +909,7 @@ def test_range_check_walnut():
     sino_gpu = mpimg.imread(TESTWALNUTSINOGRAM)
     sino_gpu = clarray.to_device(queue, np.require(sino_gpu, dtype, order))
 
-    # Create two projectionsettings, one with (the correct) detectorshift
+    # Create two projectionsettings, one with (the correct) detector shift
     # the other without such correction.
     PS_incorrect = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                               img_shape=img_shape,
@@ -1055,7 +1055,7 @@ def test_landweber():
         plt.title("Landweber reconstruction")
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(ULW, (Nx, Ny, number_detectors, len(angles), 2),
                              expected_result=0.971266, classified="img",
@@ -1236,7 +1236,7 @@ def test_total_variation():
             cmap=plt.cm.gray)
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(UTV,
                              (Nx, Ny, number_detectors, numberofangles, 1),
@@ -1253,7 +1253,7 @@ def test_total_variation():
 
 def test_nonquadratic():
     """
-    Nonquadratic image test. Tests and illustrates the projection
+    Non-quadratic image test. Tests and illustrates the projection
     operator for non-quadratic images.
     """
 
@@ -1330,7 +1330,7 @@ def test_create_sparse_matrix():
     Tests the :func:`create_sparse_matrix
     <gratopy.ProjectionSettings.create_sparse_matrix>`
     method to create a sparse matrix
-    associated with the transform, and tests it by appling forward and
+    associated with the transform, and tests it by applying forward and
     backprojection via matrix multiplication.
     """
 
@@ -1385,7 +1385,7 @@ def test_create_sparse_matrix():
         plt.imshow(backproj, cmap=plt.cm.gray)
         plt.show()
 
-    # Computing a controlnumbers to quantitatively verify correctness
+    # Computing a control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (Nx, Nx, number_detectors, angles, 1),
                              expected_result=7.1182017,
                              classified="img", name="original image")

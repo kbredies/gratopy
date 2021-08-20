@@ -80,7 +80,7 @@ def create_control_numbers():
     rng = np.random.default_rng(1)
     mylist = []
 
-    # Create Radom variables
+    # Create random variables
     mylist.append(rng.integers(0, M, m))  # s
     mylist.append(rng.integers(0, M, m))  # phi
     mylist.append(rng.integers(0, M, m))  # z
@@ -108,7 +108,7 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     test_x = []
     test_y = []
 
-    # Read saved rng
+    # Read saved random numbers
     text = myfile.readlines()
     for i in range(m):
         test_s.append(int(text[i]) % Ns)
@@ -227,7 +227,7 @@ def test_projection():
 
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, angles, 2),
                              expected_result=2949.3738,
                              classified="img", name="original image")
@@ -308,7 +308,7 @@ def test_types_contiguity():
                 sino = sino_gpu.get()
                 backprojected = backprojected_gpu.get()
 
-                # Computing controlnumbers to quantitatively verify correctness
+                # Computing control numbers to quantitatively verify correctness
                 evaluate_control_numbers(img,
                                          (Nx, Nx, number_detectors, angles, 1),
                                          expected_result=7.89220,
@@ -347,7 +347,7 @@ def test_weighting():
     dtype = np.dtype("float32")
     order = 'F'
 
-    # geometric quantites
+    # geometric quantities
     detector_width = 4
     image_width = 4
 
@@ -441,7 +441,7 @@ def test_adjointness():
         gratopy.forwardprojection(img1_gpu, PS, sino=sino2_gpu)
         gratopy.backprojection(sino1_gpu, PS, img=img2_gpu)
 
-        # dual pairing in image domain (weighted bei delta_x^2)
+        # dual pairing in image domain (weighted by delta_x^2)
         pairing_img = cl.array.vdot(img1_gpu, img2_gpu).get()*PS.delta_x**2
 
         # dual pairing in sinogram domain
@@ -455,7 +455,7 @@ def test_adjointness():
             count += 1
             Error.append((pairing_img, pairing_sino))
 
-    # Anounce how many errors occurred
+    # Announce how many errors occurred
     print('Adjointness: Number of Errors: '+str(count)+' out of'
           + " 100 tests adjointness-errors were bigger than" + str(eps))
     assert(len(Error) < 10), 'A large number of experiments for adjointness\
@@ -488,17 +488,17 @@ def test_limited_angles():
     shift = 0
 
     # angles cover only a part of the angular range, angles is a list of angles
-    # while angular_range discribes the intervall covered by it
+    # while angular_range describes the interval covered by it
     na = 180
     delta = np.pi*3/4/(na-1)
 
     # define angles as a list/np.array will let gratopy think this is a
-    # fullangle setting (in contratst to the limited angle setting
+    # fullangle setting (in contrast to the limited angle setting
     # we want to consider)
     angles_incorrect = np.linspace(0, np.pi*3/4., na)+np.pi/8
 
     # For limited angle setting define tuple (or list of tuples) with the
-    # angles and the intervall discretized by this angles
+    # angles and the interval discretized by this angles
     angles_correct = (np.linspace(0, np.pi*3/4., na)+np.pi/8,
                       np.pi/8-delta/2, np.pi*7/8+delta/2)
 
@@ -562,7 +562,7 @@ def test_limited_angles():
 
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, len(angles_correct), 2),
                              expected_result=2949.3738,
                              classified="img", name="original image")
@@ -612,7 +612,7 @@ def test_limited_angles():
 
 
 def test_nonquadratic():
-    """ Nonquadratic image test. Tests and illustrates the projection
+    """ Non-quadratic image test. Tests and illustrates the projection
     operator for non-quadratic images. """
 
     # create PyOpenCL context
@@ -662,7 +662,7 @@ def test_nonquadratic():
 
         plt.show()
 
-    # Computing a controlnumbers to quantitatively verify correctness
+    # Computing a control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N1, N2, Ns, angles, 2),
                              expected_result=999.4965,
                              classified="img", name="original image")
@@ -681,7 +681,7 @@ def test_create_sparse_matrix():
     Tests the :func:`create_sparse_matrix
     <gratopy.ProjectionSettings.create_sparse_matrix>`
     method to create a sparse matrix
-    associated with the transform, and tests it by appling forward and
+    associated with the transform, and tests it by applying forward and
     backprojection via matrix multiplication.
     """
     # create PyOpenCL context
@@ -804,7 +804,7 @@ def test_midpoint_shift():
                    cmap=plt.cm.gray)
         plt.show()
 
-    # Computing controlnumbers to quantitatively verify correctness
+    # Computing control numbers to quantitatively verify correctness
     evaluate_control_numbers(img, (N, N, Ns, angles, 2), expected_result=2949.,
                              classified="img", name="original image")
 
@@ -820,7 +820,7 @@ def test_midpoint_shift():
 def test_angle_input_variants():
     """
     Angle parameter input test.
-    Illustrates all posibilities to specify projection angles, checks
+    Illustrates all possibilities to specify projection angles, checks
     the resulting **angles** and **angle_weights** as well as
     tests the possibility
     to set the **angle_weights** manually.
@@ -897,7 +897,7 @@ def test_angle_input_variants():
                                 np.pi/200)))
     Angle_weights_expected.append(np.ones(200)*np.pi/200)
 
-    # the interval (0,np.pi/3) is partioned
+    # the interval (0,np.pi/3) is partitioned
     # in 50 angles via np.pi/300,.. np.pi*99/300
     # and  interval (np.pi*2/3) is discretized in 50 angles
     # via np.pi*201/300 ... np.pi*299/300
@@ -913,9 +913,9 @@ def test_angle_input_variants():
     Angles_expected.append(np.pi/2)
     Angle_weights_expected.append([np.pi])
 
-    # Partion of angles from 0 to 2 pi (altough only (0,pi) is supposed to be
-    # considered) For Fullangle this yields the expected results, while for
-    #  Fullangle=True the weights are halved
+    # Partition of angles from 0 to 2 pi (although only (0,pi) is supposed to be
+    # considered). For fullangle this yields the expected results, while for
+    #  fullangle=True the weights are halved
     # as all angles are taken modulo pi
     Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
     Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))
@@ -972,7 +972,7 @@ def test_angle_input_variants():
         sino_gpu = gratopy.forwardprojection(img_gpu, PS)
         backprojection_gpu = gratopy.backprojection(sino_gpu, PS)
 
-        # Check wether angles were created as expected
+        # Check whether angles were created as expected
         assert(np.linalg.norm(PS.angles - np.array(Angles_expected[j]))
                < 0.01),\
             (" The angles in "+str(j)+".th "

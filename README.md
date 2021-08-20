@@ -29,19 +29,21 @@ The toolbox can easily be installed using pip:
 pip install gratopy
 ```
 
-Alternatively, a release or snapshot archive file can directly be downloaded, unpacked and installed by
-calling
+Alternatively, a release or snapshot archive file can directly be downloaded and unpacked.
+Calling 
 
 ```bash
 pip install .
 ```
 
-inside the main folder. In particular, gratopy supports setuptools for installation:
+inside the main folder then installs the toolbox. 
+Gratopy supports setuptools for installation such that 
 
 ```bash
 python setup.py install
 ```
 
+has the same effect.
 For more details we refer to the [documentation](https://gratopy.readthedocs.io/).
 
 As a further alternative, if no dedicated installation is needed for the toolbox, the code can simply be downloaded and the contents of the `gratopy` directory can be imported as a module. Please make sure to have the following Python modules installed, most of which should be standard.
@@ -130,12 +132,12 @@ The development of this software was supported by the following projects:
 * *International Research Training Group IGDK 1754 Optimization and Numerical Analysis for Partial Differential Equations with Nonsmooth
 Structures*, funded by the German Research Council (DFG) and the Austrian Science Fund (FWF), grant W-1244.
 
-The walnut data set included in this toolbox is licenced under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and available on [Zenodo](https://doi.org/10.5281/zenodo.1254206):
+The walnut data set included in this toolbox is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) and available on [Zenodo](https://doi.org/10.5281/zenodo.1254206):
 
 * Keijo Hämäläinen, Lauri Harhanen, Aki Kallonen, Antti Kujanpää, Esa Niemi and Samuli Siltanen. (2015). *Tomographic X-ray data of a walnut* (Version 1.0.0) [Data set]. Zenodo. https://doi.org/10.5281/zenodo.1254206
 
-The phantom creation code is based on [Phantominator](https://github.com/mckib2/phantominator), copyright by its contributors and licenced under [GPLv3](https://github.com/mckib2/phantominator/blob/master/LICENSE). See https://github.com/mckib2/phantominator.
+The phantom creation code is based on [Phantominator](https://github.com/mckib2/phantominator), copyright by its contributors and licensed under [GPLv3](https://github.com/mckib2/phantominator/blob/master/LICENSE). See https://github.com/mckib2/phantominator.
 
 ## License
 
-This project is licenced under the GPLv3 license - see [LICENSE](LICENSE) for details.
+This project is licensed under the GPLv3 license - see [LICENSE](LICENSE) for details.
