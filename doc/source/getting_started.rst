@@ -30,7 +30,7 @@ physical system unchanged and simply reflects a finer/coarser discretization.
 
 The angular range for the parallel beam setting is :math:`[0,\pi[`, while for the fanbeam setting, it is :math:`[0,2\pi[`.
 By default, it is assumed that the given angles completely partition the angular range.
-In case this is not desired  and a limited-angle situation
+In case this is not desired, a limited-angle situation
 can be considered by adapting the **angles** and **angle_weights** parameters of :py:class:`gratopy.ProjectionSettings`, impacting, for instance, the backprojection operator.
 Note also that the projections considered are rotation-invariant in the sense, that projection of a rotated image yields a sinogram which is translated in the angular dimension.
 
@@ -73,8 +73,8 @@ of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., sing
 
 .. _contiguity: https://documen.tician.de/pyopencl/array.html#pyopencl.array.Array
 
-Note that in the array the first dimension corresponds to the *x* variable and the second dimension
-corresponds to the *y* variable for x,y-axes as depicted in the figures above.
+Note that in gratopy, the first and second axis of an image array corresponds to the *x* and *y* axis, respectively, 
+as depicted in the figures above.
 
 .. _compatible-sino:
 
@@ -84,7 +84,7 @@ Sinograms in gratopy
 Similarly, a sinogram  **sino** is represented by a :class:`pyopencl.array.Array`  of the shape :math:`(N_s,N_a)` or :math:`(N_s,N_a,N_z)` for :math:`N_s` being the number of detectors and :math:`N_a` being the number of angles for which projections are considered.
 When used together with a **projectionsetting** of class :class:`gratopy.ProjectionSettings`, these dimensions must be **compatible**, i.e., :math:`(N_s,N_a)` has to coincide with the  **sinogram_shape** attribute of **projectionsetting**.
 The width of the detector is given by the attribute **detector_width** of **projectionsetting** and the detector pixels are equidistantly partitioning the detector line with detector pixel width
-:math:`\delta_s=\text{detector\_width}/N_s`. The angles, on the other hand, do not need to be equidistant or even partition the entire angular range; gratopy allows for rather general angle sets. The values associated with pixels in the sinogram again correspond to the average
+:math:`\delta_s=\mathrm{detector\_width}/N_s`. The angles, on the other hand, do not need to be equidistant or even partition the entire angular range; gratopy allows for rather general angle sets. The values associated with pixels in the sinogram again correspond to the average
 intensity values of a continuous sinogram counterpart and thus can be associated with a piecewise constant function. The data type of this array must be :attr:`numpy.float32` or :attr:`numpy.float64`, i.e., single or double precision, and can have either *C* or *F* contiguity_.
 
 

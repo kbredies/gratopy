@@ -22,7 +22,7 @@ Alternatively, the release can be downloaded from https://github.com/kbredies/gr
 
     pip install .
 
-In case pip is not used, setuptools_ is also supported for installation via
+Also, setuptools_ can be used for installation via
 ::
 
     python setup.py install
@@ -75,14 +75,15 @@ Moreover, the :ref:`getting-started` guide contains two example code segments wh
 Requirements
 ------------
 
-The requirements.txt file contains references to Python packages
-relevant to the use of gratopy. Amongst them the most relevant are
+The `requirements.txt <https://github.com/kbredies/gratopy/blob/master/requirements.txt>`_ file specifies Python packages
+required for the use of gratopy. Amongst them the most relevant are
 
 * `pyopencl>=2019.1 <https://pypi.org/project/pyopencl/>`_
 * `numpy>=1.17.0 <https://pypi.org/project/numpy/>`_
 * `scipy>=1.3.0 <https://pypi.org/project/scipy/>`_
 * `matplotlib>=3.2.0 <https://pypi.org/project/matplotlib/>`_
 * `Pillow>=6.0.0 <https://pypi.org/project/Pillow/>`_
+* `Mako>=1.1.0 <https://pypi.org/project/Mako/>`_
 
 Most users aiming for scientific computing applications will probably have these packages already installed as they can be considered standard for numerical computations in Python.
 Let us again point out that correctly installing PyOpenCL might take some time and effort though, as dependent on the used hardware/GPU, the installation of suitable drivers might be required, see, for instance, https://documen.tician.de/pyopencl/.

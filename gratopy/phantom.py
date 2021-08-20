@@ -15,8 +15,8 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     :param N: Matrix size, (N, N) or (M, N).
     :type N: :class:`int` or :class:`array_like`
 
-    :param modified: Use original grey-scale values as given in [SL1974]_.  Most
-        implementations use modified values for better contrast (for
+    :param modified: Use original gray-scale values as given in [SL1974]_.
+        Most implementations use modified values for better contrast (for
         example, see [2]_ and [3]_).
     :type modified: :class:`bool`
 
@@ -24,11 +24,11 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
         The six columns of **E** are:
 
         - Gray value of the ellipse (in [0, 1])
-        - Length of the horizontal semiaxis of the ellipse
-        - Length of the vertical semiaxis of the ellipse
+        - Length of the horizontal semi-axis of the ellipse
+        - Length of the vertical semi-axis of the ellipse
         - x-coordinate of the center of the ellipse (in [-1, 1])
         - y-coordinate of the center of the ellipse (in [-1, 1])
-        - Angle between the horizontal semiaxis of the ellipse
+        - Angle between the horizontal semi-axis of the ellipse
           and the x-axis of the image (in rad)
 
     :type E: :class:`array_like` or :obj:`None`
@@ -79,6 +79,7 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     # Give back either a 2D or 3D phantom
     return ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator)
 
+
 def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
     '''Make a 2D phantom.'''
 
@@ -98,7 +99,7 @@ def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
     theta = E[:, 5]
 
     # 2x2 square => FOV = (-1, 1)
-    X, Y = np.meshgrid( # meshgrid needs linspace in opposite order
+    X, Y = np.meshgrid(  # meshgrid needs linspace in opposite order
         np.linspace(-1, 1, N),
         -np.linspace(-1, 1, M))
     ph = np.zeros((M, N))

@@ -29,19 +29,21 @@ The toolbox can easily be installed using pip:
 pip install gratopy
 ```
 
-Alternatively, a release or snapshot archive file can directly be downloaded, unpacked and installed by
-calling
+Alternatively, a release or snapshot archive file can directly be downloaded and unpacked.
+Calling 
 
 ```bash
 pip install .
 ```
 
-inside the main folder. In particular, gratopy supports setuptools for installation:
+inside the main folder then installs the toolbox. 
+Gratopy supports setuptools for installation such that 
 
 ```bash
 python setup.py install
 ```
 
+has the same effect.
 For more details we refer to the [documentation](https://gratopy.readthedocs.io/).
 
 As a further alternative, if no dedicated installation is needed for the toolbox, the code can simply be downloaded and the contents of the `gratopy` directory can be imported as a module. Please make sure to have the following Python modules installed, most of which should be standard.
