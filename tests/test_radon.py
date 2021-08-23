@@ -308,7 +308,8 @@ def test_types_contiguity():
                 sino = sino_gpu.get()
                 backprojected = backprojected_gpu.get()
 
-                # Computing control numbers to quantitatively verify correctness
+                # Computing control numbers to quantitatively verify
+                # correctness
                 evaluate_control_numbers(img,
                                          (Nx, Nx, number_detectors, angles, 1),
                                          expected_result=7.89220,
@@ -913,9 +914,9 @@ def test_angle_input_variants():
     Angles_expected.append(np.pi/2)
     Angle_weights_expected.append([np.pi])
 
-    # Partition of angles from 0 to 2 pi (although only (0,pi) is supposed to be
-    # considered). For fullangle this yields the expected results, while for
-    #  fullangle=True the weights are halved
+    # Partition of angles from 0 to 2 pi (although only (0,pi) is supposed to
+    # be considered). For fullangle this yields the expected results, while for
+    # fullangle=True the weights are halved
     # as all angles are taken modulo pi
     Angles.append(np.linspace(0, 2*np.pi, 101)[:-1])
     Angles_expected.append(np.arange(0, 2*np.pi-0.00001, np.pi/50))

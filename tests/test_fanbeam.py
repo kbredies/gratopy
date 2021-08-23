@@ -307,7 +307,8 @@ def test_types_contiguity():
                 sino = sino_gpu.get()
                 backprojected = backprojected_gpu.get()
 
-                # Computing control numbers to quantitatively verify correctness
+                # Computing control numbers to quantitatively verify
+                # correctness
                 evaluate_control_numbers(img,
                                          (Nx, Nx, number_detectors, angles, 1),
                                          expected_result=7.8922043,
@@ -769,7 +770,7 @@ def test_geometric_orientation():
                                             img_shape=img1.shape,
                                             angles=angles,
                                             detector_width=170.0, RE=200.0,
-                                             R=350, n_detectors=Ns,
+                                            R=350, n_detectors=Ns,
                                             detector_shift=detector_shift,
                                             image_width=image_width,
                                             midpoint_shift=midpoint_shift)
