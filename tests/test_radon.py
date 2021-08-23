@@ -8,7 +8,7 @@ import time
 import gratopy
 
 # Plots are deactivated by default, can be activated
-# by setting 'export GRATOPY_TEST_PLOT=0' in the terminal
+# by setting 'export GRATOPY_TEST_PLOT=true' in the terminal
 plot_parameter = os.environ.get("GRATOPY_TEST_PLOT")
 if (plot_parameter is None):
     plot_parameter = '0'
@@ -163,8 +163,8 @@ def test_projection():
 
     # relevant quantities for geometry and discretization
     angles = 360
-    detector_width = 4
-    image_width = 4
+    detector_width = 4.
+    image_width = 4.
     Ns = int(0.5*N)
 
     # create projectionsetting with parallel beam setting with 360
@@ -348,8 +348,8 @@ def test_weighting():
     order = 'F'
 
     # geometric quantities
-    detector_width = 4
-    image_width = 4
+    detector_width = 4.0
+    image_width = 4.0
 
     # discretization parameters
     angles = 30
@@ -483,9 +483,9 @@ def test_limited_angles():
     img_gpu = create_phantoms(queue, N, dtype=dtype)
 
     # detector parameters
-    detector_width = 2
+    detector_width = 2.0
     Ns = int(0.3*N)
-    shift = 0
+    shift = 0.0
 
     # angles cover only a part of the angular range, angles is a list of angles
     # while angular_range describes the interval covered by it
@@ -765,7 +765,7 @@ def test_midpoint_shift():
     img_gpu = create_phantoms(queue, N, dtype)
 
     # geometry and sinogram parameters
-    (angles, Detector_width, image_width) = (360, 2, 3)
+    (angles, Detector_width, image_width) = (360, 2.0, 3.0)
     midpoint_shift = [0., 0.4]
     Ns = int(0.5*N)
 
@@ -957,8 +957,8 @@ def test_angle_input_variants():
                                    (np.pi/4+np.pi/12)/3, (np.pi/4+np.pi/12)/3,
                                    np.pi/6+np.pi/12, (np.pi/4+np.pi/6)/3])
 
-    detector_width = 4
-    image_width = 4
+    detector_width = 4.
+    image_width = 4.
     Ns = int(0.5*N)
 
     for j in range(len(Angles)):

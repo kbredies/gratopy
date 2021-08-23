@@ -10,7 +10,7 @@ import gratopy
 
 
 # Plots are deactivated by default, can be activated
-# by setting 'export GRATOPY_TEST_PLOT=0' in the terminal
+# by setting 'export GRATOPY_TEST_PLOT=true' in the terminal
 plot_parameter = os.environ.get("GRATOPY_TEST_PLOT")
 if (plot_parameter is None):
     plot_parameter = '0'
@@ -174,8 +174,8 @@ def test_projection():
     angles = 360
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                     img_shape=img.shape, angles=angles,
-                                    detector_width=400, RE=200,
-                                    R=752, n_detectors=number_detectors)
+                                    detector_width=400.0, RE=200.0,
+                                    R=752.0, n_detectors=number_detectors)
 
     # Create zero arrays to save the results in
     sino_gpu = clarray.zeros(queue, (PS.n_detectors, PS.n_angles, 2),
@@ -260,8 +260,8 @@ def test_types_contiguity():
     angles = 180
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                     img_shape=(Nx, Nx), angles=angles,
-                                    detector_width=400, RE=200,
-                                    R=752, n_detectors=number_detectors)
+                                    detector_width=400.0, RE=200.0,
+                                    R=752.0, n_detectors=number_detectors)
 
     # loop through all possible settings for precision and contiguity
     for dtype in [np.dtype("float32"), np.dtype("float64")]:
@@ -362,10 +362,10 @@ def test_weighting():
         rescaling = 1/40.*np.sqrt(2)
 
         # set the geometry of the system (to change the size of the object)
-        detector_width = 400*rescaling
-        R = 1200.*rescaling
-        RE = 200.*rescaling
-        image_width = 40.*rescaling
+        detector_width = 400.0*rescaling
+        R = 1200.0*rescaling
+        RE = 200.0*rescaling
+        image_width = 40.0*rescaling
 
         # create projectionsetting
         PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
@@ -415,16 +415,16 @@ def test_adjointness():
     number_detectors = 230
     img = np.zeros([400, 400])
     angles = 360
-    midpoint_shift = [0, 0]
+    midpoint_shift = [0.0, 0.0]
     dtype = np.dtype("float32")
     order = 'F'
 
     # define projection setting
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM, img.shape, angles,
                                     n_detectors=number_detectors,
-                                    detector_width=83, detector_shift=0.0,
+                                    detector_width=83.0, detector_shift=0.0,
                                     midpoint_shift=midpoint_shift,
-                                    R=900, RE=300, image_width=None)
+                                    R=900.0, RE=300.0, image_width=None)
 
     # preliminary definitions for counting errors
     Error = []
@@ -495,7 +495,7 @@ def test_limited_angles():
     # relevant quantities
     Ns = int(0.3*N)
     shift = 0
-    (R, RE, Detector_width, image_width) = (5, 2, 6, 2)
+    (R, RE, Detector_width, image_width) = (5.0, 2.0, 6.0, 2.0)
 
     # angles cover only part of the angular range, given by two sections
     # the first section moves from a1 to b1. Angular range is the range
@@ -554,7 +554,8 @@ def test_limited_angles():
                                             angle_weights=angle_weights)
 
     # show geometry of the problem
-    PScorrect.show_geometry(np.pi/4, show=False)
+    if PLOT:
+        PScorrect.show_geometry(np.pi/4, show=False)
 
     # forward and backprojection for the two settings
     sino_gpu_correct = gratopy.forwardprojection(img_gpu, PScorrect)
@@ -664,7 +665,8 @@ def test_midpoint_shift():
     img_gpu = create_phantoms(queue, N, dtype)
 
     # relevant quantities
-    (angles, R, RE, Detector_width, image_width, shift) = (360, 5, 3, 6, 2, 0)
+    (angles, R, RE, Detector_width, image_width, shift) = (360, 5.0,
+                                                           3.0, 6.0, 2.0, 0.0)
     midpoint_shift = [0, 0.5]
     Ns = int(0.5*N)
 
@@ -766,8 +768,8 @@ def test_geometric_orientation():
         PS_fan = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                             img_shape=img1.shape,
                                             angles=angles,
-                                            detector_width=170, RE=200, R=350,
-                                            n_detectors=Ns,
+                                            detector_width=170.0, RE=200.0,
+                                             R=350, n_detectors=Ns,
                                             detector_shift=detector_shift,
                                             image_width=image_width,
                                             midpoint_shift=midpoint_shift)
@@ -901,7 +903,7 @@ def test_range_check_walnut():
     reverse = True
 
     # Geometric and discretization information
-    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
+    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110.0, 300.0)
     angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     img_shape = (600, 600)
 
@@ -1019,7 +1021,7 @@ def test_landweber():
     walnut /= np.mean(walnut)
 
     # Geometric and discretization quantities
-    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
+    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110.0, 300.0)
     angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (600, 600)
@@ -1084,7 +1086,7 @@ def test_conjugate_gradients():
     walnut /= np.mean(walnut)
 
     # geometric quantities
-    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110, 300)
+    (number_detectors, Detectorwidth, FOD, FDD) = (328, 114.8, 110.0, 300.0)
     angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (600, 600)
@@ -1147,7 +1149,7 @@ def test_total_variation():
 
     # relevant quantities
     number_detectors = 328
-    (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110, 300, 120)
+    (Detectorwidth, FOD, FDD, numberofangles) = (114.8, 110., 300., 120)
     angles = -np.linspace(0, 2*np.pi, 121)[:-1]
     reverse = True
     img_shape = (400, 400)
@@ -1269,7 +1271,7 @@ def test_nonquadratic():
     img_gpu = cl.array.to_device(queue, img_gpu.get()[:, 0:N2, :].copy())
 
     # geometric and discretization quantities
-    (angles, R, RE, Detector_width, shift) = (360, 5, 3, 5, 0)
+    (angles, R, RE, Detector_width, shift) = (360, 5.0, 3.0, 5.0, 0.0)
     image_width = None
     midpoint_shift = [0, 0.]
     Ns = int(0.5*N1)
@@ -1350,8 +1352,8 @@ def test_create_sparse_matrix():
     # define projectionsetting
     PS = gratopy.ProjectionSettings(queue, gratopy.FANBEAM,
                                     img_shape=(Nx, Nx), angles=angles,
-                                    detector_width=400, R=752,
-                                    RE=200, n_detectors=number_detectors)
+                                    detector_width=400.0, R=752.0,
+                                    RE=200.0, n_detectors=number_detectors)
 
     # Create corresponding sparse matrix
     sparsematrix = PS.create_sparse_matrix(dtype=dtype, order=order)

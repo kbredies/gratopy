@@ -1406,9 +1406,24 @@ class ProjectionSettings():
                                                     img_shape[1])))
         else:
             self.n_detectors = n_detectors
-        detector_width = float(detector_width)
 
         self.sinogram_shape = (self.n_detectors, self.n_angles)
+
+        # Ensure everything is float
+        if np.isscalar(image_width):
+            image_width = float(image_width)
+        if np.isscalar(R):
+            R = float(R)
+        if np.isscalar(RE):
+            RE = float(RE)
+        if np.isscalar(detector_width):
+            detector_width = float(detector_width)
+        if np.isscalar(detector_shift):
+            detector_shift = float(detector_shift)
+        if np.isscalar(midpoint_shift[0]):
+            midpoint_shift[0] = float(midpoint_shift[0])
+        if np.isscalar(midpoint_shift[1]):
+            midpoint_shift[1] = float(midpoint_shift[1])
 
         # add various values as attributes
         self.image_width = image_width
@@ -1462,14 +1477,16 @@ class ProjectionSettings():
             self.angle_weights_buf = self.struct["angle_diff_dict"]
             self.angle_weights = self.angle_weights_buf[
                                             np.dtype("float")].copy()
-            self.delta_x = self.image_width/max(img_shape)
-            self.delta_s = detector_width/n_detectors
+            self.delta_x = float(self.image_width)/max(img_shape)
+            self.delta_s = float(detector_width)/n_detectors
             self.delta_ratio = self.delta_s/self.delta_x
 
         if self.is_parallel:
             # if image_width is not given, set by default to 2
             if image_width is None:
                 self.image_width = 2.
+            else:
+                self.image_width = float(self.image_width)
 
             # create radon_struct
             self.struct = radon_struct(queue=self.queue,
