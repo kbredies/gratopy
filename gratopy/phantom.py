@@ -1,9 +1,31 @@
 # -*- coding: utf-8 -*-
 # From phantominator: https://github.com/mckib2/phantominator/
+#
+#    Copyright (C) 2021 Kristian Bredies (kristian.bredies@uni-graz.at)
+#                       Richard Huber (richard.huber@uni-graz.at)
+#
+#    This file is part of gratopy (https://github.com/kbredies/gratopy).
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 '''The canonical Shepp-Logan phantom used for CT simulations.'''
 
 import numpy as np
 import pyopencl as cl
+
+# unofficial Python2 compatibility
+from __future__ import division, print_function 
 
 def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
                    dtype='double', allocator=None):

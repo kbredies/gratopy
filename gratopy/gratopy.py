@@ -1,3 +1,23 @@
+# -*- coding: utf-8 -*-
+#
+#    Copyright (C) 2021 Kristian Bredies (kristian.bredies@uni-graz.at)
+#                       Richard Huber (richard.huber@uni-graz.at)
+#
+#    This file is part of gratopy (https://github.com/kbredies/gratopy).
+#
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 import sys
 import os
 import numpy as np
@@ -7,6 +27,9 @@ import pyopencl as cl
 import pyopencl.array as clarray
 import scipy
 import scipy.sparse
+
+# unofficial Python2 compatibility
+from __future__ import division, print_function
 
 # Version number
 VERSION = '0.1.0rc1.post1'
@@ -1408,22 +1431,6 @@ class ProjectionSettings():
             self.n_detectors = n_detectors
 
         self.sinogram_shape = (self.n_detectors, self.n_angles)
-
-        # Ensure everything is float
-        if np.isscalar(image_width):
-            image_width = float(image_width)
-        if np.isscalar(R):
-            R = float(R)
-        if np.isscalar(RE):
-            RE = float(RE)
-        if np.isscalar(detector_width):
-            detector_width = float(detector_width)
-        if np.isscalar(detector_shift):
-            detector_shift = float(detector_shift)
-        if np.isscalar(midpoint_shift[0]):
-            midpoint_shift[0] = float(midpoint_shift[0])
-        if np.isscalar(midpoint_shift[1]):
-            midpoint_shift[1] = float(midpoint_shift[1])
 
         # add various values as attributes
         self.image_width = image_width
