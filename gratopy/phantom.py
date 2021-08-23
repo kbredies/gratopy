@@ -19,13 +19,13 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# unofficial Python2 compatibility
+from __future__ import division, print_function
+
 '''The canonical Shepp-Logan phantom used for CT simulations.'''
 
 import numpy as np
 import pyopencl as cl
-
-# unofficial Python2 compatibility
-from __future__ import division, print_function 
 
 def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
                    dtype='double', allocator=None):

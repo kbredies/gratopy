@@ -18,6 +18,9 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+# unofficial Python2 compatibility
+from __future__ import division, print_function
+
 import sys
 import os
 import numpy as np
@@ -28,11 +31,8 @@ import pyopencl.array as clarray
 import scipy
 import scipy.sparse
 
-# unofficial Python2 compatibility
-from __future__ import division, print_function
-
 # Version number
-VERSION = '0.1.0rc1.post1'
+VERSION = '0.1.0rc1.post2'
 
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
