@@ -32,7 +32,7 @@ import scipy
 import scipy.sparse
 
 # Version number
-VERSION = '0.1.0rc1.post2'
+VERSION = '0.1.0'
 
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
