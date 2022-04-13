@@ -31,10 +31,11 @@ The gratopy_ (**Gr**\az **a**\ccelerated **to**\mographic projections for **Py**
                    \end{minipage}
 
 .. table:: The fanbeam projection of a walnut and gratopy's Landweber and total variation reconstructions (from left to right).
-    :widths: 20 40 40
+    :widths: 65 160 160
 
     +----------------------------------------+-------------------------------------+------------------------------------------+
     | .. image:: graphics/walnut_sinogram.png| .. image:: graphics/landweber.png   | .. image:: graphics/total_variation.png  |
+    |      :width: 91                        |      :width: 250                    |       :width: 250                        |
     |      :height: 250                      |      :height: 250                   |       :height: 250                       |
     |      :align: center                    |      :align: center                 |       :align: center                     |
     +----------------------------------------+-------------------------------------+------------------------------------------+

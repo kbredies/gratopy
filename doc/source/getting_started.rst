@@ -181,16 +181,18 @@ and backprojection of a phantom:
     plt.imshow(backproj.get(), cmap="gray")
     plt.show()
 
+
 The following depicts the plots created by this example.
 
-.. image:: graphics/phantom-1.png
-    :width: 5000
+.. table::
+    :widths: 47 25 47
 
-.. image:: graphics/sinogram-1.png
-    :width: 5000
-
-.. image:: graphics/backprojection-1.png
-    :width: 5000
+    +----------------------------------------+-------------------------------------+------------------------------------------+
+    | .. image:: graphics/phantom-1.png      | .. image:: graphics/sinogram-1.png  | .. image:: graphics/backprojection-1.png |
+    |      :width: 250                       |      :width: 125                    |       :width: 250                        |
+    |      :height: 250                      |      :height: 250                   |       :height: 250                       |
+    |      :align: center                    |      :align: center                 |       :align: center                     |
+    +----------------------------------------+-------------------------------------+------------------------------------------+
 
 
 Second example: Fanbeam transform
