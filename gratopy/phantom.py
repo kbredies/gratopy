@@ -27,6 +27,7 @@ from __future__ import division, print_function
 import numpy as np
 import pyopencl as cl
 
+
 def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
                    dtype='double', allocator=None):
     '''Generate an OpenCL Shepp-Logan phantom of size (N, N).
@@ -42,7 +43,7 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
         example, see [2]_ and [3]_).
     :type modified: :class:`bool`
 
-    :param E: :math:`e \\times 6` numeric matrix defining :math:`e` ellipses.  
+    :param E: :math:`e \\times 6` numeric matrix defining :math:`e` ellipses.
         The six columns of **E** are:
 
         - Gray value of the ellipse (in [0, 1])
@@ -64,13 +65,13 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     :param allocator: The :mod:`pyopencl` allocator used for memory allocation.
     :type allocator: An implementation of :class:`pyopencl.tools.AllocatorInterface` or :obj:`None`
 
-    :returns: Phantom/parameter pair (**ph** [, **E**]). 
+    :returns: Phantom/parameter pair (**ph** [, **E**]).
     :var ph: The Shepp-Logan phantom.
     :vartype ph: :class:`pyopencl.array.Array`
 
     :var E: The ellipse parameters used to generate **ph**.
     :vartype E: :class:`array_like`, optional
-    
+
     This much abused phantom is due to [SL1974]_.  The tabulated values in
     the paper are reproduced in the Wikipedia entry [1]_.  The
     original values do not produce great contrast, so modified values
@@ -90,11 +91,11 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     # Get size of phantom
     if np.isscalar(N):
         M, N = N, N
-        is2D = True
+        # is2D = True
     else:
         if len(N) == 2:
             M, N = N[:]
-            is2D = True
+            # is2D = True
         else:
             raise ValueError('Dimension must be scalar or 2D!')
 
@@ -147,6 +148,7 @@ def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
         return(ph, E)
     return ph
 
+
 def ct_shepp_logan_params_2d():
     '''Return parameters for original Shepp-Logan phantom.
 
@@ -156,7 +158,7 @@ def ct_shepp_logan_params_2d():
         Parameters for the 10 ellipses used to construct the phantom.
     '''
 
-    E = np.zeros((10, 6)) # (10, [A, a, b, xc, yc, theta])
+    E = np.zeros((10, 6))  # (10, [A, a, b, xc, yc, theta])
     E[:, 0] = [2, -.98, -.02, -.02, .01, .01, .01, .01, .01, .01]
     E[:, 1] = [
         .69, .6624, .11, .16, .21, .046, .046, .046, .023, .023]
@@ -165,6 +167,7 @@ def ct_shepp_logan_params_2d():
     E[:, 4] = [0, -.0184, 0, 0, .35, .1, -.1, -.605, -.605, -.605]
     E[:, 5] = np.deg2rad([0, 0, -18, 18, 0, 0, 0, 0, 0, 0])
     return E
+
 
 def ct_modified_shepp_logan_params_2d():
     '''Return parameters for modified Shepp-Logan phantom.
@@ -177,6 +180,7 @@ def ct_modified_shepp_logan_params_2d():
     E = ct_shepp_logan_params_2d()
     E[:, 0] = [1, -0.8, -0.2, -0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
     return E
+
 
 if __name__ == '__main__':
     pass

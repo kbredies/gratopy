@@ -1,7 +1,7 @@
 from setuptools import setup
 
-name='gratopy'
-version='0.1.0'
+name = 'gratopy'
+version = '0.1.0'
 
 long_description="""
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.5221442.svg)](https://doi.org/10.5281/zenodo.5221442)
@@ -29,7 +29,7 @@ setup(name=name,
       long_description=long_description,
       long_description_content_type="text/markdown",
       url='https://github.com/kbredies/gratopy',
-      project_urls={ "Documentation": "https://gratopy.readthedocs.io/"},
+      project_urls={"Documentation": "https://gratopy.readthedocs.io/"},
       author='Kristian Bredies, Richard Huber',
       classifiers=[
           "Environment :: Console",
