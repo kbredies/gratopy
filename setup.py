@@ -3,7 +3,7 @@ from setuptools import setup
 name = 'gratopy'
 version = '0.1.0'
 
-long_description="""
+long_description = """
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.5221442.svg)](https://doi.org/10.5281/zenodo.5221442)
 [![Documentation Status](https://readthedocs.org/projects/gratopy/badge/?version=latest)](https://gratopy.readthedocs.io/?badge=latest)
 
