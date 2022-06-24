@@ -2337,6 +2337,7 @@ def total_variation(sino, projectionsetting, mu,
             (float32, 1): projectionsetting.prg.update_lambda_L2_float_c,
             (float64, 0): projectionsetting.prg.update_lambda_L2_double_f,
             (float64, 1): projectionsetting.prg.update_lambda_L2_double_c}
+
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(update_lambda_[lamb.dtype, lamb.flags.c_contiguous]
                        (lamb.queue, lamb.shape, None, lamb.data, Ku.data,
@@ -2350,11 +2351,12 @@ def total_variation(sino, projectionsetting, mu,
             (np.dtype("float32"), 1): projectionsetting.prg.update_v_float_c,
             (np.dtype("float"), 0): projectionsetting.prg.update_v_double_f,
             (np.dtype("float"), 1): projectionsetting.prg.update_v_double_c}
+
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
         v.add_event(update_v_[v.dtype, v.flags.c_contiguous]
                     (v.queue, u.shape, None, v.data, u.data, np.float32(sigma),
-                         np.float32(slice_thickness),
-                         wait_for=v.events+u.events+wait_for))
+                     np.float32(slice_thickness),
+                     wait_for=v.events+u.events+wait_for))
 
     # Update primal variable u (the image)
     update_u_ = {
@@ -2362,8 +2364,9 @@ def total_variation(sino, projectionsetting, mu,
             (np.dtype("float32"), 1): projectionsetting.prg.update_u_float_c,
             (np.dtype("float"), 0): projectionsetting.prg.update_u_double_f,
             (np.dtype("float"), 1): projectionsetting.prg.update_u_double_c}
-    def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, \
-        wait_for=[]):
+
+    def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness,
+                 wait_for=[]):
         u_.add_event(update_u_[u.dtype, u.flags.c_contiguous]
                      (u.queue, u.shape, None, u.data, u_.data, v.data,
                       Kstarlambda.data, np.float32(
@@ -2381,6 +2384,7 @@ def total_variation(sino, projectionsetting, mu,
             projectionsetting.prg.update_NormV_unchor_double_f,
             (np.dtype("float"), 1):
             projectionsetting.prg.update_NormV_unchor_double_c}
+
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(update_NormV_[V.dtype, V.flags.c_contiguous]
                         (V.queue, V.shape[1:], None, V.data, normV.data,
