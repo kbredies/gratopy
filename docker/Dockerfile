@@ -15,7 +15,8 @@ RUN apt-get update && apt-get -y upgrade \
     opencl-headers \
     clinfo \
     python3 \
-    python3-pip
+    python3-pip \
+    python3-pyqt5
 
 # Setup AMD OpenCL.
 
@@ -40,7 +41,7 @@ RUN pip install -U pip
 WORKDIR /usr/local/gratopy
 ADD . .
 
-RUN pip install -r requirements.txt
+RUN pip install -r requirements.txt && pip install pytest notebook
 RUN pip install .
 
 CMD ["/usr/bin/python3"]
