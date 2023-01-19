@@ -13,6 +13,11 @@ enable X11 forwarding and can be omitted if you do not require it (e.g., because
 are using the image to start a local Jupyter server which you interact with from your
 host machine).
 
+It is possible that, in order to allow the container to use your host machine's X server,
+you additionally have to run `xhost +local:docker` and/or make your `~/.Xauthority` file
+available within the container by adding `-v $HOME/.Xauthority:/root/.Xauthority` to the
+suggested `docker run` calls.
+
 #### NVIDIA GPUs
 
 For NVIDIA GPUs, make sure to have the `nvidia-container-runtime` package
