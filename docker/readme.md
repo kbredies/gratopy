@@ -39,6 +39,17 @@ docker run --rm -it --device=/dev/kfd --device=/dev/dri -v /tmp/.X11-unix:/tmp/.
 which spawns a Python shell inside of the container from which `gratopy`
 can be imported.
 
+#### Intel GPUs
+
+Same as for AMD GPUs, the image ships with the necessary drivers and
+no additional dependencies are required for the host system. The container
+can be started using
+```sh
+docker run --rm -it --device=/dev/dri -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY=$DISPLAY gratopy:latest
+```
+which spawns a Python shell inside of the container from which `gratopy`
+can be imported.
+
 ### Jupyter Notebooks
 
 It is also possible to spin up a local Jupyter server in order to
