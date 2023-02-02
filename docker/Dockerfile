@@ -15,6 +15,7 @@ RUN apt-get update && apt-get -y upgrade \
     opencl-headers \
     clinfo \
     intel-opencl-icd \
+    pocl-opencl-icd \
     python3 \
     python3-pip \
     python3-pyqt5
