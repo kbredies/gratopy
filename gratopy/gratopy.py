@@ -2059,9 +2059,7 @@ class ProjectionSettings:
             def pos_2(s, phi):
                 return s * Na + phi
         else:
-            print(
-                "Order (contiguity) not recognized, suitable choices are 'F' or 'C'"
-            )
+            print("Order (contiguity) not recognized, suitable choices are 'F' or 'C'")
             raise
 
         # discretization parameters
