@@ -19,10 +19,27 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 from .gratopy import RADON, PARALLEL, FAN, FANBEAM, VERSION
-from .gratopy import forwardprojection, backprojection, ProjectionSettings, \
-    landweber, conjugate_gradients, total_variation, normest, weight_sinogram
+from .gratopy import (
+    forwardprojection,
+    backprojection,
+    ProjectionSettings,
+    landweber,
+    conjugate_gradients,
+    total_variation,
+    normest,
+    weight_sinogram,
+)
 from .phantom import ct_shepp_logan as phantom
 
 
 # internal functions
-from .gratopy import radon, radon_ad, radon_struct, fanbeam, fanbeam_ad, fanbeam_struct, create_code, read_angles
+from .gratopy import (
+    radon,
+    radon_ad,
+    radon_struct,
+    fanbeam,
+    fanbeam_ad,
+    fanbeam_struct,
+    create_code,
+    read_angles,
+)

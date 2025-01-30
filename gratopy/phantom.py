@@ -21,7 +21,7 @@
 
 # unofficial Python2 compatibility
 
-'''The canonical Shepp-Logan phantom used for CT simulations.'''
+"""The canonical Shepp-Logan phantom used for CT simulations."""
 
 from __future__ import division, print_function
 
@@ -29,9 +29,10 @@ import numpy as np
 import pyopencl as cl
 
 
-def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
-                   dtype='double', allocator=None):
-    '''Generate an OpenCL Shepp-Logan phantom of size (N, N).
+def ct_shepp_logan(
+    queue, N, modified=True, E=None, ret_E=False, dtype="double", allocator=None
+):
+    """Generate an OpenCL Shepp-Logan phantom of size (N, N).
 
     :param queue: The OpenCL command queue.
     :type queue: :class:`pyopencl.CommandQueue`
@@ -87,7 +88,7 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
     .. [1] https://en.wikipedia.org/wiki/Shepp%E2%80%93Logan_phantom
     .. [2] https://sigpy.readthedocs.io/en/latest/_modules/sigpy/sim.html#shepp_logan
     .. [3] http://www.mathworks.com/matlabcentral/fileexchange/9416-3d-shepp-logan-phantom
-    '''
+    """
 
     # Get size of phantom
     if np.isscalar(N):
@@ -98,14 +99,14 @@ def ct_shepp_logan(queue, N, modified=True, E=None, ret_E=False,
             M, N = N[:]
             # is2D = True
         else:
-            raise ValueError('Dimension must be scalar or 2D!')
+            raise ValueError("Dimension must be scalar or 2D!")
 
     # Give back either a 2D or 3D phantom
     return ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator)
 
 
 def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
-    '''Make a 2D phantom.'''
+    """Make a 2D phantom."""
 
     # Get the ellipse parameters the user asked for
     if E is None:
@@ -124,8 +125,8 @@ def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
 
     # 2x2 square => FOV = (-1, 1)
     X, Y = np.meshgrid(  # meshgrid needs linspace in opposite order
-        np.linspace(-1, 1, N),
-        -np.linspace(-1, 1, M))
+        np.linspace(-1, 1, N), -np.linspace(-1, 1, M)
+    )
     ph = np.zeros((M, N))
     ct = np.cos(theta)
     st = np.sin(theta)
@@ -136,9 +137,9 @@ def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
         ct0, st0 = ct[ii], st[ii]
 
         # Find indices falling inside the ellipse
-        idx = (
-            ((X - xc)*ct0 + (Y - yc)*st0)**2/a**2 +
-            ((X - xc)*st0 - (Y - yc)*ct0)**2/b**2 <= 1)
+        idx = ((X - xc) * ct0 + (Y - yc) * st0) ** 2 / a**2 + (
+            (X - xc) * st0 - (Y - yc) * ct0
+        ) ** 2 / b**2 <= 1
 
         # Sum of ellipses
         ph[idx] += grey[ii]
@@ -146,42 +147,41 @@ def ct_shepp_logan_2d(queue, M, N, modified, E, ret_E, dtype, allocator):
     ph = ph.astype(dtype)
     ph = cl.array.to_device(queue, ph, allocator)
     if ret_E:
-        return(ph, E)
+        return (ph, E)
     return ph
 
 
 def ct_shepp_logan_params_2d():
-    '''Return parameters for original Shepp-Logan phantom.
+    """Return parameters for original Shepp-Logan phantom.
 
     Returns
     -------
     E : array_like, shape (10, 6)
         Parameters for the 10 ellipses used to construct the phantom.
-    '''
+    """
 
     E = np.zeros((10, 6))  # (10, [A, a, b, xc, yc, theta])
-    E[:, 0] = [2, -.98, -.02, -.02, .01, .01, .01, .01, .01, .01]
-    E[:, 1] = [
-        .69, .6624, .11, .16, .21, .046, .046, .046, .023, .023]
-    E[:, 2] = [.92, .874, .31, .41, .25, .046, .046, .023, .023, .046]
-    E[:, 3] = [0, 0, .22, -.22, 0, 0, 0, -.08, 0, .06]
-    E[:, 4] = [0, -.0184, 0, 0, .35, .1, -.1, -.605, -.605, -.605]
+    E[:, 0] = [2, -0.98, -0.02, -0.02, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01]
+    E[:, 1] = [0.69, 0.6624, 0.11, 0.16, 0.21, 0.046, 0.046, 0.046, 0.023, 0.023]
+    E[:, 2] = [0.92, 0.874, 0.31, 0.41, 0.25, 0.046, 0.046, 0.023, 0.023, 0.046]
+    E[:, 3] = [0, 0, 0.22, -0.22, 0, 0, 0, -0.08, 0, 0.06]
+    E[:, 4] = [0, -0.0184, 0, 0, 0.35, 0.1, -0.1, -0.605, -0.605, -0.605]
     E[:, 5] = np.deg2rad([0, 0, -18, 18, 0, 0, 0, 0, 0, 0])
     return E
 
 
 def ct_modified_shepp_logan_params_2d():
-    '''Return parameters for modified Shepp-Logan phantom.
+    """Return parameters for modified Shepp-Logan phantom.
 
     Returns
     -------
     E : array_like, shape (10, 6)
         Parameters for the 10 ellipses used to construct the phantom.
-    '''
+    """
     E = ct_shepp_logan_params_2d()
     E[:, 0] = [1, -0.8, -0.2, -0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1]
     return E
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     pass
