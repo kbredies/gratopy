@@ -35,6 +35,7 @@ dependencies = [
     "pillow>=11.1.0",
     "pyopencl>=2025.1",
     "scipy>=1.13.1",
+    "scipy>=1.15.0 ; python_full_version >= '3.13'",
 ]
 
 [dependency-groups]

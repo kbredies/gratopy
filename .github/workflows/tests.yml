@@ -32,4 +32,4 @@ jobs:
     - name: Install gratopy and Python dependencies
       run: uv sync
     - name: Run tests
-      run: uv run pytest -n auto
+      run: uv run pytest
