@@ -63,4 +63,5 @@ line-length = 127
 select = ["C", "E4", "E7", "E9", "F"]
 
 [tool.ruff.lint.per-file-ignores]
-"__init__.py" = ["E402"]
+"__init__.py" = ["E402", "F401"]
+"gratopy.py" = ["C901"]

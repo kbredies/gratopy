@@ -1105,7 +1105,7 @@ def test_conjugate_gradients():
     my_phantom = gratopy.phantom(queue, img_shape)
     my_phantom_sinogram = gratopy.forwardprojection(my_phantom, PS)
 
-    sino = np.zeros(PS.sinogram_shape+tuple([2]))
+    sino = np.zeros(PS.sinogram_shape + (2,))
     sino[:, :, 0] = walnut/np.max(walnut)
     sino[:, :, 1] = my_phantom_sinogram.get()/np.max(my_phantom_sinogram.get())
     walnut_gpu2new = clarray.to_device(queue, np.require(sino, dtype, order))

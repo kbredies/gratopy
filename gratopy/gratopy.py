@@ -140,7 +140,7 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
 
     # initialize new sinogram if no sinogram is yet given
     if sino is None:
-        z_dimension = tuple()
+        z_dimension = ()
         if len(img.shape) > 2:
             z_dimension = (img.shape[2],)
         # create sinogram with same basic properties as img
@@ -202,7 +202,7 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
 
     # initialize new img (to save backprojection in) if none is yet given
     if img is None:
-        z_dimension = tuple()
+        z_dimension = ()
         if len(sino.shape) > 2:
             z_dimension = (sino.shape[2],)
         # create img for backprojection with same basic properties as sino
@@ -2201,8 +2201,8 @@ def conjugate_gradients(sino, projectionsetting, number_iterations=20,
     dimensions = projectionsetting.img_shape
     dimensions2 = (1, projectionsetting.n_angles)
     if len(sino.shape) > 2:
-        dimensions = dimensions+tuple([sino.shape[2]])
-        dimensions2 = dimensions2+tuple([1])
+        dimensions = dimensions + (sino.shape[2],)
+        dimensions2 = dimensions2 + (1,)
 
     # order of data
     order = {0: 'F', 1: 'C'}[sino.flags.c_contiguous]
@@ -2325,7 +2325,7 @@ def total_variation(sino, projectionsetting, mu,
         slice_thickness = 0
     else:
         img_shape = img_shape+tuple(sino.shape[2],)
-    extended_img_shape = tuple([4])+img_shape
+    extended_img_shape = (4,) + img_shape
 
     # Definitions of suitable kernel functions for primal and dual updates
 

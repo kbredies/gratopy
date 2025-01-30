@@ -20,9 +20,10 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # unofficial Python2 compatibility
-from __future__ import division, print_function
 
 '''The canonical Shepp-Logan phantom used for CT simulations.'''
+
+from __future__ import division, print_function
 
 import numpy as np
 import pyopencl as cl
