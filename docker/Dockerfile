@@ -38,12 +38,11 @@ ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
 
 # Install gratopy
 
-RUN pip install -U pip
+RUN curl -LsSf https://astral.sh/uv/install.sh | sh
 
 WORKDIR /usr/local/gratopy
 ADD . .
 
-RUN pip install -r requirements.txt && pip install pytest notebook
-RUN pip install .
+RUN uv sync && uv pip install notebook
 
-CMD ["/usr/bin/python3"]
+CMD ["uv", "run", "python"]

@@ -61,7 +61,7 @@ It is also possible to spin up a local Jupyter server in order to
 interact with `gratopy` in a Jupyter notebook from a browser on your
 host machine. To do so, run the image with
 ```
-docker run --rm [GPU options] -p 8888:8888 gratopy:latest jupyter notebook --ip=0.0.0.0 --allow-root
+docker run --rm [GPU options] -p 8888:8888 gratopy:latest uv run jupyter notebook --ip=0.0.0.0 --allow-root
 ```
 and navigate to the link to `http://127.0.0.1:8888/?token=...` that is
 shown in your terminal.
@@ -80,7 +80,7 @@ from the repository root.
 The docker container ships with `gratopy`s test suite, which can be
 run via
 ```sh
-docker run --rm -it [GPU options] gratopy:latest pytest
+docker run --rm -it [GPU options] gratopy:latest uv run pytest
 ```
 
 
