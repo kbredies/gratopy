@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  test:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -27,7 +27,8 @@ jobs:
     - name: Install the latest version of uv
       uses: astral-sh/setup-uv@v5
     - name: Install system dependencies
-      run: sudo apt-get install pocl-opencl-icd
+      run: |
+        sudo apt-get install pocl-opencl-icd libopenblas-dev
     - name: Install gratopy and Python dependencies
       run: uv sync
     - name: Run tests
