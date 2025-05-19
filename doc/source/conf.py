@@ -30,7 +30,12 @@ release = '0.1.0'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosectionlabel', 'sphinx.ext.viewcode', 'sphinx.ext.intersphinx']
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.autosectionlabel',
+    'sphinx.ext.viewcode',
+    'sphinx.ext.intersphinx',
+]
 
 autosectionlabel_prefix_document = True
 
@@ -57,9 +62,9 @@ html_theme = 'sphinx_rtd_theme'
 html_static_path = []
 
 intersphinx_mapping = {
-    "https://docs.python.org/dev": None,
-    "https://numpy.org/doc/stable/": None,
-    "https://documen.tician.de/pyopencl/": None,
-    "https://matplotlib.org/stable/": None,
-    "https://docs.scipy.org/doc/scipy/": None
+    "python": ("https://docs.python.org/dev", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "pyopencl": ("https://documen.tician.de/pyopencl/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "scipy": ("https://docs.scipy.org/doc/scipy/", None),
 }
