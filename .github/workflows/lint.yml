@@ -1,4 +1,4 @@
-name: Gratopy Tests
+name: Check code formatting and run linting
 
 on:
   push:
