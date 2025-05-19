@@ -29,9 +29,9 @@ In case installation fails due to the dependency on other packages
 it is advised to install the packages by hand before retrying to install gratopy.
 
 In particular, the PyOpenCL package may require some additional
-effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to the documentation of PyOpenCL_.
+effort as it depends on additional drivers and C libraries which might needed to be installed by hand. We refer to the `documentation of PyOpenCL`_.
 
-.. _pyopencl: https://documen.tician.de/pyopencl/
+.. _documentation of PyOpenCL: https://documen.tician.de/pyopencl/
 
 For development, we recommend installing the project and dependency management
 tool `uv <https://docs.astral.sh/uv/>`__. The local development environment
