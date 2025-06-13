@@ -1,7 +1,7 @@
 FROM ubuntu:22.04
 LABEL maintainer="Benjamin Hackl <benjamin.hackl@uni-graz.at>"
 
-ARG AMD_DRIVER_URL=https://repo.radeon.com/amdgpu-install/5.3/ubuntu/jammy/amdgpu-install_5.3.50300-1_all.deb
+ARG AMD_DRIVER_URL=https://repo.radeon.com/amdgpu-install/6.4.1/ubuntu/jammy/amdgpu-install_6.4.60401-1_all.deb
 
 RUN apt-get update && apt-get -y upgrade \
   && DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -18,7 +18,8 @@ RUN apt-get update && apt-get -y upgrade \
     pocl-opencl-icd \
     python3 \
     python3-pip \
-    python3-pyqt5
+    python3-pyqt5 \
+    rsync
 
 # Setup AMD OpenCL.
 
@@ -33,12 +34,13 @@ RUN curl -O $AMD_DRIVER_URL \
 # is installed and available on the host system.
 
 RUN echo "libnvidia-opencl.so.1" > /etc/OpenCL/vendors/nvidia.icd
-ENV NVIDIA_VISIBLE_DEVICES all
-ENV NVIDIA_DRIVER_CAPABILITIES compute,utility
+ENV NVIDIA_VISIBLE_DEVICES=all
+ENV NVIDIA_DRIVER_CAPABILITIES=compute,utility
 
 # Install gratopy
 
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
+ENV PATH="/root/.local/bin/:$PATH"
 
 WORKDIR /usr/local/gratopy
 ADD . .
