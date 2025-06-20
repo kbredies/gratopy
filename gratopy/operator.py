@@ -81,7 +81,7 @@ class Operator:
 
         return all(
             [
-                type(self) == type(other),
+                type(self) is type(other),
                 self.name == other.name,
                 self.scalar == other.scalar,
                 self.state == other.state,
