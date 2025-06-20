@@ -5,14 +5,17 @@ from __future__ import annotations
 from enum import Enum
 from typing import Sequence, Any
 from numbers import Number
-from copy import copy, deepcopy 
+from copy import copy, deepcopy
 
 import numpy as np
 
+
 class OperatorArithmeticOperation(Enum):
     """Enum for operations that can be performed on operators."""
+
     ADDITION = "sum"
     MULTIPLICATION = "prod"
+
 
 class Operator:
     """Base class for all operators."""
@@ -23,7 +26,7 @@ class Operator:
         scalar: float = 1,
         state: dict[str, Any] | None = None,
         arithmetic_operation: OperatorArithmeticOperation | None = None,
-        operands: list[Operator] | None = None
+        operands: list[Operator] | None = None,
     ):
         if name is None:
             name = self.__class__.__name__
@@ -40,7 +43,7 @@ class Operator:
 
         self._scalar = 1
         self.scalar = scalar
-    
+
     def __repr__(self) -> str:
         scalar_repr = ""
         if self.scalar != 1:
@@ -52,7 +55,7 @@ class Operator:
             if scalar_repr:
                 return f"{scalar_repr}*{self.name}"
             return self.name
-        
+
         if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
             op_repr = " + ".join(repr(op) for op in self._operands)
             if scalar_repr:
@@ -70,25 +73,27 @@ class Operator:
                 return f"{scalar_repr}*{op_repr}"
             return op_repr
         raise ValueError(f"Unknown arithmetic operation: {self._arithmetic_operation}")
-    
+
     def __eq__(self, other: Any) -> bool:
         """Check equality of two operators."""
         if not isinstance(other, Operator):
             return False
-        
-        return all([
-            type(self) == type(other),
-            self.name == other.name,
-            self.scalar == other.scalar,
-            self.state == other.state,
-            self._arithmetic_operation == other._arithmetic_operation,
-            self._operands == other._operands
-        ])
-    
+
+        return all(
+            [
+                type(self) == type(other),
+                self.name == other.name,
+                self.scalar == other.scalar,
+                self.state == other.state,
+                self._arithmetic_operation == other._arithmetic_operation,
+                self._operands == other._operands,
+            ]
+        )
+
     @property
     def scalar(self) -> float:
         return self._scalar
-    
+
     @scalar.setter
     def scalar(self, value: float):
         """Set the scalar value of the operator."""
@@ -100,26 +105,31 @@ class Operator:
                 self._operands[0].scalar *= value
         else:
             self._scalar = value
-    
+
     def apply_to(self, argument: Sequence):
         """Application of this operator to some given argument."""
-        raise NotImplementedError("apply_to needs to be implemented in specialized subclasses")
+        raise NotImplementedError(
+            "apply_to needs to be implemented in specialized subclasses"
+        )
 
     def is_composite(self) -> bool:
         """Check if the operator is composite."""
         return self._arithmetic_operation is not None
-    
+
     def __add__(self, other: Operator) -> Operator:
         """Add another operator to this one."""
         if not isinstance(other, Operator):
             raise TypeError(f"Cannot add {type(other)} to {type(self)}")
-        
+
         if isinstance(other, _ZeroOperator):
             return self
 
         operands = []
         for operator in [copy(self), copy(other)]:
-            if operator.is_composite() and operator._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
+            if (
+                operator.is_composite()
+                and operator._arithmetic_operation == OperatorArithmeticOperation.ADDITION
+            ):
                 for child_operator in operator._operands:
                     child_operator.scalar *= operator.scalar
                     operands.append(child_operator)
@@ -132,15 +142,15 @@ class Operator:
             arithmetic_operation=OperatorArithmeticOperation.ADDITION,
             operands=operands,
         )
-    
+
     def __neg__(self) -> Operator:
         """Negate this operator."""
-        return (-1)*self
-    
+        return (-1) * self
+
     def __sub__(self, other: Operator) -> Operator:
         """Subtract another operator from this one."""
-        return self + (-1)*other
-    
+        return self + (-1) * other
+
     def __rmul__(self, other: Operator | Number | float) -> Operator:
         """Right-multiply this operator by a scalar or another operator."""
         if isinstance(other, Number):
@@ -148,75 +158,81 @@ class Operator:
                 return ZERO
             if other == 1:
                 return self
-            
+
             operator_copy = deepcopy(self)
             operator_copy.scalar = operator_copy.scalar * other
             return operator_copy
-        
+
         elif isinstance(other, Operator):
             return other.__mul__(self)
-        
+
         return NotImplemented
-    
+
     def __mul__(self, other: Operator | Sequence) -> Operator | Any:
         """Multiply this operator by another operator, or apply it to appropriate input."""
         if not isinstance(other, Operator):
             # attempt to apply the operator to the input
             if not self.is_composite():
                 return self.scalar * self.apply_to(other)
-            
+
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
                 return self.scalar * sum(child_op * other for child_op in self._operands)
-            
+
             if self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
                 result = other
                 for child_op in reversed(self._operands):
                     result = child_op * result
-                
+
                 return self.apply_to(other)
-            
+
             raise TypeError(f"Cannot multiply {type(other)} with {type(self)}")
-        
+
         if isinstance(other, _ZeroOperator):
             return other
-        
+
         if isinstance(other, _IdentityOperator):
             return self
-        
+
         operands = []
         scalar = 1
         for operator in [copy(self), copy(other)]:
-            if operator.is_composite() and operator._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
+            if (
+                operator.is_composite()
+                and operator._arithmetic_operation
+                == OperatorArithmeticOperation.MULTIPLICATION
+            ):
                 operands.extend(operator._operands)
             else:
                 scalar *= operator.scalar
                 operator.scalar = 1
                 operands.append(operator)
-        
+
         return Operator(
             name=None,
             scalar=scalar,
             arithmetic_operation=OperatorArithmeticOperation.MULTIPLICATION,
-            operands=operands
+            operands=operands,
         )
 
 
 class _IdentityOperator(Operator):
     """Base class for identity operator."""
+
     def __mul__(self, other: Operator | Sequence) -> Operator | Any:
         """Multiplying the identity operator with another operator returns
         the other operator."""
         if isinstance(other, Operator):
             return other
         return super().__mul__(other)
-        
-        
+
     def apply_to(self, argument: Sequence) -> Sequence:
         """The identity operator does not change the input."""
         return argument
 
+
 class _ZeroOperator(Operator):
     """Base class for zero operator."""
+
     def __add__(self, other: Operator) -> Operator:
         """Adding zero operator to any operator returns the other operator."""
         return other
@@ -231,7 +247,7 @@ class _ZeroOperator(Operator):
             return 0 * argument
         except TypeError:
             pass
-        
+
         try:
             return np.zeros_like(argument)
         except (ValueError, TypeError):
