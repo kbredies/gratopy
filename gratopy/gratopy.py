@@ -19,7 +19,7 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # unofficial Python2 compatibility
-from __future__ import division, print_function
+from __future__ import annotations, division, print_function
 
 import sys
 import os
@@ -30,6 +30,7 @@ import pyopencl as cl
 import pyopencl.array as clarray
 import scipy
 import scipy.sparse
+import itertools
 
 # Version number
 VERSION = "0.1.0"
@@ -958,14 +959,25 @@ def fanbeam_struct(
     return struct
 
 
-def create_code():
+def create_code(cl_context: cl.Context | None = None):
     """
     Reads and creates CL code containing all OpenCL kernels
     of the gratopy toolbox.
 
+    :param cl_context: The OpenCL context in which the code is to be
+        compiled. Used for checking support for double precision
+        floating point numbers.
     :return: The toolbox's CL code.
     :rtype:  :class:`str`
     """
+
+    double_precision_supported = True
+    if cl_context is not None:
+        double_precision_supported = any(device.double_fp_config for device in cl_context.devices)
+
+    DTYPES = ["float"]
+    if double_precision_supported:
+        DTYPES.append("double")
 
     total_code = ""
     # go through all the source files
@@ -976,7 +988,7 @@ def create_code():
 
         # go through all possible dtypes and contiguities and replace
         # the placeholders suitably
-        for dtype in ["float", "double"]:
+        for dtype in DTYPES:
             for order1 in ["f", "c"]:
                 for order2 in ["f", "c"]:
                     total_code += (
@@ -993,7 +1005,7 @@ def create_code():
 
         # go through all possible dtypes and contiguities and replace
         # the placeholders suitably
-        for dtype in ["float", "double"]:
+        for dtype in DTYPES:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace("\\my_variable_type", dtype).replace(
                     "\\order1", order1
@@ -1455,7 +1467,7 @@ class ProjectionSettings:
         self.queue = queue
 
         # build program containing OpenCL code
-        self.adjusted_code = create_code()
+        self.adjusted_code = create_code(cl_context=queue.context)
         self.prg = Program(queue.context, self.adjusted_code)
 
         if np.isscalar(img_shape):
@@ -1483,26 +1495,23 @@ class ProjectionSettings:
             # The kernel-functions according to the possible data types
             float32 = np.dtype("float32")
             float64 = np.dtype("float64")
-            self.functions = {
-                (float32, 0, 0): self.prg.radon_float_ff,
-                (float32, 1, 0): self.prg.radon_float_cf,
-                (float32, 0, 1): self.prg.radon_float_fc,
-                (float32, 1, 1): self.prg.radon_float_cc,
-                (float64, 0, 0): self.prg.radon_double_ff,
-                (float64, 1, 0): self.prg.radon_double_cf,
-                (float64, 0, 1): self.prg.radon_double_fc,
-                (float64, 1, 1): self.prg.radon_double_cc,
-            }
-            self.functions_ad = {
-                (float32, 0, 0): self.prg.radon_ad_float_ff,
-                (float32, 1, 0): self.prg.radon_ad_float_cf,
-                (float32, 0, 1): self.prg.radon_ad_float_fc,
-                (float32, 1, 1): self.prg.radon_ad_float_cc,
-                (float64, 0, 0): self.prg.radon_ad_double_ff,
-                (float64, 1, 0): self.prg.radon_ad_double_cf,
-                (float64, 0, 1): self.prg.radon_ad_double_fc,
-                (float64, 1, 1): self.prg.radon_ad_double_cc,
-            }
+            self.functions = {}
+            self.functions_ad = {}
+            for ((dtype, dtype_name), (c1, c1_name), (c2, c2_name)) in itertools.product(
+                [(float32, 'float'), (float64, 'double')],
+                [(0, 'f'), (1, 'c')],
+                [(0, 'f'), (1, 'c')],
+            ):
+                func_key = (dtype, c1, c2)
+                func_name = f"radon_{dtype_name}_{c1_name}{c2_name}"
+                func = getattr(self.prg, func_name, None)
+                if func is not None:
+                    self.functions[func_key] = func
+                
+                func_ad_name = f"radon_ad_{dtype_name}_{c1_name}{c2_name}"
+                func_ad = getattr(self.prg, func_ad_name, None)
+                if func_ad is not None:
+                    self.functions_ad[func_key] = func_ad
 
         if self.geometry in [FAN, FANBEAM]:
             self.is_parallel = False
@@ -1515,26 +1524,23 @@ class ProjectionSettings:
             # The kernel-functions according to the possible data types
             float32 = np.dtype("float32")
             float64 = np.dtype("float64")
-            self.functions = {
-                (float32, 0, 0): self.prg.fanbeam_float_ff,
-                (float32, 1, 0): self.prg.fanbeam_float_cf,
-                (float32, 0, 1): self.prg.fanbeam_float_fc,
-                (float32, 1, 1): self.prg.fanbeam_float_cc,
-                (float64, 0, 0): self.prg.fanbeam_double_ff,
-                (float64, 1, 0): self.prg.fanbeam_double_cf,
-                (float64, 0, 1): self.prg.fanbeam_double_fc,
-                (float64, 1, 1): self.prg.fanbeam_double_cc,
-            }
-            self.functions_ad = {
-                (float32, 0, 0): self.prg.fanbeam_ad_float_ff,
-                (float32, 1, 0): self.prg.fanbeam_ad_float_cf,
-                (float32, 0, 1): self.prg.fanbeam_ad_float_fc,
-                (float32, 1, 1): self.prg.fanbeam_ad_float_cc,
-                (float64, 0, 0): self.prg.fanbeam_ad_double_ff,
-                (float64, 1, 0): self.prg.fanbeam_ad_double_cf,
-                (float64, 0, 1): self.prg.fanbeam_ad_double_fc,
-                (float64, 1, 1): self.prg.fanbeam_ad_double_cc,
-            }
+            self.functions = {}
+            self.functions_ad = {}
+            for ((dtype, dtype_name), (c1, c1_name), (c2, c2_name)) in itertools.product(
+                [(float32, 'float'), (float64, 'double')],
+                [(0, 'f'), (1, 'c')],
+                [(0, 'f'), (1, 'c')],
+            ):
+                func_key = (dtype, c1, c2)
+                func_name = f"fanbeam_{dtype_name}_{c1_name}{c2_name}"
+                func = getattr(self.prg, func_name, None)
+                if func is not None:
+                    self.functions[func_key] = func
+                
+                func_ad_name = f"fanbeam_ad_{dtype_name}_{c1_name}{c2_name}"
+                func_ad = getattr(self.prg, func_ad_name, None)
+                if func_ad is not None:
+                    self.functions_ad[func_key] = func_ad
 
         # extract suitable angles information
         angles, angles_diff = read_angles(angles, angle_weights, self)
@@ -1982,19 +1988,26 @@ class ProjectionSettings:
 
         # Suitable kernels dependent on data types
         if self.is_parallel:
-            functions = {
-                (np.dtype("float32"), 0): self.prg.single_line_radon_float_ff,
-                (np.dtype("float32"), 1): self.prg.single_line_radon_float_cc,
-                (np.dtype("float64"), 0): self.prg.single_line_radon_double_ff,
-                (np.dtype("float64"), 1): self.prg.single_line_radon_double_cc,
-            }
+            name_prefix = "single_line_radon"
         elif self.is_fan:
-            functions = {
-                (np.dtype("float32"), 0): self.prg.single_line_fan_float_ff,
-                (np.dtype("float32"), 1): self.prg.single_line_fan_float_cc,
-                (np.dtype("float64"), 0): self.prg.single_line_fan_double_ff,
-                (np.dtype("float64"), 1): self.prg.single_line_fan_double_cc,
-            }
+            name_prefix = "single_line_fan"
+        else:
+            raise ValueError(
+                "ProjectionSettings.create_sparse_matrix: "
+                "Unknown projection geometry."
+            )
+        
+        functions = {}
+        for ((dtype, dtype_name), (order, order_name)) in itertools.product(
+            [(np.dtype("float32"), 'float'), (np.dtype("float64"), 'double')],
+            [(0, 'ff'), (1, 'cc')],
+        ):
+            func_key = (dtype, order)
+            func_name = f"{name_prefix}_{dtype_name}_{order_name}"
+            func = getattr(self.prg, func_name, None)
+            if func is not None:
+                functions[func_key] = func
+
         # choose relevant function
         dtype = np.dtype(dtype)
         function = functions[(np.dtype(dtype), order == "C")]
@@ -2165,20 +2178,17 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
     # and multiplication
     float32 = np.dtype("float32")
     float64 = np.dtype("float64")
-    if divide is False:
-        functions = {
-            (float32, "C"): projectionsetting.prg.multiply_float_c,
-            (float32, "F"): projectionsetting.prg.multiply_float_f,
-            (float64, "C"): projectionsetting.prg.multiply_double_c,
-            (float64, "F"): projectionsetting.prg.multiply_double_f,
-        }
-    elif divide is True:
-        functions = {
-            (float32, "C"): projectionsetting.prg.divide_float_c,
-            (float32, "F"): projectionsetting.prg.divide_float_f,
-            (float64, "C"): projectionsetting.prg.divide_double_c,
-            (float64, "F"): projectionsetting.prg.divide_double_f,
-        }
+    op_name = "multiply" if not divide else "divide"
+    functions = {}
+    for ((dtype, dtype_name), (order, order_name)) in itertools.product(
+        [(float32, 'float'), (float64, 'double')],
+        [('C', 'c'), ('F', 'f')],
+    ):
+        func_key = (dtype, order)
+        func_name = f"{op_name}_{dtype_name}_{order_name}"
+        func = getattr(projectionsetting.prg, func_name, None)
+        if func is not None:
+            functions[func_key] = func
     function = functions[dtype, my_order]
 
     # ensure buffers of the right dtype are uploaded onto the gpu
@@ -2204,10 +2214,8 @@ def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
     """
     # choose correct kernel to use
     dtype = x.dtype
-    function = {
-        np.dtype("float32"): projectionsetting.prg.equ_mul_add_float_c,
-        np.dtype("float64"): projectionsetting.prg.equ_mul_add_double_c,
-    }[dtype]
+    func_name = f"equ_mul_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
+    function = getattr(projectionsetting.prg, func_name)
 
     # execute operation
     myevent = function(
@@ -2229,10 +2237,8 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     """
     # choose correct kernel to use
     dtype = x.dtype
-    function = {
-        np.dtype("float32"): projectionsetting.prg.mul_add_add_float_c,
-        np.dtype("float64"): projectionsetting.prg.mul_add_add_double_c,
-    }[dtype]
+    func_name = f"mul_add_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
+    function = getattr(projectionsetting.prg, func_name)
 
     # execute operation
     myevent = function(
