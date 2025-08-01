@@ -280,10 +280,7 @@ def radon(
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with appropriate dtype
-    function = projectionsetting.functions[
-        (dtype, sino.flags.c_contiguous, img.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=False)
 
     # execute corresponding function and add event to sinogram
     myevent = function(
@@ -345,10 +342,7 @@ def radon_ad(
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with appropriate dtype
-    function = projectionsetting.functions_ad[
-        (dtype, img.flags.c_contiguous, sino.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=True)
 
     # execute corresponding function and add event to image
     myevent = function(
@@ -610,9 +604,7 @@ def fanbeam(
     geometry_information = projectionsetting.geometry_information[dtype]
 
     # choose function with appropriate dtype
-    function = projectionsetting.functions[
-        (dtype, sino.flags.c_contiguous, img.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=False)
 
     # execute corresponding function and add event to sinogram
     myevent = function(
@@ -675,9 +667,7 @@ def fanbeam_ad(
     sdpd_buf = projectionsetting.sdpd_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    function = projectionsetting.functions_ad[
-        (dtype, img.flags.c_contiguous, sino.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=True)
 
     # execute corresponding function and add event to sinogram
     myevent = function(
@@ -2157,6 +2147,34 @@ class ProjectionSettings:
         )
 
         return sparsematrix
+
+    def get_projection_kernel(
+        self, sinogram: clarray.Array, image: clarray.Array, adjoint: bool = False
+    ) -> Callable:
+        """Returns the compiled projection function for the given sinogram and
+        image. If adjoint is True, the adjoint projection function is returned.
+
+        :param sinogram: The sinogram to be used in the projection.
+        :type sinogram: :class:`pyopencl.array.Array`
+
+        :param image: The image to be used in the projection.
+        :type image: :class:`pyopencl.array.Array`
+
+        :param adjoint: If True, returns the adjoint projection function.
+        :type adjoint: :class:`bool`, default :obj:`False`
+
+        :return: The projection function.
+        :rtype: callable
+        """
+        if not adjoint:
+            return self.functions[
+                (sinogram.dtype, sinogram.flags.c_contiguous, image.flags.c_contiguous)
+            ]
+
+        # return adjoint function
+        return self.functions_ad[
+            (sinogram.dtype, image.flags.c_contiguous, sinogram.flags.c_contiguous)
+        ]
 
 
 def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_for=[]):
