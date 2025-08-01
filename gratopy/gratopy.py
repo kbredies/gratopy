@@ -2055,12 +2055,7 @@ class ProjectionSettings:
             name_prefix = "single_line_radon"
         elif self.is_fan:
             name_prefix = "single_line_fan"
-        else:
-            raise ValueError(
-                "ProjectionSettings.create_sparse_matrix: "
-                "Unknown projection geometry."
-            )
-        
+
         functions = {}
         for ((dtype, dtype_name), (order, order_name)) in itertools.product(
             [(np.dtype("float32"), 'float'), (np.dtype("float64"), 'double')],
@@ -2638,7 +2633,7 @@ def total_variation(
 
     # update dual variable to data term
     float32 = np.dtype("float32")
-    float64 = np.dtype("float")
+    float64 = np.dtype("float64")
     update_lambda_ = {
         (float32, 0): projectionsetting.prg.update_lambda_L2_float_f,
         (float32, 1): projectionsetting.prg.update_lambda_L2_float_c,
@@ -2665,8 +2660,8 @@ def total_variation(
     update_v_ = {
         (np.dtype("float32"), 0): projectionsetting.prg.update_v_float_f,
         (np.dtype("float32"), 1): projectionsetting.prg.update_v_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_v_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_v_double_c,
+        (np.dtype("float64"), 0): projectionsetting.prg.update_v_double_f,
+        (np.dtype("float64"), 1): projectionsetting.prg.update_v_double_c,
     }
 
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
@@ -2687,8 +2682,8 @@ def total_variation(
     update_u_ = {
         (np.dtype("float32"), 0): projectionsetting.prg.update_u_float_f,
         (np.dtype("float32"), 1): projectionsetting.prg.update_u_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_u_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_u_double_c,
+        (np.dtype("float64"), 0): projectionsetting.prg.update_u_double_f,
+        (np.dtype("float64"), 1): projectionsetting.prg.update_u_double_c,
     }
 
     def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, wait_for=[]):
@@ -2712,8 +2707,8 @@ def total_variation(
     update_NormV_ = {
         (np.dtype("float32"), 0): projectionsetting.prg.update_NormV_unchor_float_f,
         (np.dtype("float32"), 1): projectionsetting.prg.update_NormV_unchor_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_NormV_unchor_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_NormV_unchor_double_c,
+        (np.dtype("float64"), 0): projectionsetting.prg.update_NormV_unchor_double_f,
+        (np.dtype("float64"), 1): projectionsetting.prg.update_NormV_unchor_double_c,
     }
 
     def update_NormV(V, normV, wait_for=[]):
@@ -2733,7 +2728,7 @@ def total_variation(
         np.dtype("float32"): cl.elementwise.ElementwiseKernel(
             ctx, "float *u_, float *u", "u[i] = 2.0f*u_[i] - u[i]"
         ),
-        np.dtype("float"): cl.elementwise.ElementwiseKernel(
+        np.dtype("float64"): cl.elementwise.ElementwiseKernel(
             ctx, "double *u_, double *u", "u[i] = 2.0f*u_[i] - u[i]"
         ),
     }
