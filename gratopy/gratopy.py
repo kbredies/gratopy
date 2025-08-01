@@ -21,6 +21,8 @@
 # unofficial Python2 compatibility
 from __future__ import annotations, division, print_function
 
+from collections.abc import Callable
+
 import sys
 import os
 import numpy as np
@@ -61,9 +63,13 @@ class Program(object):
             self.__dict__[kernel.function_name] = kernel
 
 
-def check_compatibility(img, sino, projectionsetting):
+def check_compatibility(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+):
     """
-    Ensures, that img, sino, and projectionsetting have compatible
+    Ensures that img, sino, and projectionsetting have compatible
     dimensions and types.
     """
     assert sino.dtype == img.dtype, (
@@ -98,7 +104,12 @@ def check_compatibility(img, sino, projectionsetting):
             )
 
 
-def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
+def forwardprojection(
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    sino: clarray.Array | None = None,
+    wait_for=[],
+):
     """
     Performs the forward projection (either for the Radon or the
     fanbeam transform) of a given image using the given projection
@@ -158,7 +169,12 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
     return sino
 
 
-def backprojection(sino, projectionsetting, img=None, wait_for=[]):
+def backprojection(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    img: clarray.Array | None = None,
+    wait_for=[],
+):
     """
     Performs the backprojection (either for the Radon or the
     fanbeam transform) of a given sinogram  using the given projection
@@ -222,7 +238,12 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
     return img
 
 
-def radon(sino, img, projectionsetting, wait_for=[]):
+def radon(
+    sino: clarray.Array,
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for=[],
+):
     """
     Performs the Radon transform of a given image using the
     given **projectionsetting**.
@@ -280,7 +301,12 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     return myevent
 
 
-def radon_ad(img, sino, projectionsetting, wait_for=[]):
+def radon_ad(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for=[],
+):
     """
     Performs the Radon backprojection of a given sinogram using
     the given **projectionsetting**.
@@ -540,7 +566,12 @@ def radon_struct(
     return struct
 
 
-def fanbeam(sino, img, projectionsetting, wait_for=[]):
+def fanbeam(
+    sino: clarray.Array,
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for=[],
+):
     """
     Performs the fanbeam transform of a given image using the
     given **projectionsetting**.
@@ -599,7 +630,12 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     return myevent
 
 
-def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
+def fanbeam_ad(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for=[],
+):
     """
     Performs the fanbeam backprojection of a given sinogram using
     the given **projectionsetting**.
