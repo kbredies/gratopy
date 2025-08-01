@@ -164,8 +164,7 @@ def forwardprojection(
         )
 
     # perform projection operation
-    function = projectionsetting.forwardprojection
-    function(sino, img, projectionsetting, wait_for=wait_for)
+    projectionsetting.forwardprojection(sino, img, projectionsetting, wait_for=wait_for)
     return sino
 
 
@@ -233,8 +232,7 @@ def backprojection(
         )
 
     # execute corresponding backprojection operation
-    function = projectionsetting.backprojection
-    function(img, sino, projectionsetting, wait_for=wait_for)
+    projectionsetting.backprojection(img, sino, projectionsetting, wait_for=wait_for)
     return img
 
 
