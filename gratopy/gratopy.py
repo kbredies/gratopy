@@ -1504,19 +1504,9 @@ class ProjectionSettings:
             img_shape = img_shape[0:2]
         self.img_shape = img_shape
 
-        # Check that given geometry is indeed available
-        if self.geometry not in [RADON, PARALLEL, FAN, FANBEAM]:
-            raise ValueError(
-                "unknown projection_type, projection_type " + "must be PARALLEL or FAN"
-            )
-
         if self.geometry in [RADON, PARALLEL]:
             self.is_parallel = True
             self.is_fan = False
-
-            # set relevant forward and backprojection functions
-            self.forwardprojection = radon
-            self.backprojection = radon_ad
 
             # The kernel-functions according to the possible data types
             float32 = np.dtype("float32")
@@ -1542,10 +1532,6 @@ class ProjectionSettings:
         if self.geometry in [FAN, FANBEAM]:
             self.is_parallel = False
             self.is_fan = True
-
-            # set relevant forward and backprojection functions
-            self.forwardprojection = fanbeam
-            self.backprojection = fanbeam_ad
 
             # The kernel-functions according to the possible data types
             float32 = np.dtype("float32")
@@ -1669,6 +1655,58 @@ class ProjectionSettings:
             self.geometry_information = self.struct["geo_dict"]
             self.angle_weights_buf = self.struct["angle_diff_dict"]
             self.angle_weights = self.angle_weights_buf[np.dtype("float")].copy()
+
+    @property
+    def geometry(self) -> int:
+        """
+        Returns the configured geometry.
+        """
+        return self._geometry
+
+    @geometry.setter
+    def geometry(self, value: int) -> None:
+        """
+        Sets the geometry for the projection settings.
+        Must be either RADON (0) or FANBEAM (1).
+        """
+        if value not in [RADON, PARALLEL, FAN, FANBEAM]:
+            raise ValueError(
+                "Unknown projection geometry. "
+                "Must be either RADON / PARALLEL, or FAN / FANBEAM."
+            )
+        self._geometry = value
+
+    def forwardprojection(
+        self,
+        sino: clarray.Array,
+        img: clarray.Array,
+        projectionsetting: ProjectionSettings,
+        wait_for=[],
+    ) -> None:
+        """
+        Calls the appropriate forward projection given the
+        configured geometry.
+        """
+        if self.geometry in [RADON, PARALLEL]:
+            radon(sino, img, projectionsetting, wait_for=wait_for)
+        elif self.geometry in [FAN, FANBEAM]:
+            fanbeam(sino, img, projectionsetting, wait_for=wait_for)
+
+    def backprojection(
+        self,
+        img: clarray.Array,
+        sino: clarray.Array,
+        projectionsetting: ProjectionSettings,
+        wait_for=[],
+    ):
+        """
+        Calls the appropriate back projection given the
+        configured geometry.
+        """
+        if self.geometry in [RADON, PARALLEL]:
+            radon_ad(img, sino, projectionsetting, wait_for=wait_for)
+        elif self.geometry in [FAN, FANBEAM]:
+            fanbeam_ad(img, sino, projectionsetting, wait_for=wait_for)
 
     def ensure_dtype(self, dtype):
         """
