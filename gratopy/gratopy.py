@@ -997,7 +997,9 @@ def create_code(cl_context: cl.Context | None = None):
 
     double_precision_supported = True
     if cl_context is not None:
-        double_precision_supported = any(device.double_fp_config for device in cl_context.devices)
+        double_precision_supported = any(
+            device.double_fp_config for device in cl_context.devices
+        )
 
     DTYPES = ["float"]
     if double_precision_supported:
@@ -1511,17 +1513,17 @@ class ProjectionSettings:
             float64 = np.dtype("float64")
             self.functions = {}
             self.functions_ad = {}
-            for ((dtype, dtype_name), (c1, c1_name), (c2, c2_name)) in itertools.product(
-                [(float32, 'float'), (float64, 'double')],
-                [(0, 'f'), (1, 'c')],
-                [(0, 'f'), (1, 'c')],
+            for (dtype, dtype_name), (c1, c1_name), (c2, c2_name) in itertools.product(
+                [(float32, "float"), (float64, "double")],
+                [(0, "f"), (1, "c")],
+                [(0, "f"), (1, "c")],
             ):
                 func_key = (dtype, c1, c2)
                 func_name = f"radon_{dtype_name}_{c1_name}{c2_name}"
                 func = getattr(self.prg, func_name, None)
                 if func is not None:
                     self.functions[func_key] = func
-                
+
                 func_ad_name = f"radon_ad_{dtype_name}_{c1_name}{c2_name}"
                 func_ad = getattr(self.prg, func_ad_name, None)
                 if func_ad is not None:
@@ -1536,17 +1538,17 @@ class ProjectionSettings:
             float64 = np.dtype("float64")
             self.functions = {}
             self.functions_ad = {}
-            for ((dtype, dtype_name), (c1, c1_name), (c2, c2_name)) in itertools.product(
-                [(float32, 'float'), (float64, 'double')],
-                [(0, 'f'), (1, 'c')],
-                [(0, 'f'), (1, 'c')],
+            for (dtype, dtype_name), (c1, c1_name), (c2, c2_name) in itertools.product(
+                [(float32, "float"), (float64, "double")],
+                [(0, "f"), (1, "c")],
+                [(0, "f"), (1, "c")],
             ):
                 func_key = (dtype, c1, c2)
                 func_name = f"fanbeam_{dtype_name}_{c1_name}{c2_name}"
                 func = getattr(self.prg, func_name, None)
                 if func is not None:
                     self.functions[func_key] = func
-                
+
                 func_ad_name = f"fanbeam_ad_{dtype_name}_{c1_name}{c2_name}"
                 func_ad = getattr(self.prg, func_ad_name, None)
                 if func_ad is not None:
@@ -2055,9 +2057,9 @@ class ProjectionSettings:
             name_prefix = "single_line_fan"
 
         functions = {}
-        for ((dtype, dtype_name), (order, order_name)) in itertools.product(
-            [(np.dtype("float32"), 'float'), (np.dtype("float64"), 'double')],
-            [(0, 'ff'), (1, 'cc')],
+        for (dtype, dtype_name), (order, order_name) in itertools.product(
+            [(np.dtype("float32"), "float"), (np.dtype("float64"), "double")],
+            [(0, "ff"), (1, "cc")],
         ):
             func_key = (dtype, order)
             func_name = f"{name_prefix}_{dtype_name}_{order_name}"
@@ -2265,9 +2267,9 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
     float64 = np.dtype("float64")
     op_name = "multiply" if not divide else "divide"
     functions = {}
-    for ((dtype, dtype_name), (order, order_name)) in itertools.product(
-        [(float32, 'float'), (float64, 'double')],
-        [('C', 'c'), ('F', 'f')],
+    for (dtype, dtype_name), (order, order_name) in itertools.product(
+        [(float32, "float"), (float64, "double")],
+        [("C", "c"), ("F", "f")],
     ):
         func_key = (dtype, order)
         func_name = f"{op_name}_{dtype_name}_{order_name}"
