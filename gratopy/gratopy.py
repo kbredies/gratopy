@@ -81,7 +81,7 @@ def check_compatibility(
         f"do not match the projectionsetting's {projectionsetting.sinogram_shape}"
     )
 
-    assert sino.shape[0:2] == projectionsetting.sinogram_shape, (
+    assert img.shape[0:2] == projectionsetting.img_shape, (
         f"The dimensions of the image {img.shape} do not match the "
         f"projectionsetting's {projectionsetting.img_shape}"
     )
