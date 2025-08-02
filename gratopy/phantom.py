@@ -23,14 +23,22 @@
 
 """The canonical Shepp-Logan phantom used for CT simulations."""
 
-from __future__ import division, print_function
+from __future__ import annotations, division, print_function
 
 import numpy as np
 import pyopencl as cl
+import pyopencl.array as clarray
+import pyopencl.tools as cl_tools
 
 
 def ct_shepp_logan(
-    queue, N, modified=True, E=None, ret_E=False, dtype="double", allocator=None
+    queue: cl.CommandQueue,
+    N: int | tuple[int, int] | np.ndarray,
+    modified: bool = True,
+    E: np.ndarray | None = None,
+    ret_E: bool = False,
+    dtype: str | np.typing.DTypeLike = "double",
+    allocator: cl_tools.AllocatorBase | None = None
 ):
     """Generate an OpenCL Shepp-Logan phantom of size (N, N).
 
