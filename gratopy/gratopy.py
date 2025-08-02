@@ -22,6 +22,8 @@
 from __future__ import annotations, division, print_function
 
 from collections.abc import Callable
+from typing import Literal
+from enum import Enum
 
 import sys
 import os
@@ -32,7 +34,6 @@ import pyopencl as cl
 import pyopencl.array as clarray
 import scipy
 import scipy.sparse
-import itertools
 
 # Version number
 VERSION = "0.1.0"
@@ -41,11 +42,18 @@ VERSION = "0.1.0"
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
 
-# Class attribute corresponding to which geometry to consider
-PARALLEL = 1
-RADON = 1
-FANBEAM = 2
-FAN = 2
+
+class GeometryType(Enum):
+    """
+    Enum for the different geometry types.
+    """
+
+    RADON = "radon"
+    FANBEAM = "fanbeam"
+
+
+PARALLEL = RADON = GeometryType.RADON
+FANBEAM = FAN = GeometryType.FANBEAM
 
 
 ###########
@@ -1289,7 +1297,7 @@ class ProjectionSettings:
         or fanbeam geometry (:const:`gratopy.FANBEAM`)
         is considered.
 
-    :type geometry: :class:`int`
+    :type geometry: :class:`GeometryType`
 
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image dimension.
@@ -1504,63 +1512,6 @@ class ProjectionSettings:
             img_shape = img_shape[0:2]
         self.img_shape = img_shape
 
-        if self.geometry in [RADON, PARALLEL]:
-            self.is_parallel = True
-            self.is_fan = False
-
-            # The kernel-functions according to the possible data types
-            float32 = np.dtype("float32")
-            float64 = np.dtype("float64")
-            self.functions = {}
-            self.functions_ad = {}
-            for (
-                (dtype_key, dtype_name),
-                (c1, c1_name),
-                (c2, c2_name),
-            ) in itertools.product(
-                [(float32, "float"), (float64, "double")],
-                [(0, "f"), (1, "c")],
-                [(0, "f"), (1, "c")],
-            ):
-                func_key = (dtype_key, c1, c2)
-                func_name = f"radon_{dtype_name}_{c1_name}{c2_name}"
-                func = getattr(self.prg, func_name, None)
-                if func is not None:
-                    self.functions[func_key] = func
-
-                func_ad_name = f"radon_ad_{dtype_name}_{c1_name}{c2_name}"
-                func_ad = getattr(self.prg, func_ad_name, None)
-                if func_ad is not None:
-                    self.functions_ad[func_key] = func_ad
-
-        if self.geometry in [FAN, FANBEAM]:
-            self.is_parallel = False
-            self.is_fan = True
-
-            # The kernel-functions according to the possible data types
-            float32 = np.dtype("float32")
-            float64 = np.dtype("float64")
-            self.functions = {}
-            self.functions_ad = {}
-            for (dtype_key, dtype_name), (c1, c1_name), (
-                c2,
-                c2_name,
-            ) in itertools.product(
-                [(float32, "float"), (float64, "double")],
-                [(0, "f"), (1, "c")],
-                [(0, "f"), (1, "c")],
-            ):
-                func_key = (dtype_key, c1, c2)
-                func_name = f"fanbeam_{dtype_name}_{c1_name}{c2_name}"
-                func = getattr(self.prg, func_name, None)
-                if func is not None:
-                    self.functions[func_key] = func
-
-                func_ad_name = f"fanbeam_ad_{dtype_name}_{c1_name}{c2_name}"
-                func_ad = getattr(self.prg, func_ad_name, None)
-                if func_ad is not None:
-                    self.functions_ad[func_key] = func_ad
-
         # extract suitable angles information
         angles, angles_diff = read_angles(angles, angle_weights, self)
         self.n_angles = len(angles)
@@ -1664,24 +1615,33 @@ class ProjectionSettings:
             self.angle_weights = self.angle_weights_buf[np.dtype("float")].copy()
 
     @property
-    def geometry(self) -> int:
+    def is_parallel(self) -> bool:
+        """
+        Returns whether the projection settings are for parallel beam geometry.
+        """
+        return self.geometry == GeometryType.RADON
+
+    @property
+    def is_fan(self) -> bool:
+        """
+        Returns whether the projection settings are for fanbeam geometry.
+        """
+        return self.geometry == GeometryType.FANBEAM
+
+    @property
+    def geometry(self) -> GeometryType:
         """
         Returns the configured geometry.
         """
         return self._geometry
 
     @geometry.setter
-    def geometry(self, value: int) -> None:
+    def geometry(self, value: GeometryType) -> None:
         """
         Sets the geometry for the projection settings.
         Must be either RADON (0) or FANBEAM (1).
         """
-        if value not in [RADON, PARALLEL, FAN, FANBEAM]:
-            raise ValueError(
-                "Unknown projection geometry. "
-                "Must be either RADON / PARALLEL, or FAN / FANBEAM."
-            )
-        self._geometry = value
+        self._geometry = GeometryType(value)
 
     def forwardprojection(
         self,
@@ -1694,9 +1654,9 @@ class ProjectionSettings:
         Calls the appropriate forward projection given the
         configured geometry.
         """
-        if self.geometry in [RADON, PARALLEL]:
+        if self.geometry == GeometryType.RADON:
             radon(sino, img, projectionsetting, wait_for=wait_for)
-        elif self.geometry in [FAN, FANBEAM]:
+        elif self.geometry == GeometryType.FANBEAM:
             fanbeam(sino, img, projectionsetting, wait_for=wait_for)
 
     def backprojection(
@@ -1710,9 +1670,9 @@ class ProjectionSettings:
         Calls the appropriate back projection given the
         configured geometry.
         """
-        if self.geometry in [RADON, PARALLEL]:
+        if self.geometry == GeometryType.RADON:
             radon_ad(img, sino, projectionsetting, wait_for=wait_for)
-        elif self.geometry in [FAN, FANBEAM]:
+        elif self.geometry == GeometryType.FANBEAM:
             fanbeam_ad(img, sino, projectionsetting, wait_for=wait_for)
 
     def ensure_dtype(self, dtype):
@@ -2036,7 +1996,11 @@ class ProjectionSettings:
             figure.show()
         return figure, axes
 
-    def create_sparse_matrix(self, dtype=np.dtype("float32"), order="F"):
+    def create_sparse_matrix(
+        self,
+        dtype: np.typing.DTypeLike = np.dtype("float32"),
+        order: Literal["C", "F"] = "F",
+    ) -> scipy.sparse.coo_matrix:
         """
         Creates a sparse matrix representation of the associated forward
         projection.
@@ -2057,26 +2021,13 @@ class ProjectionSettings:
 
         """
 
-        # Suitable kernels dependent on data types
-        if self.is_parallel:
-            name_prefix = "single_line_radon"
-        elif self.is_fan:
-            name_prefix = "single_line_fan"
-
-        functions = {}
-        for (dtype_key, dtype_name), (order_key, order_name) in itertools.product(
-            [(np.dtype("float32"), "float"), (np.dtype("float64"), "double")],
-            [(0, "ff"), (1, "cc")],
-        ):
-            func_key = (dtype_key, order_key)
-            func_name = f"{name_prefix}_{dtype_name}_{order_name}"
-            func = getattr(self.prg, func_name, None)
-            if func is not None:
-                functions[func_key] = func
-
         # choose relevant function
         dtype = np.dtype(dtype)
-        function = functions[(np.dtype(dtype), order == "C")]
+        pyopencl_precision = "float" if dtype == np.dtype("float32") else "double"
+        kernel_name = (
+            f"single_line_{self.geometry.value}_{pyopencl_precision}_{2 * order.lower()}"
+        )
+        function = getattr(self.prg, kernel_name)
 
         # ensure buffers with suitable dtype are uploaded
         self.ensure_dtype(dtype)
@@ -2206,15 +2157,16 @@ class ProjectionSettings:
         :return: The projection function.
         :rtype: callable
         """
-        if not adjoint:
-            return self.functions[
-                (sinogram.dtype, sinogram.flags.c_contiguous, image.flags.c_contiguous)
-            ]
-
-        # return adjoint function
-        return self.functions_ad[
-            (sinogram.dtype, image.flags.c_contiguous, sinogram.flags.c_contiguous)
-        ]
+        sinogram_order = "c" if sinogram.flags.c_contiguous else "f"
+        image_order = "c" if image.flags.c_contiguous else "f"
+        kernel_name = "{name}{adjoint_flag}_{dtype}_{order1}{order2}".format(
+            name=self.geometry.value,
+            adjoint_flag="_ad" if adjoint else "",
+            dtype="float" if sinogram.dtype == np.dtype("float32") else "double",
+            order1=sinogram_order if not adjoint else image_order,
+            order2=image_order if not adjoint else sinogram_order,
+        )
+        return getattr(self.prg, kernel_name)
 
 
 def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_for=[]):
@@ -2270,20 +2222,10 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
 
     # choose between the suitable kernel to apply, in particular between divide
     # and multiplication
-    float32 = np.dtype("float32")
-    float64 = np.dtype("float64")
     op_name = "multiply" if not divide else "divide"
-    functions = {}
-    for (dtype_key, dtype_name), (order_key, order_name) in itertools.product(
-        [(float32, "float"), (float64, "double")],
-        [("C", "c"), ("F", "f")],
-    ):
-        func_key = (dtype_key, order_key)
-        func_name = f"{op_name}_{dtype_name}_{order_name}"
-        func = getattr(projectionsetting.prg, func_name, None)
-        if func is not None:
-            functions[func_key] = func
-    function = functions[dtype, my_order]
+    pyopencl_precision = "float" if dtype == np.float32 else "double"
+    kernel_name = f"{op_name}_{pyopencl_precision}_{my_order.lower()}"
+    function = getattr(projectionsetting.prg, kernel_name)
 
     # ensure buffers of the right dtype are uploaded onto the gpu
     projectionsetting.ensure_dtype(dtype)
