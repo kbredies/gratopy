@@ -2624,7 +2624,8 @@ def total_variation(
 
     # type of data considered
     my_dtype = sino.dtype
-    my_order = {0: "F", 1: "C"}[sino.flags.c_contiguous]
+    cl_precision = "float" if my_dtype == np.dtype("float32") else "double"
+    my_order = "C" if sino.flags.c_contiguous else "F"
 
     # set the shape of the image to be reconstructed
     img_shape = projectionsetting.img_shape
@@ -2639,18 +2640,13 @@ def total_variation(
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    float32 = np.dtype("float32")
-    float64 = np.dtype("float64")
-    update_lambda_ = {
-        (float32, 0): projectionsetting.prg.update_lambda_L2_float_f,
-        (float32, 1): projectionsetting.prg.update_lambda_L2_float_c,
-        (float64, 0): projectionsetting.prg.update_lambda_L2_double_f,
-        (float64, 1): projectionsetting.prg.update_lambda_L2_double_c,
-    }
-
+    update_lambda_kernel = getattr(
+        projectionsetting.prg,
+        f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
+    )
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(
-            update_lambda_[lamb.dtype, lamb.flags.c_contiguous](
+            update_lambda_kernel(
                 lamb.queue,
                 lamb.shape,
                 None,
@@ -2664,16 +2660,13 @@ def total_variation(
         )
 
     # Update v the dual of gradient of u
-    update_v_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_v_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_v_float_c,
-        (np.dtype("float64"), 0): projectionsetting.prg.update_v_double_f,
-        (np.dtype("float64"), 1): projectionsetting.prg.update_v_double_c,
-    }
-
+    update_v_kernel = getattr(
+        projectionsetting.prg,
+        f"update_v_{cl_precision}_{my_order.lower()}"
+    )
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
         v.add_event(
-            update_v_[v.dtype, v.flags.c_contiguous](
+            update_v_kernel(
                 v.queue,
                 u.shape,
                 None,
@@ -2686,16 +2679,13 @@ def total_variation(
         )
 
     # Update primal variable u (the image)
-    update_u_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_u_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_u_float_c,
-        (np.dtype("float64"), 0): projectionsetting.prg.update_u_double_f,
-        (np.dtype("float64"), 1): projectionsetting.prg.update_u_double_c,
-    }
-
+    update_u_kernel = getattr(
+        projectionsetting.prg,
+        f"update_u_{cl_precision}_{my_order.lower()}"
+    )
     def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, wait_for=[]):
         u_.add_event(
-            update_u_[u.dtype, u.flags.c_contiguous](
+            update_u_kernel(
                 u.queue,
                 u.shape,
                 None,
@@ -2711,16 +2701,13 @@ def total_variation(
         )
 
     # Compute the norm of v and project (dual update)
-    update_NormV_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_NormV_unchor_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_NormV_unchor_float_c,
-        (np.dtype("float64"), 0): projectionsetting.prg.update_NormV_unchor_double_f,
-        (np.dtype("float64"), 1): projectionsetting.prg.update_NormV_unchor_double_c,
-    }
-
+    update_NormV_kernel = getattr(
+        projectionsetting.prg,
+        f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
+    )
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(
-            update_NormV_[V.dtype, V.flags.c_contiguous](
+            update_NormV_kernel(
                 V.queue,
                 V.shape[1:],
                 None,
@@ -2731,15 +2718,13 @@ def total_variation(
         )
 
     # update of the extra gradient
-    update_extra_ = {
-        np.dtype("float32"): cl.elementwise.ElementwiseKernel(
-            ctx, "float *u_, float *u", "u[i] = 2.0f*u_[i] - u[i]"
+    update_extra_ = cl.elementwise.ElementwiseKernel(
+        ctx,
+        "{dtype} *u_, {dtype} *u".format(
+            dtype="float" if sino.dtype == np.dtype("float32") else "double"
         ),
-        np.dtype("float64"): cl.elementwise.ElementwiseKernel(
-            ctx, "double *u_, double *u", "u[i] = 2.0f*u_[i] - u[i]"
-        ),
-    }
-    update_extra_ = update_extra_[sino.dtype]
+        "u[i] = 2.0f*u_[i] - u[i]",
+    )
 
     def update_extra(u_, u):
         return u.add_event(update_extra_(u_, u, wait_for=u.events + u_.events))
