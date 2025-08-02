@@ -1513,7 +1513,11 @@ class ProjectionSettings:
             float64 = np.dtype("float64")
             self.functions = {}
             self.functions_ad = {}
-            for (dtype_key, dtype_name), (c1, c1_name), (c2, c2_name) in itertools.product(
+            for (
+                (dtype_key, dtype_name),
+                (c1, c1_name),
+                (c2, c2_name),
+            ) in itertools.product(
                 [(float32, "float"), (float64, "double")],
                 [(0, "f"), (1, "c")],
                 [(0, "f"), (1, "c")],
@@ -1538,7 +1542,10 @@ class ProjectionSettings:
             float64 = np.dtype("float64")
             self.functions = {}
             self.functions_ad = {}
-            for (dtype_key, dtype_name), (c1, c1_name), (c2, c2_name) in itertools.product(
+            for (dtype_key, dtype_name), (c1, c1_name), (
+                c2,
+                c2_name,
+            ) in itertools.product(
                 [(float32, "float"), (float64, "double")],
                 [(0, "f"), (1, "c")],
                 [(0, "f"), (1, "c")],
