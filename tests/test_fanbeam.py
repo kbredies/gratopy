@@ -5,8 +5,13 @@ import time
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+import pytest
 
 import gratopy
+
+from pathlib import Path
+
+from .helpers import evaluate_control_numbers, create_phantoms
 
 
 # Plots are deactivated by default, can be activated
@@ -19,140 +24,20 @@ if plot_parameter.lower() not in ["0", "false"]:
 else:
     PLOT = False
 
-
-# Read files relevant for the tests
-def curdir(filename):
-    return os.path.join(os.path.abspath(os.path.dirname(__file__)), filename)
-
+CL_DOUBLE_SUPPORTED = any(
+    device.double_fp_config
+    for platform in cl.get_platforms()
+    for device in platform.get_devices()
+)
 
 # Names of relevant test-data
-TESTWALNUT = curdir("walnut.png")
-TESTWALNUTSINOGRAM = curdir("walnut_sinogram.png")
-TESTRNG = curdir("rng.txt")
+TESTWALNUT = Path(__file__).parent / "walnut.png"
+TESTWALNUTSINOGRAM = Path(__file__).parent / "walnut_sinogram.png"
 
 # Dummy context
 ctx = None
 queue = None
 INTERACTIVE = False
-
-
-def evaluate_control_numbers(data, dimensions, expected_result, classified, name):
-    # Computes a number from given data, compares with expected value,
-    # and raises an error when they do not coincide
-
-    # Extract dimensions
-    [Nx, Ny, Ns, Na, Nz] = dimensions
-
-    # Get indices for which to compute control-number
-    test_s, test_phi, test_z, factors, test_x, test_y = read_control_numbers(
-        Nx, Ny, Ns, Na, Nz
-    )
-
-    m = 1000
-    mysum = 0
-
-    # Dependent on classifier 'img' or 'sino' choose which variables to use
-    if classified == "img":
-        var1 = test_x
-        var2 = test_y
-        var3 = test_z
-    else:
-        var1 = test_s
-        var2 = test_phi
-        var3 = test_z
-
-    # Reshape data to 3-dimensional array
-    if Nz == 1:
-        data = data.reshape(data.shape[0], data.shape[1], 1)
-
-    # Go through all test_numbers
-    for i in range(0, m):
-        mysum += factors[i] * data[var1[i], var2[i], var3[i]]
-
-    # Check if control-number coincides with expected value
-    precision = abs(expected_result) / (10.0**3)
-    assert abs(mysum - expected_result) < precision, (
-        "A control sum for the "
-        + name
-        + " did not match the expected value. "
-        + "Expected: "
-        + str(expected_result)
-        + ", received: "
-        + str(mysum)
-        + ". Please observe the visual results to check whether this is "
-        + "a numerical issue or a fundamental error."
-    )
-
-
-def create_control_numbers():
-    # This function is not really needed for the user, but was used to create
-    # the random values for the control number
-
-    m = 1000
-    M = 2000
-    rng = np.random.default_rng(1)
-    mylist = []
-
-    # Create random variables
-    mylist.append(rng.integers(0, M, m))  # s
-    mylist.append(rng.integers(0, M, m))  # phi
-    mylist.append(rng.integers(0, M, m))  # z
-    mylist.append(rng.normal(0, 1, m))  # factors
-    mylist.append(rng.integers(0, M, m))  # x
-    mylist.append(rng.integers(0, M, m))  # y
-
-    # Save random numbers into file
-    myfile = open(TESTRNG, "w")
-    for j in range(6):
-        for i in range(m):
-            myfile.write(str(mylist[j][i]) + "\n")
-    myfile.close()
-
-
-def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
-    # Read saved random numbers to compute the control-number
-
-    myfile = open(TESTRNG, "r")
-    m = 1000
-    test_s = []
-    test_phi = []
-    test_z = []
-    factors = []
-    test_x = []
-    test_y = []
-
-    # Read saved random numbers
-    text = myfile.readlines()
-    for i in range(m):
-        test_s.append(int(text[i]) % Ns)
-        test_phi.append(int(text[i + m]) % Na)
-        test_z.append(int(text[i + 2 * m]) % Nz)
-        factors.append(float(text[i + 3 * m]))
-        test_x.append(int(text[i + 4 * m]) % Nx)
-        test_y.append(int(text[i + 5 * m]) % Ny)
-    myfile.close()
-    return test_s, test_phi, test_z, factors, test_x, test_y
-
-
-def create_phantoms(queue, N, dtype="double", order="F"):
-    # Create a phantom image which is used in many of the tests that follow
-
-    # use gratopy phantom method to create Shepp-Logan phantom
-    A = gratopy.phantom(queue, N, dtype=dtype)
-    A *= 255 / cl.array.max(A).get()
-
-    # second test image consisting of 2 horizontal bars
-    B = cl.array.empty(queue, A.shape, dtype=dtype)
-    B[:] = 255 - 120
-    B[int(N / 3) : int(2 * N / 3)] = 0
-    B[0 : int(N / 4)] = 0
-    B[int(N - N / 4) : N] = 0
-
-    # stack the two images together
-    img = cl.array.to_device(
-        queue, np.require(np.stack([A.get(), B.get()], axis=-1), dtype, order)
-    )
-    return img
 
 
 def test_projection():
@@ -264,8 +149,14 @@ def test_projection():
         name="backprojected image",
     )
 
-
-def test_types_contiguity():
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        np.dtype("float32"),
+        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
+    ]
+)
+def test_types_contiguity(dtype):
     """
     Types and contiguity test.
     Types and contiguity test.
@@ -281,7 +172,7 @@ def test_types_contiguity():
 
     # create test image
     Nx = 600
-    phantom = gratopy.phantom(queue, Nx, dtype=np.dtype("float64")).get()
+    phantom = gratopy.phantom(queue, Nx, dtype=dtype).get()
 
     # define setting for projection
     number_detectors = 300
@@ -298,86 +189,85 @@ def test_types_contiguity():
     )
 
     # loop through all possible settings for precision and contiguity
-    for dtype in [np.dtype("float32"), np.dtype("float64")]:
-        for order1 in ["F", "C"]:
-            for order2 in ["F", "C"]:
-                # Set img to suitable setting
-                img = clarray.to_device(queue, np.require(phantom, dtype, order1))
+    for order1 in ["F", "C"]:
+        for order2 in ["F", "C"]:
+            # Set img to suitable setting
+            img = clarray.to_device(queue, np.require(phantom, dtype, order1))
 
-                # Create zero arrays to save the results in
-                sino_gpu = clarray.zeros(
-                    queue, (PS.n_detectors, PS.n_angles), dtype=dtype, order=order2
-                )
+            # Create zero arrays to save the results in
+            sino_gpu = clarray.zeros(
+                queue, (PS.n_detectors, PS.n_angles), dtype=dtype, order=order2
+            )
 
-                backprojected_gpu = clarray.zeros(
-                    queue, PS.img_shape, dtype=dtype, order=order1
-                )
+            backprojected_gpu = clarray.zeros(
+                queue, PS.img_shape, dtype=dtype, order=order1
+            )
 
-                # test speed of implementation for forward projection
-                iterations = 20
-                a = time.perf_counter()
-                for i in range(iterations):
-                    gratopy.forwardprojection(img, PS, sino=sino_gpu)
-                img.get()
-                print(
-                    "Average time required for forward projection with "
-                    "(precision:"
-                    + str(dtype)
-                    + "), (image contiguity:"
-                    + str(order1)
-                    + "), (sinogram contiguity:"
-                    + str(order2)
-                    + ") is ",
-                    f"{(time.perf_counter() - a) / iterations:.3f}",
-                )
+            # test speed of implementation for forward projection
+            iterations = 20
+            a = time.perf_counter()
+            for i in range(iterations):
+                gratopy.forwardprojection(img, PS, sino=sino_gpu)
+            img.get()
+            print(
+                "Average time required for forward projection with "
+                "(precision:"
+                + str(dtype)
+                + "), (image contiguity:"
+                + str(order1)
+                + "), (sinogram contiguity:"
+                + str(order2)
+                + ") is ",
+                f"{(time.perf_counter() - a) / iterations:.3f}",
+            )
 
-                # test speed of implementation for backward projection
-                a = time.perf_counter()
-                for i in range(iterations):
-                    gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
-                sino_gpu.get()
-                print(
-                    "Average time required for backprojection with "
-                    + "(precision:"
-                    + str(dtype)
-                    + "), (image contiguity:"
-                    + str(order1)
-                    + "), (sinogram contiguity:"
-                    + str(order2)
-                    + ") is ",
-                    f"{(time.perf_counter() - a) / iterations:.3f}",
-                    "\n",
-                )
+            # test speed of implementation for backward projection
+            a = time.perf_counter()
+            for i in range(iterations):
+                gratopy.backprojection(sino_gpu, PS, img=backprojected_gpu)
+            sino_gpu.get()
+            print(
+                "Average time required for backprojection with "
+                + "(precision:"
+                + str(dtype)
+                + "), (image contiguity:"
+                + str(order1)
+                + "), (sinogram contiguity:"
+                + str(order2)
+                + ") is ",
+                f"{(time.perf_counter() - a) / iterations:.3f}",
+                "\n",
+            )
 
-                # retrieve data back from gpu to cpu
-                sino = sino_gpu.get()
-                backprojected = backprojected_gpu.get()
+            # retrieve data back from gpu to cpu
+            sino = sino_gpu.get()
+            backprojected = backprojected_gpu.get()
 
-                # Computing control numbers to quantitatively verify
-                # correctness
-                evaluate_control_numbers(
-                    img,
-                    (Nx, Nx, number_detectors, angles, 1),
-                    expected_result=7.8922043,
-                    classified="img",
-                    name="original image",
-                )
+            # Computing control numbers to quantitatively verify
+            # correctness
+            evaluate_control_numbers(
+                img,
+                (Nx, Nx, number_detectors, angles, 1),
+                expected_result=7.8922043,
+                classified="img",
+                name="original image",
+            )
 
-                evaluate_control_numbers(
-                    sino,
-                    (Nx, Nx, number_detectors, angles, 1),
-                    expected_result=416.107,
-                    classified="sino",
-                    name="sinogram with " + str(dtype) + str(order1) + str(order2),
-                )
+            evaluate_control_numbers(
+                sino,
+                (Nx, Nx, number_detectors, angles, 1),
+                expected_result=416.107,
+                classified="sino",
+                name="sinogram with " + str(dtype) + str(order1) + str(order2),
+            )
 
-                evaluate_control_numbers(
-                    backprojected,
-                    (Nx, Nx, number_detectors, angles, 1),
-                    expected_result=7851.41,
-                    classified="img",
-                    name="backprojected image" + str(dtype) + str(order1) + str(order2),
-                )
+            evaluate_control_numbers(
+                backprojected,
+                (Nx, Nx, number_detectors, angles, 1),
+                expected_result=7851.41,
+                classified="img",
+                name="backprojected image" + str(dtype) + str(order1) + str(order2),
+            )
 
 
 def test_weighting():
@@ -887,7 +777,7 @@ def test_geometric_orientation():
     # create test image, first an image which is only active in the upper left
     # corner, and the second active only on the upper side
     Nx = 600
-    img1 = np.zeros([Nx, Nx])
+    img1 = np.zeros([Nx, Nx], dtype=np.float32)
     img1[0 : int(Nx * 0.3)][:, 0 : int(Nx * 0.3)] = 1
     img2 = img1.copy()
     img2[0 : int(Nx * 0.3)][:, 0 : int(Nx)] = 1
@@ -1119,7 +1009,10 @@ def test_range_check_walnut():
     )
 
     # Choose random starting point
-    mynoise = clarray.to_device(queue, 0.0 * np.random.randn(img_shape[0], img_shape[1]))
+    mynoise = clarray.to_device(
+        queue,
+        np.random.randn(img_shape[0], img_shape[1]).astype(dtype)
+    )
 
     # Execute conjugate gradients. resulting in the minimal norm least squares
     # solution,
@@ -1233,7 +1126,7 @@ def test_landweber():
     )
 
     # create phantom and compute its sinogram for additional data
-    my_phantom = gratopy.phantom(queue, img_shape)
+    my_phantom = gratopy.phantom(queue, img_shape, dtype=np.float32)
     my_phantom_sinogram = gratopy.forwardprojection(my_phantom, PS)
 
     # Stick together real data and phantom sinogram data
@@ -1306,7 +1199,7 @@ def test_conjugate_gradients():
         reverse_detector=reverse,
     )
 
-    my_phantom = gratopy.phantom(queue, img_shape)
+    my_phantom = gratopy.phantom(queue, img_shape, dtype=np.float32)
     my_phantom_sinogram = gratopy.forwardprojection(my_phantom, PS)
 
     sino = np.zeros(PS.sinogram_shape + (2,))
@@ -1487,7 +1380,7 @@ def test_nonquadratic():
 
     # create phantom and cut one side out
     N = 1200
-    img_gpu = create_phantoms(queue, N)
+    img_gpu = create_phantoms(queue, N, dtype=np.float32)
     N1 = img_gpu.shape[0]
     N2 = int(img_gpu.shape[0] * 2 / 3.0)
     img_gpu = cl.array.to_device(queue, img_gpu.get()[:, 0:N2, :].copy())
@@ -1567,8 +1460,14 @@ def test_nonquadratic():
         name="backprojected image",
     )
 
-
-def test_create_sparse_matrix():
+@pytest.mark.parametrize(
+    "dtype",
+    [
+        np.dtype("float32"),
+        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
+    ]
+)
+def test_create_sparse_matrix(dtype):
     """
     Tests the :func:`create_sparse_matrix
     <gratopy.ProjectionSettings.create_sparse_matrix>`
@@ -1583,7 +1482,6 @@ def test_create_sparse_matrix():
 
     # define data types
     order = "F"
-    dtype = np.dtype("float")
 
     # discretization quantities
     Nx = 150
