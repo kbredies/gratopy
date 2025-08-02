@@ -151,8 +151,14 @@ def test_projection():
     "dtype",
     [
         np.dtype("float32"),
-        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
-    ]
+        pytest.param(
+            np.dtype("float64"),
+            marks=pytest.mark.skipif(
+                not CL_DOUBLE_SUPPORTED,
+                reason="Double precision not supported by OpenCL device",
+            ),
+        ),
+    ],
 )
 def test_types_contiguity(dtype):
     """
@@ -691,12 +697,19 @@ def test_nonquadratic():
         name="backprojected image",
     )
 
+
 @pytest.mark.parametrize(
     "dtype",
     [
         np.dtype("float32"),
-        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
-    ]
+        pytest.param(
+            np.dtype("float64"),
+            marks=pytest.mark.skipif(
+                not CL_DOUBLE_SUPPORTED,
+                reason="Double precision not supported by OpenCL device",
+            ),
+        ),
+    ],
 )
 def test_create_sparse_matrix(dtype):
     """

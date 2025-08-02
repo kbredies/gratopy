@@ -109,12 +109,7 @@ def evaluate_control_numbers(data, dimensions, expected_result, classified, name
     )
 
 
-def create_phantoms(
-    queue,
-    N,
-    dtype: str | np.typing.DTypeLike = "double",
-    order="F"
-):
+def create_phantoms(queue, N, dtype: str | np.typing.DTypeLike = "double", order="F"):
     # Create a phantom image which is used in many of the tests that follow
 
     # use gratopy phantom method to create Shepp-Logan phantom

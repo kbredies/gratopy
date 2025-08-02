@@ -27,7 +27,6 @@ from __future__ import annotations, division, print_function
 
 import numpy as np
 import pyopencl as cl
-import pyopencl.array as clarray
 import pyopencl.tools as cl_tools
 
 
@@ -38,7 +37,7 @@ def ct_shepp_logan(
     E: np.ndarray | None = None,
     ret_E: bool = False,
     dtype: str | np.typing.DTypeLike = "double",
-    allocator: cl_tools.AllocatorBase | None = None
+    allocator: cl_tools.AllocatorBase | None = None,
 ):
     """Generate an OpenCL Shepp-Logan phantom of size (N, N).
 

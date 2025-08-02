@@ -149,12 +149,19 @@ def test_projection():
         name="backprojected image",
     )
 
+
 @pytest.mark.parametrize(
     "dtype",
     [
         np.dtype("float32"),
-        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
-    ]
+        pytest.param(
+            np.dtype("float64"),
+            marks=pytest.mark.skipif(
+                not CL_DOUBLE_SUPPORTED,
+                reason="Double precision not supported by OpenCL device",
+            ),
+        ),
+    ],
 )
 def test_types_contiguity(dtype):
     """
@@ -1010,8 +1017,7 @@ def test_range_check_walnut():
 
     # Choose random starting point
     mynoise = clarray.to_device(
-        queue,
-        np.random.randn(img_shape[0], img_shape[1]).astype(dtype)
+        queue, np.random.randn(img_shape[0], img_shape[1]).astype(dtype)
     )
 
     # Execute conjugate gradients. resulting in the minimal norm least squares
@@ -1460,12 +1466,19 @@ def test_nonquadratic():
         name="backprojected image",
     )
 
+
 @pytest.mark.parametrize(
     "dtype",
     [
         np.dtype("float32"),
-        pytest.param(np.dtype("float64"), marks=pytest.mark.skipif(not CL_DOUBLE_SUPPORTED, reason="Double precision not supported by OpenCL device")),
-    ]
+        pytest.param(
+            np.dtype("float64"),
+            marks=pytest.mark.skipif(
+                not CL_DOUBLE_SUPPORTED,
+                reason="Double precision not supported by OpenCL device",
+            ),
+        ),
+    ],
 )
 def test_create_sparse_matrix(dtype):
     """

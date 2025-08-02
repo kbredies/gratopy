@@ -2641,9 +2641,9 @@ def total_variation(
 
     # update dual variable to data term
     update_lambda_kernel = getattr(
-        projectionsetting.prg,
-        f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
+        projectionsetting.prg, f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
     )
+
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(
             update_lambda_kernel(
@@ -2661,9 +2661,9 @@ def total_variation(
 
     # Update v the dual of gradient of u
     update_v_kernel = getattr(
-        projectionsetting.prg,
-        f"update_v_{cl_precision}_{my_order.lower()}"
+        projectionsetting.prg, f"update_v_{cl_precision}_{my_order.lower()}"
     )
+
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
         v.add_event(
             update_v_kernel(
@@ -2680,9 +2680,9 @@ def total_variation(
 
     # Update primal variable u (the image)
     update_u_kernel = getattr(
-        projectionsetting.prg,
-        f"update_u_{cl_precision}_{my_order.lower()}"
+        projectionsetting.prg, f"update_u_{cl_precision}_{my_order.lower()}"
     )
+
     def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, wait_for=[]):
         u_.add_event(
             update_u_kernel(
@@ -2702,9 +2702,9 @@ def total_variation(
 
     # Compute the norm of v and project (dual update)
     update_NormV_kernel = getattr(
-        projectionsetting.prg,
-        f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
+        projectionsetting.prg, f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
     )
+
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(
             update_NormV_kernel(
