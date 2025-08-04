@@ -21,19 +21,23 @@
 # unofficial Python2 compatibility
 from __future__ import annotations, division, print_function
 
-from collections.abc import Callable
-from typing import Literal
+from typing import Literal, TypeAlias
 from enum import Enum
 
 import sys
 import os
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 import matplotlib.patches
+import matplotlib.axes
+import matplotlib.figure
 import pyopencl as cl
 import pyopencl.array as clarray
 import scipy
 import scipy.sparse
+
+AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
 
 # Version number
 VERSION = "0.1.0"
@@ -59,7 +63,7 @@ FANBEAM = FAN = GeometryType.FANBEAM
 ###########
 # Program created from the gpu_code
 class Program(object):
-    def __init__(self, ctx, code):
+    def __init__(self, ctx: cl.Context, code: str):
         # activate warnings
         os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
         # build OpenCL code
@@ -116,7 +120,7 @@ def forwardprojection(
     img: clarray.Array,
     projectionsetting: ProjectionSettings,
     sino: clarray.Array | None = None,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the forward projection (either for the Radon or the
@@ -180,7 +184,7 @@ def backprojection(
     sino: clarray.Array,
     projectionsetting: ProjectionSettings,
     img: clarray.Array | None = None,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the backprojection (either for the Radon or the
@@ -248,7 +252,7 @@ def radon(
     sino: clarray.Array,
     img: clarray.Array,
     projectionsetting: ProjectionSettings,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the Radon transform of a given image using the
@@ -289,6 +293,7 @@ def radon(
     function = projectionsetting.get_projection_kernel(sino, img, adjoint=False)
 
     # execute corresponding function and add event to sinogram
+    # function.set_args(sino.data, img.data, ofs_buf, geometry_information)
     myevent = function(
         sino.queue,
         sino.shape,
@@ -308,7 +313,7 @@ def radon_ad(
     img: clarray.Array,
     sino: clarray.Array,
     projectionsetting: ProjectionSettings,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the Radon backprojection of a given sinogram using
@@ -366,15 +371,15 @@ def radon_ad(
 
 
 def radon_struct(
-    queue,
-    img_shape,
-    angles,
-    angle_weights,
-    n_detectors=None,
-    detector_width=2.0,
-    image_width=2.0,
-    midpoint_shift=[0, 0],
-    detector_shift=0.0,
+    queue: cl.CommandQueue,
+    img_shape: tuple[int, int],
+    angles: np.ndarray,
+    angle_weights: np.ndarray,
+    n_detectors: int | None = None,
+    detector_width: float = 2.0,
+    image_width: float = 2.0,
+    midpoint_shift: tuple[float, float] = (0.0, 0.0),
+    detector_shift: float = 0.0,
 ):
     """
     Creates the structure storing geometry information required for
@@ -426,7 +431,7 @@ def radon_struct(
         the detector line in detector pixel offsets. Defaults to
         the application of no shift, i.e., the detector reaches from
         [- **detector_width**/2, **detector_width**/2].
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
 
     :return: Struct dictionary with the following variables as entries,
@@ -570,7 +575,7 @@ def fanbeam(
     sino: clarray.Array,
     img: clarray.Array,
     projectionsetting: ProjectionSettings,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the fanbeam transform of a given image using the
@@ -632,7 +637,7 @@ def fanbeam_ad(
     img: clarray.Array,
     sino: clarray.Array,
     projectionsetting: ProjectionSettings,
-    wait_for=[],
+    wait_for: list[cl.Event] = [],
 ):
     """
     Performs the fanbeam backprojection of a given sinogram using
@@ -692,18 +697,18 @@ def fanbeam_ad(
 
 
 def fanbeam_struct(
-    queue,
-    img_shape,
-    angles,
-    detector_width,
-    source_detector_dist,
-    source_origin_dist,
-    angle_weights,
-    n_detectors=None,
-    detector_shift=0.0,
-    image_width=None,
-    midpoint_shift=[0, 0],
-    reverse_detector=False,
+    queue: cl.CommandQueue,
+    img_shape: tuple[int, int],
+    angles: np.ndarray,
+    detector_width: float,
+    source_detector_dist: float,
+    source_origin_dist: float,
+    angle_weights: np.ndarray,
+    n_detectors: int | None = None,
+    detector_shift: float = 0.0,
+    image_width: float | None = None,
+    midpoint_shift: tuple[float, float] = (0.0, 0.0),
+    reverse_detector: bool = False,
 ):
     """
     Creates the structure storing geometry information required for
@@ -749,7 +754,7 @@ def fanbeam_struct(
         the detector line in detector pixel offsets. Defaults to
         the application of no shift, i.e., the detector reaches from
         [- **detector_width**/2, **detector_width**/2].
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
     :param image_width: Physical size of the image indicated by the length of
         the longer side of the rectangular image domain.
@@ -1048,7 +1053,7 @@ def create_code(cl_context: cl.Context | None = None):
     return total_code
 
 
-def upload_bufs(projectionsetting, dtype):
+def upload_bufs(projectionsetting: ProjectionSettings, dtype: npt.DTypeLike):
     """
     Loads the buffers from projectionsetting of desired type onto the gpu,
     i.e., change the np.arrays to buffers and save in corresponding
@@ -1094,7 +1099,7 @@ def upload_bufs(projectionsetting, dtype):
     projectionsetting.angle_weights_buf[dtype] = angle_weights_buf
 
 
-def read_angles(angles, angle_weights, projectionsetting):
+def read_angles(angles, angle_weights, projectionsetting: ProjectionSettings):
     """
     Interprets angle set and computes (if necessary) the
     angle_weights suitably.
@@ -1407,7 +1412,7 @@ class ProjectionSettings:
         the detector pixels span the range
         [-**detector_width**/2, **detector_width**/2].
 
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
     :param midpoint_shift: Two-dimensional vector representing the
         shift of the image away from center of rotation.
@@ -1483,19 +1488,19 @@ class ProjectionSettings:
 
     def __init__(
         self,
-        queue,
-        geometry,
-        img_shape,
-        angles,
-        n_detectors=None,
-        angle_weights=None,
-        detector_width=2.0,
-        image_width=None,
-        R=None,
-        RE=None,
-        detector_shift=0.0,
-        midpoint_shift=[0.0, 0.0],
-        reverse_detector=False,
+        queue: cl.CommandQueue,
+        geometry: GeometryType,
+        img_shape: tuple[int, int],
+        angles: int | list[float] | np.ndarray | list[AngularRangeSection],
+        n_detectors: int | None = None,
+        angle_weights: float | list[float] | np.ndarray | None = None,
+        detector_width: float = 2.0,
+        image_width: float | None = None,
+        R: float | None = None,
+        RE: float | None = None,
+        detector_shift: float = 0.0,
+        midpoint_shift: tuple[float, float] = (0.0, 0.0),
+        reverse_detector: bool = False,
     ):
         self.geometry = geometry
         self.queue = queue
@@ -1648,7 +1653,7 @@ class ProjectionSettings:
         sino: clarray.Array,
         img: clarray.Array,
         projectionsetting: ProjectionSettings,
-        wait_for=[],
+        wait_for: list[cl.Event] = [],
     ) -> None:
         """
         Calls the appropriate forward projection given the
@@ -1664,7 +1669,7 @@ class ProjectionSettings:
         img: clarray.Array,
         sino: clarray.Array,
         projectionsetting: ProjectionSettings,
-        wait_for=[],
+        wait_for: list[cl.Event] = [],
     ):
         """
         Calls the appropriate back projection given the
@@ -1675,7 +1680,7 @@ class ProjectionSettings:
         elif self.geometry == GeometryType.FANBEAM:
             fanbeam_ad(img, sino, projectionsetting, wait_for=wait_for)
 
-    def ensure_dtype(self, dtype):
+    def ensure_dtype(self, dtype: npt.DTypeLike):
         """
         Uploads buffers for ProjectionSetting
         with given dtype to the gpu (so they are ready to be used by the
@@ -1746,7 +1751,13 @@ class ProjectionSettings:
                 self.ofs_buf[dtype] = ofs_buf
                 self.angle_weights_buf[dtype] = angle_weights_buf
 
-    def show_geometry(self, angle, figure=None, axes=None, show=True):
+    def show_geometry(
+        self,
+        angle: float,
+        figure: matplotlib.figure.Figure | None = None,
+        axes: matplotlib.axes.Axes | None = None,
+        show: bool = True,
+    ):
         """Visualize the geometry associated with the projection settings.
         This can be useful in checking that indeed, the correct input
         for the desired geometry was given.
@@ -1998,7 +2009,7 @@ class ProjectionSettings:
 
     def create_sparse_matrix(
         self,
-        dtype: np.typing.DTypeLike = np.dtype("float32"),
+        dtype: npt.DTypeLike = np.dtype("float32"),
         order: Literal["C", "F"] = "F",
     ) -> scipy.sparse.coo_matrix:
         """
@@ -2141,7 +2152,7 @@ class ProjectionSettings:
 
     def get_projection_kernel(
         self, sinogram: clarray.Array, image: clarray.Array, adjoint: bool = False
-    ) -> Callable:
+    ) -> cl.Kernel:
         """Returns the compiled projection function for the given sinogram and
         image. If adjoint is True, the adjoint projection function is returned.
 
@@ -2169,7 +2180,13 @@ class ProjectionSettings:
         return getattr(self.prg, kernel_name)
 
 
-def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_for=[]):
+def weight_sinogram(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    sino_out: clarray.Array | None = None,
+    divide: bool = False,
+    wait_for: list[cl.Event] = [],
+) -> clarray.Array:
     """
     Performs an angular rescaling of a given sinogram via multiplication
     (or division) with the projection's angle weights (size of projections in
@@ -2244,7 +2261,13 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
     return sino_out
 
 
-def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
+def equ_mul_add(
+    rhs: clarray.Array,
+    a: clarray.Array,
+    x: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+) -> clarray.Array:
     """
     Executes the calculation rhs+=a*y inside a kernel to avoid memory issues.
     """
@@ -2267,7 +2290,14 @@ def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
     return rhs
 
 
-def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
+def mul_add_add(
+    rhs: clarray.Array,
+    a: clarray.Array,
+    x: clarray.Array,
+    y: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Executes the calculation rhs=a*x+y inside a kernel to avoid memory issues.
     """
@@ -2291,7 +2321,12 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     return rhs
 
 
-def normest(projectionsetting, number_iterations=50, dtype="float32", allocator=None):
+def normest(
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 50,
+    dtype: npt.DTypeLike = "float32",
+    allocator=None,
+):
     """
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the
