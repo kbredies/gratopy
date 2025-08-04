@@ -21,7 +21,7 @@
 # unofficial Python2 compatibility
 from __future__ import annotations, division, print_function
 
-from typing import Literal
+from typing import Literal, TypeAlias
 from enum import Enum
 
 import sys
@@ -37,10 +37,6 @@ import pyopencl.array as clarray
 import scipy
 import scipy.sparse
 
-try:
-    from typing import TypeAlias
-except ImportError:
-    from typing_extensions import TypeAlias
 
 AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
 
