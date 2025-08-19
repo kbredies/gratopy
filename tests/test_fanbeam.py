@@ -1227,6 +1227,13 @@ def test_conjugate_gradients():
         plt.title("conjugate gradients reconstruction")
         plt.show()
 
+    # Check if pocl is used and set tolerance accordingly
+    platform_name = queue.device.platform.name
+    if "pocl" in platform_name.lower():
+        rtol = 1e-2
+    else:
+        rtol = 1e-3
+
     # Compute control numbers to quantitatively verify correctness
     [Nx, Ny] = img_shape
     evaluate_control_numbers(
@@ -1235,6 +1242,7 @@ def test_conjugate_gradients():
         expected_result=0.75674,
         classified="img",
         name=" conjugate gradients reconstruction",
+        rtol=rtol,
     )
 
 

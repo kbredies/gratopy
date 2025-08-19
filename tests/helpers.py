@@ -60,7 +60,9 @@ def read_control_numbers(Nx, Ny, Ns, Na, Nz=1):
     return test_s, test_phi, test_z, factors, test_x, test_y
 
 
-def evaluate_control_numbers(data, dimensions, expected_result, classified, name):
+def evaluate_control_numbers(
+    data, dimensions, expected_result, classified, name, rtol=1e-3
+):
     # Computes a number from given data, compares with expected value,
     # and raises an error when they do not coincide
 
@@ -95,7 +97,7 @@ def evaluate_control_numbers(data, dimensions, expected_result, classified, name
         mysum += factors[i] * data[var1[i], var2[i], var3[i]]
 
     # Check if control-number coincides with expected value
-    precision = abs(expected_result) / (10.0**3)
+    precision = abs(expected_result) * rtol
     assert abs(mysum - expected_result) < precision, (
         "A control sum for the "
         + name
