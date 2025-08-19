@@ -19,17 +19,27 @@
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 # unofficial Python2 compatibility
-from __future__ import division, print_function
+from __future__ import annotations, division, print_function
+
+from typing import Literal, TypeAlias
+from enum import Enum
 
 import sys
 import os
 import numpy as np
+import numpy.typing as npt
 import matplotlib.pyplot as plt
 import matplotlib.patches
+import matplotlib.axes
+import matplotlib.figure
 import pyopencl as cl
 import pyopencl.array as clarray
+import pyopencl.tools as cltools
 import scipy
 import scipy.sparse
+
+
+AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
 
 # Version number
 VERSION = "0.1.0"
@@ -38,17 +48,24 @@ VERSION = "0.1.0"
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
 
-# Class attribute corresponding to which geometry to consider
-PARALLEL = 1
-RADON = 1
-FANBEAM = 2
-FAN = 2
+
+class GeometryType(Enum):
+    """
+    Enum for the different geometry types.
+    """
+
+    RADON = "radon"
+    FANBEAM = "fanbeam"
+
+
+PARALLEL = RADON = GeometryType.RADON
+FANBEAM = FAN = GeometryType.FANBEAM
 
 
 ###########
 # Program created from the gpu_code
 class Program(object):
-    def __init__(self, ctx, code):
+    def __init__(self, ctx: cl.Context, code: str):
         # activate warnings
         os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
         # build OpenCL code
@@ -60,9 +77,13 @@ class Program(object):
             self.__dict__[kernel.function_name] = kernel
 
 
-def check_compatibility(img, sino, projectionsetting):
+def check_compatibility(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+):
     """
-    Ensures, that img, sino, and projectionsetting have compatible
+    Ensures that img, sino, and projectionsetting have compatible
     dimensions and types.
     """
     assert sino.dtype == img.dtype, (
@@ -74,7 +95,7 @@ def check_compatibility(img, sino, projectionsetting):
         f"do not match the projectionsetting's {projectionsetting.sinogram_shape}"
     )
 
-    assert sino.shape[0:2] == projectionsetting.sinogram_shape, (
+    assert img.shape[0:2] == projectionsetting.img_shape, (
         f"The dimensions of the image {img.shape} do not match the "
         f"projectionsetting's {projectionsetting.img_shape}"
     )
@@ -97,7 +118,12 @@ def check_compatibility(img, sino, projectionsetting):
             )
 
 
-def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
+def forwardprojection(
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    sino: clarray.Array | None = None,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the forward projection (either for the Radon or the
     fanbeam transform) of a given image using the given projection
@@ -152,12 +178,16 @@ def forwardprojection(img, projectionsetting, sino=None, wait_for=[]):
         )
 
     # perform projection operation
-    function = projectionsetting.forwardprojection
-    function(sino, img, projectionsetting, wait_for=wait_for)
+    projectionsetting.forwardprojection(sino, img, projectionsetting, wait_for=wait_for)
     return sino
 
 
-def backprojection(sino, projectionsetting, img=None, wait_for=[]):
+def backprojection(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    img: clarray.Array | None = None,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the backprojection (either for the Radon or the
     fanbeam transform) of a given sinogram  using the given projection
@@ -216,12 +246,16 @@ def backprojection(sino, projectionsetting, img=None, wait_for=[]):
         )
 
     # execute corresponding backprojection operation
-    function = projectionsetting.backprojection
-    function(img, sino, projectionsetting, wait_for=wait_for)
+    projectionsetting.backprojection(img, sino, projectionsetting, wait_for=wait_for)
     return img
 
 
-def radon(sino, img, projectionsetting, wait_for=[]):
+def radon(
+    sino: clarray.Array,
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the Radon transform of a given image using the
     given **projectionsetting**.
@@ -258,12 +292,10 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with appropriate dtype
-    function = projectionsetting.functions[
-        (dtype, sino.flags.c_contiguous, img.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=False)
 
     # execute corresponding function and add event to sinogram
+    # function.set_args(sino.data, img.data, ofs_buf, geometry_information)
     myevent = function(
         sino.queue,
         sino.shape,
@@ -279,7 +311,12 @@ def radon(sino, img, projectionsetting, wait_for=[]):
     return myevent
 
 
-def radon_ad(img, sino, projectionsetting, wait_for=[]):
+def radon_ad(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the Radon backprojection of a given sinogram using
     the given **projectionsetting**.
@@ -318,10 +355,7 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
     ofs_buf = projectionsetting.ofs_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    # choose function with appropriate dtype
-    function = projectionsetting.functions_ad[
-        (dtype, img.flags.c_contiguous, sino.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=True)
 
     # execute corresponding function and add event to image
     myevent = function(
@@ -339,15 +373,15 @@ def radon_ad(img, sino, projectionsetting, wait_for=[]):
 
 
 def radon_struct(
-    queue,
-    img_shape,
-    angles,
-    angle_weights,
-    n_detectors=None,
-    detector_width=2.0,
-    image_width=2.0,
-    midpoint_shift=[0, 0],
-    detector_shift=0.0,
+    queue: cl.CommandQueue,
+    img_shape: tuple[int, int],
+    angles: np.ndarray,
+    angle_weights: np.ndarray,
+    n_detectors: int | None = None,
+    detector_width: float = 2.0,
+    image_width: float = 2.0,
+    midpoint_shift: tuple[float, float] = (0.0, 0.0),
+    detector_shift: float = 0.0,
 ):
     """
     Creates the structure storing geometry information required for
@@ -399,7 +433,7 @@ def radon_struct(
         the detector line in detector pixel offsets. Defaults to
         the application of no shift, i.e., the detector reaches from
         [- **detector_width**/2, **detector_width**/2].
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
 
     :return: Struct dictionary with the following variables as entries,
@@ -539,7 +573,12 @@ def radon_struct(
     return struct
 
 
-def fanbeam(sino, img, projectionsetting, wait_for=[]):
+def fanbeam(
+    sino: clarray.Array,
+    img: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the fanbeam transform of a given image using the
     given **projectionsetting**.
@@ -578,9 +617,7 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     geometry_information = projectionsetting.geometry_information[dtype]
 
     # choose function with appropriate dtype
-    function = projectionsetting.functions[
-        (dtype, sino.flags.c_contiguous, img.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=False)
 
     # execute corresponding function and add event to sinogram
     myevent = function(
@@ -598,7 +635,12 @@ def fanbeam(sino, img, projectionsetting, wait_for=[]):
     return myevent
 
 
-def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
+def fanbeam_ad(
+    img: clarray.Array,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Performs the fanbeam backprojection of a given sinogram using
     the given **projectionsetting**.
@@ -638,9 +680,7 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
     sdpd_buf = projectionsetting.sdpd_buf[dtype]
     geometry_information = projectionsetting.geometry_information[dtype]
 
-    function = projectionsetting.functions_ad[
-        (dtype, img.flags.c_contiguous, sino.flags.c_contiguous)
-    ]
+    function = projectionsetting.get_projection_kernel(sino, img, adjoint=True)
 
     # execute corresponding function and add event to sinogram
     myevent = function(
@@ -659,18 +699,18 @@ def fanbeam_ad(img, sino, projectionsetting, wait_for=[]):
 
 
 def fanbeam_struct(
-    queue,
-    img_shape,
-    angles,
-    detector_width,
-    source_detector_dist,
-    source_origin_dist,
-    angle_weights,
-    n_detectors=None,
-    detector_shift=0.0,
-    image_width=None,
-    midpoint_shift=[0, 0],
-    reverse_detector=False,
+    queue: cl.CommandQueue,
+    img_shape: tuple[int, int],
+    angles: np.ndarray,
+    detector_width: float,
+    source_detector_dist: float,
+    source_origin_dist: float,
+    angle_weights: np.ndarray,
+    n_detectors: int | None = None,
+    detector_shift: float = 0.0,
+    image_width: float | None = None,
+    midpoint_shift: tuple[float, float] = (0.0, 0.0),
+    reverse_detector: bool = False,
 ):
     """
     Creates the structure storing geometry information required for
@@ -716,7 +756,7 @@ def fanbeam_struct(
         the detector line in detector pixel offsets. Defaults to
         the application of no shift, i.e., the detector reaches from
         [- **detector_width**/2, **detector_width**/2].
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
     :param image_width: Physical size of the image indicated by the length of
         the longer side of the rectangular image domain.
@@ -958,14 +998,27 @@ def fanbeam_struct(
     return struct
 
 
-def create_code():
+def create_code(cl_context: cl.Context | None = None):
     """
     Reads and creates CL code containing all OpenCL kernels
     of the gratopy toolbox.
 
+    :param cl_context: The OpenCL context in which the code is to be
+        compiled. Used for checking support for double precision
+        floating point numbers.
     :return: The toolbox's CL code.
     :rtype:  :class:`str`
     """
+
+    double_precision_supported = True
+    if cl_context is not None:
+        double_precision_supported = any(
+            device.double_fp_config for device in cl_context.devices
+        )
+
+    DTYPES = ["float"]
+    if double_precision_supported:
+        DTYPES.append("double")
 
     total_code = ""
     # go through all the source files
@@ -976,7 +1029,7 @@ def create_code():
 
         # go through all possible dtypes and contiguities and replace
         # the placeholders suitably
-        for dtype in ["float", "double"]:
+        for dtype in DTYPES:
             for order1 in ["f", "c"]:
                 for order2 in ["f", "c"]:
                     total_code += (
@@ -993,7 +1046,7 @@ def create_code():
 
         # go through all possible dtypes and contiguities and replace
         # the placeholders suitably
-        for dtype in ["float", "double"]:
+        for dtype in DTYPES:
             for order1 in ["f", "c"]:
                 total_code += code_template.replace("\\my_variable_type", dtype).replace(
                     "\\order1", order1
@@ -1002,7 +1055,7 @@ def create_code():
     return total_code
 
 
-def upload_bufs(projectionsetting, dtype):
+def upload_bufs(projectionsetting: ProjectionSettings, dtype: npt.DTypeLike):
     """
     Loads the buffers from projectionsetting of desired type onto the gpu,
     i.e., change the np.arrays to buffers and save in corresponding
@@ -1048,7 +1101,7 @@ def upload_bufs(projectionsetting, dtype):
     projectionsetting.angle_weights_buf[dtype] = angle_weights_buf
 
 
-def read_angles(angles, angle_weights, projectionsetting):
+def read_angles(angles, angle_weights, projectionsetting: ProjectionSettings):
     """
     Interprets angle set and computes (if necessary) the
     angle_weights suitably.
@@ -1251,7 +1304,7 @@ class ProjectionSettings:
         or fanbeam geometry (:const:`gratopy.FANBEAM`)
         is considered.
 
-    :type geometry: :class:`int`
+    :type geometry: :class:`GeometryType`
 
     :param img_shape:  The number of pixels of the image in x- and
         y-direction respectively, i.e., the image dimension.
@@ -1361,7 +1414,7 @@ class ProjectionSettings:
         the detector pixels span the range
         [-**detector_width**/2, **detector_width**/2].
 
-    :type detector_shift: :class:`list[float]`, default 0.0
+    :type detector_shift: :class:`float`, default 0.0
 
     :param midpoint_shift: Two-dimensional vector representing the
         shift of the image away from center of rotation.
@@ -1437,25 +1490,25 @@ class ProjectionSettings:
 
     def __init__(
         self,
-        queue,
-        geometry,
-        img_shape,
-        angles,
-        n_detectors=None,
-        angle_weights=None,
-        detector_width=2.0,
-        image_width=None,
-        R=None,
-        RE=None,
-        detector_shift=0.0,
-        midpoint_shift=[0.0, 0.0],
-        reverse_detector=False,
+        queue: cl.CommandQueue,
+        geometry: GeometryType,
+        img_shape: tuple[int, int],
+        angles: int | list[float] | np.ndarray | list[AngularRangeSection],
+        n_detectors: int | None = None,
+        angle_weights: float | list[float] | np.ndarray | None = None,
+        detector_width: float = 2.0,
+        image_width: float | None = None,
+        R: float | None = None,
+        RE: float | None = None,
+        detector_shift: float = 0.0,
+        midpoint_shift: tuple[float, float] = (0.0, 0.0),
+        reverse_detector: bool = False,
     ):
         self.geometry = geometry
         self.queue = queue
 
         # build program containing OpenCL code
-        self.adjusted_code = create_code()
+        self.adjusted_code = create_code(cl_context=queue.context)
         self.prg = Program(queue.context, self.adjusted_code)
 
         if np.isscalar(img_shape):
@@ -1465,76 +1518,6 @@ class ProjectionSettings:
         if len(img_shape) > 2:
             img_shape = img_shape[0:2]
         self.img_shape = img_shape
-
-        # Check that given geometry is indeed available
-        if self.geometry not in [RADON, PARALLEL, FAN, FANBEAM]:
-            raise ValueError(
-                "unknown projection_type, projection_type " + "must be PARALLEL or FAN"
-            )
-
-        if self.geometry in [RADON, PARALLEL]:
-            self.is_parallel = True
-            self.is_fan = False
-
-            # set relevant forward and backprojection functions
-            self.forwardprojection = radon
-            self.backprojection = radon_ad
-
-            # The kernel-functions according to the possible data types
-            float32 = np.dtype("float32")
-            float64 = np.dtype("float64")
-            self.functions = {
-                (float32, 0, 0): self.prg.radon_float_ff,
-                (float32, 1, 0): self.prg.radon_float_cf,
-                (float32, 0, 1): self.prg.radon_float_fc,
-                (float32, 1, 1): self.prg.radon_float_cc,
-                (float64, 0, 0): self.prg.radon_double_ff,
-                (float64, 1, 0): self.prg.radon_double_cf,
-                (float64, 0, 1): self.prg.radon_double_fc,
-                (float64, 1, 1): self.prg.radon_double_cc,
-            }
-            self.functions_ad = {
-                (float32, 0, 0): self.prg.radon_ad_float_ff,
-                (float32, 1, 0): self.prg.radon_ad_float_cf,
-                (float32, 0, 1): self.prg.radon_ad_float_fc,
-                (float32, 1, 1): self.prg.radon_ad_float_cc,
-                (float64, 0, 0): self.prg.radon_ad_double_ff,
-                (float64, 1, 0): self.prg.radon_ad_double_cf,
-                (float64, 0, 1): self.prg.radon_ad_double_fc,
-                (float64, 1, 1): self.prg.radon_ad_double_cc,
-            }
-
-        if self.geometry in [FAN, FANBEAM]:
-            self.is_parallel = False
-            self.is_fan = True
-
-            # set relevant forward and backprojection functions
-            self.forwardprojection = fanbeam
-            self.backprojection = fanbeam_ad
-
-            # The kernel-functions according to the possible data types
-            float32 = np.dtype("float32")
-            float64 = np.dtype("float64")
-            self.functions = {
-                (float32, 0, 0): self.prg.fanbeam_float_ff,
-                (float32, 1, 0): self.prg.fanbeam_float_cf,
-                (float32, 0, 1): self.prg.fanbeam_float_fc,
-                (float32, 1, 1): self.prg.fanbeam_float_cc,
-                (float64, 0, 0): self.prg.fanbeam_double_ff,
-                (float64, 1, 0): self.prg.fanbeam_double_cf,
-                (float64, 0, 1): self.prg.fanbeam_double_fc,
-                (float64, 1, 1): self.prg.fanbeam_double_cc,
-            }
-            self.functions_ad = {
-                (float32, 0, 0): self.prg.fanbeam_ad_float_ff,
-                (float32, 1, 0): self.prg.fanbeam_ad_float_cf,
-                (float32, 0, 1): self.prg.fanbeam_ad_float_fc,
-                (float32, 1, 1): self.prg.fanbeam_ad_float_cc,
-                (float64, 0, 0): self.prg.fanbeam_ad_double_ff,
-                (float64, 1, 0): self.prg.fanbeam_ad_double_cf,
-                (float64, 0, 1): self.prg.fanbeam_ad_double_fc,
-                (float64, 1, 1): self.prg.fanbeam_ad_double_cc,
-            }
 
         # extract suitable angles information
         angles, angles_diff = read_angles(angles, angle_weights, self)
@@ -1638,7 +1621,68 @@ class ProjectionSettings:
             self.angle_weights_buf = self.struct["angle_diff_dict"]
             self.angle_weights = self.angle_weights_buf[np.dtype("float")].copy()
 
-    def ensure_dtype(self, dtype):
+    @property
+    def is_parallel(self) -> bool:
+        """
+        Returns whether the projection settings are for parallel beam geometry.
+        """
+        return self.geometry == GeometryType.RADON
+
+    @property
+    def is_fan(self) -> bool:
+        """
+        Returns whether the projection settings are for fanbeam geometry.
+        """
+        return self.geometry == GeometryType.FANBEAM
+
+    @property
+    def geometry(self) -> GeometryType:
+        """
+        Returns the configured geometry.
+        """
+        return self._geometry
+
+    @geometry.setter
+    def geometry(self, value: GeometryType) -> None:
+        """
+        Sets the geometry for the projection settings.
+        Must be either RADON (0) or FANBEAM (1).
+        """
+        self._geometry = GeometryType(value)
+
+    def forwardprojection(
+        self,
+        sino: clarray.Array,
+        img: clarray.Array,
+        projectionsetting: ProjectionSettings,
+        wait_for: list[cl.Event] = [],
+    ) -> None:
+        """
+        Calls the appropriate forward projection given the
+        configured geometry.
+        """
+        if self.geometry == GeometryType.RADON:
+            radon(sino, img, projectionsetting, wait_for=wait_for)
+        elif self.geometry == GeometryType.FANBEAM:
+            fanbeam(sino, img, projectionsetting, wait_for=wait_for)
+
+    def backprojection(
+        self,
+        img: clarray.Array,
+        sino: clarray.Array,
+        projectionsetting: ProjectionSettings,
+        wait_for: list[cl.Event] = [],
+    ):
+        """
+        Calls the appropriate back projection given the
+        configured geometry.
+        """
+        if self.geometry == GeometryType.RADON:
+            radon_ad(img, sino, projectionsetting, wait_for=wait_for)
+        elif self.geometry == GeometryType.FANBEAM:
+            fanbeam_ad(img, sino, projectionsetting, wait_for=wait_for)
+
+    def ensure_dtype(self, dtype: npt.DTypeLike):
         """
         Uploads buffers for ProjectionSetting
         with given dtype to the gpu (so they are ready to be used by the
@@ -1648,7 +1692,7 @@ class ProjectionSettings:
             upload_bufs(self, dtype)
             self.buf_upload[dtype] = 1
 
-    def set_angle_weights(self, angle_weights):
+    def set_angle_weights(self, angle_weights: np.ndarray):
         """
         Allows to set the angle_weights in the projection-setting to
         arbitrary values.
@@ -1709,7 +1753,13 @@ class ProjectionSettings:
                 self.ofs_buf[dtype] = ofs_buf
                 self.angle_weights_buf[dtype] = angle_weights_buf
 
-    def show_geometry(self, angle, figure=None, axes=None, show=True):
+    def show_geometry(
+        self,
+        angle: float,
+        figure: matplotlib.figure.Figure | None = None,
+        axes: matplotlib.axes.Axes | None = None,
+        show: bool = True,
+    ):
         """Visualize the geometry associated with the projection settings.
         This can be useful in checking that indeed, the correct input
         for the desired geometry was given.
@@ -1959,7 +2009,11 @@ class ProjectionSettings:
             figure.show()
         return figure, axes
 
-    def create_sparse_matrix(self, dtype=np.dtype("float32"), order="F"):
+    def create_sparse_matrix(
+        self,
+        dtype: npt.DTypeLike = np.dtype("float32"),
+        order: Literal["C", "F"] = "F",
+    ) -> scipy.sparse.coo_matrix:
         """
         Creates a sparse matrix representation of the associated forward
         projection.
@@ -1980,24 +2034,13 @@ class ProjectionSettings:
 
         """
 
-        # Suitable kernels dependent on data types
-        if self.is_parallel:
-            functions = {
-                (np.dtype("float32"), 0): self.prg.single_line_radon_float_ff,
-                (np.dtype("float32"), 1): self.prg.single_line_radon_float_cc,
-                (np.dtype("float64"), 0): self.prg.single_line_radon_double_ff,
-                (np.dtype("float64"), 1): self.prg.single_line_radon_double_cc,
-            }
-        elif self.is_fan:
-            functions = {
-                (np.dtype("float32"), 0): self.prg.single_line_fan_float_ff,
-                (np.dtype("float32"), 1): self.prg.single_line_fan_float_cc,
-                (np.dtype("float64"), 0): self.prg.single_line_fan_double_ff,
-                (np.dtype("float64"), 1): self.prg.single_line_fan_double_cc,
-            }
         # choose relevant function
         dtype = np.dtype(dtype)
-        function = functions[(np.dtype(dtype), order == "C")]
+        pyopencl_precision = "float" if dtype == np.dtype("float32") else "double"
+        kernel_name = (
+            f"single_line_{self.geometry.value}_{pyopencl_precision}_{2 * order.lower()}"
+        )
+        function = getattr(self.prg, kernel_name)
 
         # ensure buffers with suitable dtype are uploaded
         self.ensure_dtype(dtype)
@@ -2109,8 +2152,43 @@ class ProjectionSettings:
 
         return sparsematrix
 
+    def get_projection_kernel(
+        self, sinogram: clarray.Array, image: clarray.Array, adjoint: bool = False
+    ) -> cl.Kernel:
+        """Returns the compiled projection function for the given sinogram and
+        image. If adjoint is True, the adjoint projection function is returned.
 
-def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_for=[]):
+        :param sinogram: The sinogram to be used in the projection.
+        :type sinogram: :class:`pyopencl.array.Array`
+
+        :param image: The image to be used in the projection.
+        :type image: :class:`pyopencl.array.Array`
+
+        :param adjoint: If True, returns the adjoint projection function.
+        :type adjoint: :class:`bool`, default :obj:`False`
+
+        :return: The projection function.
+        :rtype: callable
+        """
+        sinogram_order = "c" if sinogram.flags.c_contiguous else "f"
+        image_order = "c" if image.flags.c_contiguous else "f"
+        kernel_name = "{name}{adjoint_flag}_{dtype}_{order1}{order2}".format(
+            name=self.geometry.value,
+            adjoint_flag="_ad" if adjoint else "",
+            dtype="float" if sinogram.dtype == np.dtype("float32") else "double",
+            order1=sinogram_order if not adjoint else image_order,
+            order2=image_order if not adjoint else sinogram_order,
+        )
+        return getattr(self.prg, kernel_name)
+
+
+def weight_sinogram(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    sino_out: clarray.Array | None = None,
+    divide: bool = False,
+    wait_for: list[cl.Event] = [],
+) -> clarray.Array:
     """
     Performs an angular rescaling of a given sinogram via multiplication
     (or division) with the projection's angle weights (size of projections in
@@ -2163,23 +2241,10 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
 
     # choose between the suitable kernel to apply, in particular between divide
     # and multiplication
-    float32 = np.dtype("float32")
-    float64 = np.dtype("float64")
-    if divide is False:
-        functions = {
-            (float32, "C"): projectionsetting.prg.multiply_float_c,
-            (float32, "F"): projectionsetting.prg.multiply_float_f,
-            (float64, "C"): projectionsetting.prg.multiply_double_c,
-            (float64, "F"): projectionsetting.prg.multiply_double_f,
-        }
-    elif divide is True:
-        functions = {
-            (float32, "C"): projectionsetting.prg.divide_float_c,
-            (float32, "F"): projectionsetting.prg.divide_float_f,
-            (float64, "C"): projectionsetting.prg.divide_double_c,
-            (float64, "F"): projectionsetting.prg.divide_double_f,
-        }
-    function = functions[dtype, my_order]
+    op_name = "multiply" if not divide else "divide"
+    pyopencl_precision = "float" if dtype == np.float32 else "double"
+    kernel_name = f"{op_name}_{pyopencl_precision}_{my_order.lower()}"
+    function = getattr(projectionsetting.prg, kernel_name)
 
     # ensure buffers of the right dtype are uploaded onto the gpu
     projectionsetting.ensure_dtype(dtype)
@@ -2198,16 +2263,20 @@ def weight_sinogram(sino, projectionsetting, sino_out=None, divide=False, wait_f
     return sino_out
 
 
-def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
+def equ_mul_add(
+    rhs: clarray.Array,
+    a: clarray.Array,
+    x: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+) -> clarray.Array:
     """
     Executes the calculation rhs+=a*y inside a kernel to avoid memory issues.
     """
     # choose correct kernel to use
     dtype = x.dtype
-    function = {
-        np.dtype("float32"): projectionsetting.prg.equ_mul_add_float_c,
-        np.dtype("float64"): projectionsetting.prg.equ_mul_add_double_c,
-    }[dtype]
+    func_name = f"equ_mul_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
+    function = getattr(projectionsetting.prg, func_name)
 
     # execute operation
     myevent = function(
@@ -2223,16 +2292,21 @@ def equ_mul_add(rhs, a, x, projectionsetting, wait_for=[]):
     return rhs
 
 
-def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
+def mul_add_add(
+    rhs: clarray.Array,
+    a: clarray.Array,
+    x: clarray.Array,
+    y: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    wait_for: list[cl.Event] = [],
+):
     """
     Executes the calculation rhs=a*x+y inside a kernel to avoid memory issues.
     """
     # choose correct kernel to use
     dtype = x.dtype
-    function = {
-        np.dtype("float32"): projectionsetting.prg.mul_add_add_float_c,
-        np.dtype("float64"): projectionsetting.prg.mul_add_add_double_c,
-    }[dtype]
+    func_name = f"mul_add_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
+    function = getattr(projectionsetting.prg, func_name)
 
     # execute operation
     myevent = function(
@@ -2249,7 +2323,12 @@ def mul_add_add(rhs, a, x, y, projectionsetting, wait_for=[]):
     return rhs
 
 
-def normest(projectionsetting, number_iterations=50, dtype="float32", allocator=None):
+def normest(
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 50,
+    dtype: npt.DTypeLike = "float32",
+    allocator: cltools.AllocatorBase = None,
+):
     """
     Estimate the spectral norm of the projection operator via power
     iteration, i.e., the operator norm with respect to the
@@ -2295,7 +2374,12 @@ def normest(projectionsetting, number_iterations=50, dtype="float32", allocator=
     return np.sqrt(normsqr)
 
 
-def landweber(sino, projectionsetting, number_iterations=100, w=1):
+def landweber(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 100,
+    w: float = 1.0,
+) -> clarray.Array:
     """
     Performs a Landweber iteration [L1951]_ to approximate
     a solution to the image reconstruction problem associated
@@ -2360,7 +2444,11 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
 
 def conjugate_gradients(
-    sino, projectionsetting, number_iterations=20, epsilon=0.0, x0=None
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 20,
+    epsilon: float = 0.0,
+    x0: clarray.Array | None = None,
 ):
     """
     Performs a conjugate gradients iteration [HS1952]_ to approximate
@@ -2461,12 +2549,12 @@ def conjugate_gradients(
 
 
 def total_variation(
-    sino,
-    projectionsetting,
-    mu,
-    number_iterations=1000,
-    slice_thickness=1.0,
-    stepsize_weighting=10.0,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    mu: float,
+    number_iterations: int = 1000,
+    slice_thickness: float = 1.0,
+    stepsize_weighting: float = 10.0,
 ):
     """
     Performs a primal-dual algorithm [CP2011]_ to solve a total-variation
@@ -2487,10 +2575,10 @@ def total_variation(
 
     :param mu: Regularization parameter, the smaller the stronger the
         applied regularization.
-    :type epsilon: :class:`float`
+    :type mu: :class:`float`
 
     :param number_iterations: Number of iterations to be performed.
-    :type number_iterations: :class:`float`, default 1000
+    :type number_iterations: :class:`int`, default 1000
 
     :param slice_thickness: When 3-dimensional data sets are considered,
         regularization is also applied across slices.
@@ -2524,7 +2612,8 @@ def total_variation(
 
     # type of data considered
     my_dtype = sino.dtype
-    my_order = {0: "F", 1: "C"}[sino.flags.c_contiguous]
+    cl_precision = "float" if my_dtype == np.dtype("float32") else "double"
+    my_order = "C" if sino.flags.c_contiguous else "F"
 
     # set the shape of the image to be reconstructed
     img_shape = projectionsetting.img_shape
@@ -2539,18 +2628,13 @@ def total_variation(
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    float32 = np.dtype("float32")
-    float64 = np.dtype("float")
-    update_lambda_ = {
-        (float32, 0): projectionsetting.prg.update_lambda_L2_float_f,
-        (float32, 1): projectionsetting.prg.update_lambda_L2_float_c,
-        (float64, 0): projectionsetting.prg.update_lambda_L2_double_f,
-        (float64, 1): projectionsetting.prg.update_lambda_L2_double_c,
-    }
+    update_lambda_kernel = getattr(
+        projectionsetting.prg, f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
+    )
 
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(
-            update_lambda_[lamb.dtype, lamb.flags.c_contiguous](
+            update_lambda_kernel(
                 lamb.queue,
                 lamb.shape,
                 None,
@@ -2564,16 +2648,13 @@ def total_variation(
         )
 
     # Update v the dual of gradient of u
-    update_v_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_v_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_v_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_v_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_v_double_c,
-    }
+    update_v_kernel = getattr(
+        projectionsetting.prg, f"update_v_{cl_precision}_{my_order.lower()}"
+    )
 
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
         v.add_event(
-            update_v_[v.dtype, v.flags.c_contiguous](
+            update_v_kernel(
                 v.queue,
                 u.shape,
                 None,
@@ -2586,16 +2667,13 @@ def total_variation(
         )
 
     # Update primal variable u (the image)
-    update_u_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_u_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_u_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_u_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_u_double_c,
-    }
+    update_u_kernel = getattr(
+        projectionsetting.prg, f"update_u_{cl_precision}_{my_order.lower()}"
+    )
 
     def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, wait_for=[]):
         u_.add_event(
-            update_u_[u.dtype, u.flags.c_contiguous](
+            update_u_kernel(
                 u.queue,
                 u.shape,
                 None,
@@ -2611,16 +2689,13 @@ def total_variation(
         )
 
     # Compute the norm of v and project (dual update)
-    update_NormV_ = {
-        (np.dtype("float32"), 0): projectionsetting.prg.update_NormV_unchor_float_f,
-        (np.dtype("float32"), 1): projectionsetting.prg.update_NormV_unchor_float_c,
-        (np.dtype("float"), 0): projectionsetting.prg.update_NormV_unchor_double_f,
-        (np.dtype("float"), 1): projectionsetting.prg.update_NormV_unchor_double_c,
-    }
+    update_NormV_kernel = getattr(
+        projectionsetting.prg, f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
+    )
 
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(
-            update_NormV_[V.dtype, V.flags.c_contiguous](
+            update_NormV_kernel(
                 V.queue,
                 V.shape[1:],
                 None,
@@ -2631,15 +2706,13 @@ def total_variation(
         )
 
     # update of the extra gradient
-    update_extra_ = {
-        np.dtype("float32"): cl.elementwise.ElementwiseKernel(
-            ctx, "float *u_, float *u", "u[i] = 2.0f*u_[i] - u[i]"
+    update_extra_ = cl.elementwise.ElementwiseKernel(
+        ctx,
+        "{dtype} *u_, {dtype} *u".format(
+            dtype="float" if sino.dtype == np.dtype("float32") else "double"
         ),
-        np.dtype("float"): cl.elementwise.ElementwiseKernel(
-            ctx, "double *u_, double *u", "u[i] = 2.0f*u_[i] - u[i]"
-        ),
-    }
-    update_extra_ = update_extra_[sino.dtype]
+        "u[i] = 2.0f*u_[i] - u[i]",
+    )
 
     def update_extra(u_, u):
         return u.add_event(update_extra_(u_, u, wait_for=u.events + u_.events))

@@ -419,7 +419,7 @@ __kernel void fanbeam_ad_\my_variable_type_\order1\order2(
 //                      fanbeam transform obtained by transforming an image with
 //                      Dirac-delta at (x,y)
 
-__kernel void single_line_fan_\my_variable_type_\order1\order2(
+__kernel void single_line_fanbeam_\my_variable_type_\order1\order2(
     __global real *sino, int x, int y, __constant real8 *ofs,
     __constant real *sdpd, __constant real *Geometryinformation) {
   // Extract geometric sizes
