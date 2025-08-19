@@ -1,14 +1,6 @@
 from __future__ import division, print_function
 
-import sys
-import os
 import numpy as np
-import matplotlib.pyplot as plt
-import matplotlib.patches
-import pyopencl as cl
-import pyopencl.array as clarray
-import scipy
-import scipy.sparse
 import gratopy
 
 
@@ -38,69 +30,6 @@ class angle_information():
 		self.angles = np.asarray(angles)
 		self.angle_weights = np.asarray(angle_weights)
 		
-		
-
-def uniform_angles (Na, geometry):
-	"""
-	Creates an angle_information object with uniformly distributed
-	angles in [0,pi[ or [0,2pi[ dependent on whether parallel or
-	Fanbeam geometry is used. Note that the first angle will be 0
-	Na 			...	The number of angles used
-	geometry 	... either gratopy.RADON or gratopy.FANBEAM
-	returns an angle_information object
-	"""
-	
-	if geometry == gratopy.RADON:
-		full_interval = np.pi
-	elif geometry == gratopy.FANBEAM:
-		full_interval = 2 * np.pi
-	else:
-		raise Exception("The \"geometry\" argument given to " + 
-		"\"uniform_angles\" has to be " +
-		"gratopy.RADON(=1) or gratopy.FANBEAM(=2). Given was " + 
-		str(geometry)) 
-	angles = np.linspace(0, full_interval, Na + 1)[:-1]
-	angle_weights = np.ones(len(angles)) * (full_interval / len(angles))
-	
-	
-	return angle_information(angles,angle_weights)
-
-def uniform_angles_in_interval (Na,start,end):
-	"""
-	Creates an angle_information object with angles uniformly distributed
-	in an interval [start, end]
-	Na		... number of angles in the interval
-	start	... lower limit of the interval
-	end		... upper limit of the interval
-	"""
-	delta = abs(end - start) / (Na) * 0.5
-	angles = np.linspace(start + delta, end - delta, Na)
-	angle_weights = 2*delta * np.ones(len(angles))
-	return angle_information(angles,angle_weights)
-
-def uniform_angles_on_many_intervals (List_Na,List_start,List_end):
-	"""
-	Creates an angle_information object with angles	distributed uniformly
-	on a sequence of intervals analogoue to uniform_angles_in_interval
-	List_Na		 ... list with number of angles of the intervals
-	List_start	 ... list with lower limits of the intervals
-	List_end	 ... list with lower limits of the intervals
-	"""
-	List_angles = []
-	List_angle_weights = []
-	assert((len(List_Na) == len(List_start)) and
-		(len(List_end) == len(List_start))) , (
-		"The length of the list" +
-		" of Na, start and end" +
-		" points must be equal, here:" + str(len(List_Na))
-		+ "," + len(List_start) + "," + len(List_end)) 
-
-	for i in range(len(List_Na)):
-		current_angle_information = uniform_angles_in_interval(
-			List_Na[i],List_start[i],List_end[i])
-		List_angles += list(current_angle_information.angles)
-		List_angle_weights += list(current_angle_information.angle_weights)
-	return angle_information(List_angles,List_angle_weights)
 	
 
 def angle_information_with_natural_weights (angles,geometry):
@@ -154,15 +83,7 @@ def angle_information_with_natural_weights (angles,geometry):
 		angle_weights[angles_index] = angle_weights
 		return angle_information(angles,angle_weights)
 
-	
-def angle_information_with_one_weights (angles):
-	"""
-	Simply sets all angle_weights to one (thus all angles are
-	considered equally. Creates angle_information object with
-	the given angles and angle_weights = 1 constantly.
-	"""
-	angle_weights = np.ones(len(angles))
-	return angle_information(angles,angle_weights)
+
 
 
 if __name__=="__main__":
