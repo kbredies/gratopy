@@ -34,6 +34,7 @@ import matplotlib.axes
 import matplotlib.figure
 import pyopencl as cl
 import pyopencl.array as clarray
+import pyopencl.tools as cltools
 import scipy
 import scipy.sparse
 
@@ -1691,7 +1692,7 @@ class ProjectionSettings:
             upload_bufs(self, dtype)
             self.buf_upload[dtype] = 1
 
-    def set_angle_weights(self, angle_weights):
+    def set_angle_weights(self, angle_weights: np.ndarray):
         """
         Allows to set the angle_weights in the projection-setting to
         arbitrary values.
@@ -2326,7 +2327,7 @@ def normest(
     projectionsetting: ProjectionSettings,
     number_iterations: int = 50,
     dtype: npt.DTypeLike = "float32",
-    allocator=None,
+    allocator: cltools.AllocatorBase = None,
 ):
     """
     Estimate the spectral norm of the projection operator via power
@@ -2373,7 +2374,12 @@ def normest(
     return np.sqrt(normsqr)
 
 
-def landweber(sino, projectionsetting, number_iterations=100, w=1):
+def landweber(
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 100,
+    w: float = 1.0,
+) -> clarray.Array:
     """
     Performs a Landweber iteration [L1951]_ to approximate
     a solution to the image reconstruction problem associated
@@ -2438,7 +2444,11 @@ def landweber(sino, projectionsetting, number_iterations=100, w=1):
 
 
 def conjugate_gradients(
-    sino, projectionsetting, number_iterations=20, epsilon=0.0, x0=None
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    number_iterations: int = 20,
+    epsilon: float = 0.0,
+    x0: clarray.Array | None = None
 ):
     """
     Performs a conjugate gradients iteration [HS1952]_ to approximate
@@ -2539,12 +2549,12 @@ def conjugate_gradients(
 
 
 def total_variation(
-    sino,
-    projectionsetting,
-    mu,
-    number_iterations=1000,
-    slice_thickness=1.0,
-    stepsize_weighting=10.0,
+    sino: clarray.Array,
+    projectionsetting: ProjectionSettings,
+    mu: float,
+    number_iterations: int = 1000,
+    slice_thickness: float = 1.0,
+    stepsize_weighting: float = 10.0,
 ):
     """
     Performs a primal-dual algorithm [CP2011]_ to solve a total-variation
@@ -2565,10 +2575,10 @@ def total_variation(
 
     :param mu: Regularization parameter, the smaller the stronger the
         applied regularization.
-    :type epsilon: :class:`float`
+    :type mu: :class:`float`
 
     :param number_iterations: Number of iterations to be performed.
-    :type number_iterations: :class:`float`, default 1000
+    :type number_iterations: :class:`int`, default 1000
 
     :param slice_thickness: When 3-dimensional data sets are considered,
         regularization is also applied across slices.
