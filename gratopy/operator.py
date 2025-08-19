@@ -44,18 +44,18 @@ class Operator:
         self._scalar = 1
         self.scalar = scalar
 
-    def __repr__(self) -> str:
+    def _scalar_repr_(self) -> str:
         scalar_repr = ""
         if self.scalar != 1:
             scalar_repr = repr(self.scalar)
             if self.scalar < 0:
                 scalar_repr = f"({scalar_repr})"
+        return scalar_repr
 
-        if not self.is_composite():
-            if scalar_repr:
-                return f"{scalar_repr}*{self.name}"
-            return self.name
-
+    def _composite_repr_(self) -> str:
+        """Representation of a composite operator."""
+        assert self.is_composite(), "This method is for composite operators only."
+        scalar_repr = self._scalar_repr_()
         if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
             op_repr = " + ".join(repr(op) for op in self._operands)
             if scalar_repr:
@@ -73,6 +73,14 @@ class Operator:
                 return f"{scalar_repr}*{op_repr}"
             return op_repr
         raise ValueError(f"Unknown arithmetic operation: {self._arithmetic_operation}")
+
+    def __repr__(self) -> str:
+        if not self.is_composite():
+            scalar_repr = self._scalar_repr_()
+            if scalar_repr:
+                return f"{scalar_repr}*{self.name}"
+            return self.name
+        return self._composite_repr_()
 
     def __eq__(self, other: Any) -> bool:
         """Check equality of two operators."""
