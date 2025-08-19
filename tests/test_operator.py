@@ -1,4 +1,3 @@
-
 import numpy as np
 
 from gratopy.operator import IDENTITY, ZERO, Operator
