@@ -1229,7 +1229,7 @@ def test_conjugate_gradients():
 
     # Check if pocl is used and set tolerance accordingly
     platform_name = queue.device.platform.name
-    if "pocl" in platform_name.lower():
+    if "portable computing language" in platform_name.lower():
         rtol = 1e-2
     else:
         rtol = 1e-3
