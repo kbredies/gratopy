@@ -2448,7 +2448,7 @@ def conjugate_gradients(
     projectionsetting: ProjectionSettings,
     number_iterations: int = 20,
     epsilon: float = 0.0,
-    x0: clarray.Array | None = None
+    x0: clarray.Array | None = None,
 ):
     """
     Performs a conjugate gradients iteration [HS1952]_ to approximate
