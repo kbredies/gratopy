@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import numpy as np
 import numpy.typing as npt
 
+from dataclasses import dataclass
 from enum import Enum
+from typing import TypeAlias
+
+Numeric: TypeAlias = float | int | np.int_ | np.float32 | np.double
 
 
 class GeometryType(Enum):
@@ -106,7 +108,7 @@ class Angles:
         weights = []
 
         for n, start, end in zip(number_list, start_list, end_list):
-            interval_angles = Angles.uniform_interval(n, start, end)
+            interval_angles = Angles.uniform_interval(start, end, n)
             angles.extend(interval_angles.angles)
             weights.extend(interval_angles.weights)
 

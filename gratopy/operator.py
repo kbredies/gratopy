@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import numpy as np
+import numpy.typing as npt
+
 from enum import Enum
 from typing import Sequence, Any
 from numbers import Number
 from copy import copy, deepcopy
 
-import numpy as np
+from gratopy.utilities import Numeric
 
 
 class OperatorArithmeticOperation(Enum):
@@ -23,7 +26,7 @@ class Operator:
     def __init__(
         self,
         name: str | None = None,
-        scalar: float = 1,
+        scalar: Numeric = 1,
         state: dict[str, Any] | None = None,
         arithmetic_operation: OperatorArithmeticOperation | None = None,
         operands: list[Operator] | None = None,
@@ -99,11 +102,11 @@ class Operator:
         )
 
     @property
-    def scalar(self) -> float:
+    def scalar(self) -> Numeric:
         return self._scalar
 
     @scalar.setter
-    def scalar(self, value: float):
+    def scalar(self, value: Numeric):
         """Set the scalar value of the operator."""
         if self.is_composite():
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
@@ -114,7 +117,7 @@ class Operator:
         else:
             self._scalar = value
 
-    def apply_to(self, argument: Sequence):
+    def apply_to(self, argument: npt.ArrayLike):
         """Application of this operator to some given argument."""
         raise NotImplementedError(
             "apply_to needs to be implemented in specialized subclasses"
@@ -159,9 +162,9 @@ class Operator:
         """Subtract another operator from this one."""
         return self + (-1) * other
 
-    def __rmul__(self, other: Operator | Number | float) -> Operator:
+    def __rmul__(self, other: Operator | Numeric ) -> Operator:
         """Right-multiply this operator by a scalar or another operator."""
-        if isinstance(other, Number):
+        if not isinstance(other, Operator):
             if other == 0:
                 return ZERO
             if other == 1:
@@ -176,15 +179,18 @@ class Operator:
 
         return NotImplemented
 
-    def __mul__(self, other: Operator | Sequence) -> Operator | Any:
+    def __mul__(self, other: Operator | npt.ArrayLike | Numeric) -> Operator | Any:
         """Multiply this operator by another operator, or apply it to appropriate input."""
         if not isinstance(other, Operator):
+            if isinstance(other, Number):
+                return self.__rmul__(other)  # type: ignore 
+
             # attempt to apply the operator to the input
             if not self.is_composite():
                 return self.scalar * self.apply_to(other)
 
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
-                return self.scalar * sum(child_op * other for child_op in self._operands)
+                return self.scalar * sum((child_op * other for child_op in self._operands), ZERO)
 
             if self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
                 result = other
@@ -226,14 +232,14 @@ class Operator:
 class _IdentityOperator(Operator):
     """Base class for identity operator."""
 
-    def __mul__(self, other: Operator | Sequence) -> Operator | Any:
+    def __mul__(self, other: Operator | npt.ArrayLike) -> Operator | Any:
         """Multiplying the identity operator with another operator returns
         the other operator."""
         if isinstance(other, Operator):
             return other
         return super().__mul__(other)
 
-    def apply_to(self, argument: Sequence) -> Sequence:
+    def apply_to(self, argument: npt.ArrayLike) -> npt.ArrayLike:
         """The identity operator does not change the input."""
         return argument
 
@@ -246,13 +252,13 @@ class _ZeroOperator(Operator):
         return other
 
     @Operator.scalar.setter
-    def scalar(self, value: float):
+    def scalar(self, value: Numeric):
         pass
 
-    def apply_to(self, argument: Sequence) -> Sequence:
+    def apply_to(self, argument: npt.ArrayLike) -> npt.ArrayLike:
         """Applying the zero operator returns a zero-multiplied version of the input."""
         try:
-            return 0 * argument
+            return 0 * argument  # type: ignore
         except TypeError:
             pass
 
