@@ -162,7 +162,7 @@ class Operator:
         """Subtract another operator from this one."""
         return self + (-1) * other
 
-    def __rmul__(self, other: Operator | Numeric ) -> Operator:
+    def __rmul__(self, other: Operator | Numeric) -> Operator:
         """Right-multiply this operator by a scalar or another operator."""
         if not isinstance(other, Operator):
             if other == 0:
@@ -183,14 +183,16 @@ class Operator:
         """Multiply this operator by another operator, or apply it to appropriate input."""
         if not isinstance(other, Operator):
             if isinstance(other, Number):
-                return self.__rmul__(other)  # type: ignore 
+                return self.__rmul__(other)  # type: ignore
 
             # attempt to apply the operator to the input
             if not self.is_composite():
                 return self.scalar * self.apply_to(other)
 
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
-                return self.scalar * sum((child_op * other for child_op in self._operands), ZERO)
+                return self.scalar * sum(
+                    (child_op * other for child_op in self._operands), ZERO
+                )
 
             if self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
                 result = other

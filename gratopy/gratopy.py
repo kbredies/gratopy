@@ -56,28 +56,29 @@ FANBEAM = FAN = GeometryType.FANBEAM
 
 class _CLProgramCache:
     """Cache for compiled OpenCL programs."""
+
     def __init__(self):
         self._kernels = {}
 
     def __getitem__(self, ctx):
         if ctx in self._kernels:
             return self._kernels[ctx]
-        
+
         if not isinstance(ctx, cl.Context):
             raise ValueError(
                 f"Cannot compile kernels for {ctx}, not a valid OpenCL context"
             )
-        
+
         generated_code = create_code(cl_context=ctx)
         os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
         program = cl.Program(ctx, generated_code)
         program.build()
         self._kernels[ctx] = {
-            kernel.function_name: kernel
-            for kernel in program.all_kernels()
+            kernel.function_name: kernel for kernel in program.all_kernels()
         }
         return self._kernels[ctx]
-        
+
+
 CL_PROGRAM_CACHE = _CLProgramCache()
 
 
@@ -2630,7 +2631,9 @@ def total_variation(
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    update_lambda_kernel = CL_PROGRAM_CACHE[ctx][f"update_lambda_L2_{cl_precision}_{my_order.lower()}"]
+    update_lambda_kernel = CL_PROGRAM_CACHE[ctx][
+        f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
+    ]
 
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(
@@ -2685,7 +2688,9 @@ def total_variation(
         )
 
     # Compute the norm of v and project (dual update)
-    update_NormV_kernel = CL_PROGRAM_CACHE[ctx][f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"]
+    update_NormV_kernel = CL_PROGRAM_CACHE[ctx][
+        f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
+    ]
 
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(
