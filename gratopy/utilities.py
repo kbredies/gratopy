@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 import numpy.typing as npt
 
@@ -70,13 +72,13 @@ class Angles:
         return angles
 
     @staticmethod
-    def uniform_interval(number: int, start: float, end: float) -> Angles:
+    def uniform_interval(start: float, end: float, number: int) -> Angles:
         """
         Generate uniformly distributed and weighted angles in a specified interval.
 
-        :param number: Number of angles.
         :param start: Start of the interval.
         :param end: End of the interval.
+        :param number: Number of angles.
         :return: Angles object with uniform angles and weights.
         """
         delta = abs(end - start) / (2 * number)
@@ -163,3 +165,17 @@ class Angles:
 
         angle_weights[angles_index] = angle_weights
         return Angles(angles=angles, weights=angle_weights)
+
+
+@dataclass
+class Detectors:
+    number: int
+    extent: float
+    center: float
+
+
+@dataclass
+class ImageDomain:
+    size: int | tuple[int, int]
+    extent: float = 2.0
+    center: tuple[float, float] = (0.0, 0.0)
