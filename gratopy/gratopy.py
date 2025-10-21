@@ -22,7 +22,6 @@
 from __future__ import annotations, division, print_function
 
 from typing import Literal, TypeAlias
-from enum import Enum
 
 import sys
 import os
@@ -38,6 +37,8 @@ import pyopencl.tools as cltools
 import scipy
 import scipy.sparse
 
+from gratopy.utilities import GeometryType
+
 
 AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
 
@@ -47,16 +48,6 @@ VERSION = "0.1.0"
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]
 CL_FILES2 = ["total_variation.cl", "utilities.cl"]
-
-
-class GeometryType(Enum):
-    """
-    Enum for the different geometry types.
-    """
-
-    RADON = "radon"
-    FANBEAM = "fanbeam"
-
 
 PARALLEL = RADON = GeometryType.RADON
 FANBEAM = FAN = GeometryType.FANBEAM
