@@ -6,7 +6,7 @@ import numpy as np
 import numpy.typing as npt
 
 from enum import Enum
-from typing import Sequence, Any
+from typing import Any
 from numbers import Number
 from copy import copy, deepcopy
 

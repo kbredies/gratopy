@@ -38,7 +38,6 @@ import scipy
 import scipy.sparse
 
 from gratopy.utilities import GeometryType
-from gratopy.operator import Operator
 
 
 AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
