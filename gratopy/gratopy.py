@@ -22,7 +22,6 @@
 from __future__ import annotations, division, print_function
 
 from typing import Literal, TypeAlias
-from enum import Enum
 
 import sys
 import os
