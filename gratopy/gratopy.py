@@ -38,6 +38,7 @@ import scipy
 import scipy.sparse
 
 from gratopy.utilities import GeometryType
+from gratopy.operator import Operator
 
 
 AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
@@ -53,19 +54,31 @@ PARALLEL = RADON = GeometryType.RADON
 FANBEAM = FAN = GeometryType.FANBEAM
 
 
-###########
-# Program created from the gpu_code
-class Program(object):
-    def __init__(self, ctx: cl.Context, code: str):
-        # activate warnings
+class _CLProgramCache:
+    """Cache for compiled OpenCL programs."""
+    def __init__(self):
+        self._kernels = {}
+
+    def __getitem__(self, ctx):
+        if ctx in self._kernels:
+            return self._kernels[ctx]
+        
+        if not isinstance(ctx, cl.Context):
+            raise ValueError(
+                f"Cannot compile kernels for {ctx}, not a valid OpenCL context"
+            )
+        
+        generated_code = create_code(cl_context=ctx)
         os.environ["PYOPENCL_COMPILER_OUTPUT"] = "1"
-        # build OpenCL code
-        self._cl_prg = cl.Program(ctx, code)
-        self._cl_prg.build()
-        # add the kernels functions to the local dictionary
-        self._cl_kernels = self._cl_prg.all_kernels()
-        for kernel in self._cl_kernels:
-            self.__dict__[kernel.function_name] = kernel
+        program = cl.Program(ctx, generated_code)
+        program.build()
+        self._kernels[ctx] = {
+            kernel.function_name: kernel
+            for kernel in program.all_kernels()
+        }
+        return self._kernels[ctx]
+        
+CL_PROGRAM_CACHE = _CLProgramCache()
 
 
 def check_compatibility(
@@ -1497,10 +1510,7 @@ class ProjectionSettings:
     ):
         self.geometry = geometry
         self.queue = queue
-
-        # build program containing OpenCL code
-        self.adjusted_code = create_code(cl_context=queue.context)
-        self.prg = Program(queue.context, self.adjusted_code)
+        self.cl_context = queue.context
 
         if np.isscalar(img_shape):
             img_shape = (img_shape, img_shape)
@@ -2031,7 +2041,7 @@ class ProjectionSettings:
         kernel_name = (
             f"single_line_{self.geometry.value}_{pyopencl_precision}_{2 * order.lower()}"
         )
-        function = getattr(self.prg, kernel_name)
+        function = CL_PROGRAM_CACHE[self.cl_context][kernel_name]
 
         # ensure buffers with suitable dtype are uploaded
         self.ensure_dtype(dtype)
@@ -2170,7 +2180,8 @@ class ProjectionSettings:
             order1=sinogram_order if not adjoint else image_order,
             order2=image_order if not adjoint else sinogram_order,
         )
-        return getattr(self.prg, kernel_name)
+        # return getattr(self.prg, kernel_name)
+        return CL_PROGRAM_CACHE[self.cl_context][kernel_name]
 
 
 def weight_sinogram(
@@ -2235,7 +2246,7 @@ def weight_sinogram(
     op_name = "multiply" if not divide else "divide"
     pyopencl_precision = "float" if dtype == np.float32 else "double"
     kernel_name = f"{op_name}_{pyopencl_precision}_{my_order.lower()}"
-    function = getattr(projectionsetting.prg, kernel_name)
+    function = CL_PROGRAM_CACHE[projectionsetting.cl_context][kernel_name]
 
     # ensure buffers of the right dtype are uploaded onto the gpu
     projectionsetting.ensure_dtype(dtype)
@@ -2267,7 +2278,7 @@ def equ_mul_add(
     # choose correct kernel to use
     dtype = x.dtype
     func_name = f"equ_mul_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
-    function = getattr(projectionsetting.prg, func_name)
+    function = CL_PROGRAM_CACHE[projectionsetting.cl_context][func_name]
 
     # execute operation
     myevent = function(
@@ -2297,7 +2308,7 @@ def mul_add_add(
     # choose correct kernel to use
     dtype = x.dtype
     func_name = f"mul_add_add_{'float' if dtype == np.dtype('float32') else 'double'}_c"
-    function = getattr(projectionsetting.prg, func_name)
+    function = CL_PROGRAM_CACHE[projectionsetting.cl_context][func_name]
 
     # execute operation
     myevent = function(
@@ -2619,9 +2630,7 @@ def total_variation(
     # Definitions of suitable kernel functions for primal and dual updates
 
     # update dual variable to data term
-    update_lambda_kernel = getattr(
-        projectionsetting.prg, f"update_lambda_L2_{cl_precision}_{my_order.lower()}"
-    )
+    update_lambda_kernel = CL_PROGRAM_CACHE[ctx][f"update_lambda_L2_{cl_precision}_{my_order.lower()}"]
 
     def update_lambda(lamb, Ku, f, sigma, mu, normest, wait_for=[]):
         lamb.add_event(
@@ -2639,9 +2648,7 @@ def total_variation(
         )
 
     # Update v the dual of gradient of u
-    update_v_kernel = getattr(
-        projectionsetting.prg, f"update_v_{cl_precision}_{my_order.lower()}"
-    )
+    update_v_kernel = CL_PROGRAM_CACHE[ctx][f"update_v_{cl_precision}_{my_order.lower()}"]
 
     def update_v(v, u, sigma, slice_thickness, wait_for=[]):
         v.add_event(
@@ -2658,9 +2665,7 @@ def total_variation(
         )
 
     # Update primal variable u (the image)
-    update_u_kernel = getattr(
-        projectionsetting.prg, f"update_u_{cl_precision}_{my_order.lower()}"
-    )
+    update_u_kernel = CL_PROGRAM_CACHE[ctx][f"update_u_{cl_precision}_{my_order.lower()}"]
 
     def update_u(u, u_, v, Kstarlambda, tau, normest, slice_thickness, wait_for=[]):
         u_.add_event(
@@ -2680,9 +2685,7 @@ def total_variation(
         )
 
     # Compute the norm of v and project (dual update)
-    update_NormV_kernel = getattr(
-        projectionsetting.prg, f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"
-    )
+    update_NormV_kernel = CL_PROGRAM_CACHE[ctx][f"update_NormV_unchor_{cl_precision}_{my_order.lower()}"]
 
     def update_NormV(V, normV, wait_for=[]):
         normV.add_event(
