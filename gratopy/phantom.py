@@ -29,6 +29,19 @@ import numpy as np
 import pyopencl as cl
 import pyopencl.tools as cl_tools
 
+def easy_phantom(
+    N: int | tuple[int, int] | np.ndarray,
+    queue: cl.CommandQueue | None = None,
+    modified: bool = True,
+    E: np.ndarray | None = None,
+    ret_E: bool = False,
+    dtype: str | np.typing.DTypeLike = "double",
+    allocator: cl_tools.AllocatorBase | None = None,
+):
+    if queue is None:
+        ctx = cl.create_some_context(interactive=False)
+        queue = cl.CommandQueue(ctx)
+    return ct_shepp_logan(queue=queue, N=N, modified=modified, E=E, ret_E=ret_E, dtype=dtype, allocator=allocator)
 
 def ct_shepp_logan(
     queue: cl.CommandQueue,
