@@ -18,7 +18,13 @@ Examples
 from __future__ import annotations
 
 import numpy as np
+import numpy.typing as npt
+import pyopencl as cl
+import pyopencl.array as clarray
 
+from copy import copy
+
+from gratopy.gratopy import radon, radon_ad
 from gratopy.operator.base import Operator
 from gratopy.utilities import ImageDomain, Angles, Detectors
 
@@ -51,6 +57,49 @@ class Radon(Operator):
             "adjoint": adjoint,
         }
 
+    @property
+    def image_domain(self) -> ImageDomain:
+        return self.state["image_domain"]
+    
+    @property
+    def angles(self) -> Angles:
+        return self.state["angles"]
+    
+    @property
+    def detectors(self) -> Detectors:
+        return self.state["detectors"]
+    
+    @property
+    def adjoint(self) -> "Radon":
+        operator_copy = copy(self)
+        operator_copy.state["adjoint"] = not self.state["adjoint"]
+        return operator_copy
+
+    def apply_to(self, argument: npt.ArrayLike, output: clarray.Array | None = None) -> clarray.Array:
+        if not isinstance(argument, clarray.Array):
+            pass  # TODO: if input is e.g. numpy array, turn into pyopencl array using default queue
+
+        if output is None:
+            pass  # TODO: allocate output using same queue as argument
+
+        assert isinstance(argument, clarray.Array)
+        assert isinstance(output, clarray.Array)
+
+        if not self.state["adjoint"]:
+            radon(
+                sino=output,
+                img=argument,
+                projectionsetting=None,
+            )
+
+        else:
+            radon_ad(
+                sino=argument,
+                img=output,
+                projectionsetting=None,
+            )
+        
+        return output
 
 
 
