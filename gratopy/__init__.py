@@ -29,7 +29,9 @@ from .gratopy import (
     normest,
     weight_sinogram,
 )
-from .phantom import ct_shepp_logan as phantom
+from .phantom import ct_shepp_logan as phantom, easy_phantom
+
+import gratopy.operator
 
 
 # internal functions

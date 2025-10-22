@@ -1,30 +1,22 @@
 import numpy as np
 
-from gratopy.operator import IDENTITY, ZERO, Operator
+from gratopy.operator.base import IDENTITY, ZERO, Operator
 
 
 def test_identity_repr():
-    from gratopy.operator import IDENTITY
-
     assert repr(IDENTITY) == "[Id]"
 
 
 def test_identity_apply_to():
-    from gratopy.operator import IDENTITY
-
     assert IDENTITY.apply_to([1, 2, 3]) == [1, 2, 3]
     assert IDENTITY * [1, 2, 3] == [1, 2, 3]
 
 
 def test_zero_repr():
-    from gratopy.operator import ZERO
-
     assert repr(ZERO) == "[0]"
 
 
 def test_zero_apply_to():
-    from gratopy.operator import ZERO
-
     data = np.array([1, 2, 3])
 
     np.testing.assert_equal(ZERO.apply_to(data), np.zeros_like(data))
@@ -75,7 +67,7 @@ def test_operator_representation():
 
 
 def test_operator_composition():
-    from gratopy.operator import OperatorArithmeticOperation
+    from gratopy.operator.base import OperatorArithmeticOperation
 
     A = Operator(name="A")
     B = Operator(name="B")

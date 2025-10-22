@@ -172,12 +172,24 @@ class Angles:
 @dataclass
 class Detectors:
     number: int
-    extent: float
-    center: float
+    extent: float = 2.0
+    center: float = 0.0
 
 
 @dataclass
 class ImageDomain:
-    size: int | tuple[int, int]
+    size: tuple[int, int]
     extent: float = 2.0
     center: tuple[float, float] = (0.0, 0.0)
+
+    def __init__(
+        self,
+        size: int | tuple[int, int],
+        extent: float = 2.0,
+        center: tuple[float, float] = (0.0, 0.0),
+    ):
+        if isinstance(size, int):
+            size = (size, size)
+        self.size = size
+        self.extent = extent
+        self.center = center
