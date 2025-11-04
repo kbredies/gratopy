@@ -134,6 +134,7 @@ class Radon(Operator):
                 img=output,
                 projectionsetting=self.projection_settings,
             )
+        output = self.scalar * output
         return output
 
 

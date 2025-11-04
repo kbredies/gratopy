@@ -199,7 +199,7 @@ class Operator:
 
             # attempt to apply the operator to the input
             if not self.is_composite():
-                return self.scalar * self.apply_to(other)
+                return self.apply_to(other)
 
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
                 return self.scalar * sum(
@@ -255,7 +255,7 @@ class _IdentityOperator(Operator):
 
     def apply_to(self, argument: npt.ArrayLike) -> npt.ArrayLike:
         """The identity operator does not change the input."""
-        return argument
+        return self.scalar * argument
 
 
 class _ZeroOperator(Operator):
