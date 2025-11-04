@@ -24,9 +24,9 @@ import pyopencl.array as clarray
 
 from copy import copy
 
-from gratopy.gratopy import radon, radon_ad
+from gratopy.gratopy import ProjectionSettings, radon, radon_ad
 from gratopy.operator.base import Operator
-from gratopy.utilities import ImageDomain, Angles, Detectors
+from gratopy.utilities import ImageDomain, Angles, Detectors, GeometryType
 
 class Radon(Operator):
     """A Radon transform operator."""
@@ -56,6 +56,7 @@ class Radon(Operator):
             "detectors": detectors,
             "adjoint": adjoint,
         }
+        self.projection_settings = None
 
     @property
     def image_domain(self) -> ImageDomain:
@@ -70,35 +71,69 @@ class Radon(Operator):
         return self.state["detectors"]
     
     @property
-    def adjoint(self) -> "Radon":
+    def adjoint(self) -> bool:
+        return self.state["adjoint"]
+    
+    @property
+    def T(self) -> "Radon":
         operator_copy = copy(self)
+        operator_copy.state = copy(self.state)
         operator_copy.state["adjoint"] = not self.state["adjoint"]
         return operator_copy
 
-    def apply_to(self, argument: npt.ArrayLike, output: clarray.Array | None = None) -> clarray.Array:
+    def apply_to(
+            self,
+            argument: npt.ArrayLike,
+            output: clarray.Array | None = None,
+            queue: cl.CommandQueue | None = None,
+            return_event: bool = False,
+        ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
         if not isinstance(argument, clarray.Array):
             pass  # TODO: if input is e.g. numpy array, turn into pyopencl array using default queue
 
         if output is None:
-            pass  # TODO: allocate output using same queue as argument
+            if self.adjoint:
+                output_shape = self.image_domain.size
+            else:
+                output_shape = (self.detectors.number, len(self.angles))
+            output = clarray.zeros(
+                queue=argument.queue,
+                shape=output_shape,
+                dtype=argument.dtype,
+            )  # TODO: adjust shape according to projection
 
         assert isinstance(argument, clarray.Array)
+        assert isinstance(argument.queue, cl.CommandQueue)
         assert isinstance(output, clarray.Array)
+
+        if self.projection_settings is None:
+            self.projection_settings = ProjectionSettings(
+                queue=argument.queue,
+                geometry=GeometryType.RADON,
+                img_shape=self.image_domain.size,
+                image_width=self.image_domain.extent,
+                midpoint_shift=self.image_domain.center,
+                angles=self.angles.angles,
+                angle_weights=self.angles.weights,
+                n_detectors=self.detectors.number,
+                detector_width=self.detectors.extent,
+                detector_shift=self.detectors.center,
+                reverse_detector=self.detectors.reversed,
+            )
 
         if not self.state["adjoint"]:
             radon(
-                sino=output,
                 img=argument,
-                projectionsetting=None,
+                sino=output,
+                projectionsetting=self.projection_settings,
             )
 
         else:
             radon_ad(
                 sino=argument,
                 img=output,
-                projectionsetting=None,
+                projectionsetting=self.projection_settings,
             )
-        
         return output
 
 
