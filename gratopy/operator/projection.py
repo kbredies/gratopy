@@ -28,8 +28,10 @@ from gratopy.gratopy import ProjectionSettings, radon, radon_ad
 from gratopy.operator.base import Operator
 from gratopy.utilities import ImageDomain, Angles, Detectors, GeometryType
 
+
 class Radon(Operator):
     """A Radon transform operator."""
+
     def __init__(
         self,
         image_domain: int | tuple[int, int] | ImageDomain,
@@ -41,7 +43,7 @@ class Radon(Operator):
 
         if not isinstance(image_domain, ImageDomain):
             image_domain = ImageDomain(size=image_domain)
-        
+
         if not isinstance(angles, Angles):
             angles = Angles.uniform(number=angles)
 
@@ -61,19 +63,19 @@ class Radon(Operator):
     @property
     def image_domain(self) -> ImageDomain:
         return self.state["image_domain"]
-    
+
     @property
     def angles(self) -> Angles:
         return self.state["angles"]
-    
+
     @property
     def detectors(self) -> Detectors:
         return self.state["detectors"]
-    
+
     @property
     def adjoint(self) -> bool:
         return self.state["adjoint"]
-    
+
     @property
     def T(self) -> "Radon":
         operator_copy = copy(self)
@@ -82,12 +84,12 @@ class Radon(Operator):
         return operator_copy
 
     def apply_to(
-            self,
-            argument: npt.ArrayLike,
-            output: clarray.Array | None = None,
-            queue: cl.CommandQueue | None = None,
-            return_event: bool = False,
-        ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
+        self,
+        argument: npt.ArrayLike,
+        output: clarray.Array | None = None,
+        queue: cl.CommandQueue | None = None,
+        return_event: bool = False,
+    ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
         if not isinstance(argument, clarray.Array):
             pass  # TODO: if input is e.g. numpy array, turn into pyopencl array using default queue
 
@@ -136,7 +138,6 @@ class Radon(Operator):
             )
         output = self.scalar * output
         return output
-
 
 
 class Fanbeam(Operator):

@@ -168,6 +168,7 @@ class Angles:
         angle_weights[angles_index] = angle_weights
         return Angles(angles=angles, weights=angle_weights)
 
+
 # TODO: write tests for reversed in particular
 @dataclass
 class Detectors:
@@ -186,7 +187,7 @@ class Detectors:
         self.number = abs(number)
         self.extent = extent
         self.center = center
-        
+
         if reversed is None:
             self.reversed = number < 0
         else:
