@@ -119,6 +119,18 @@ class Operator:
 
     def apply_to(self, argument: npt.ArrayLike):
         """Application of this operator to some given argument."""
+        if self.is_composite():
+            if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
+                return sum(
+                    (child_op.apply_to(argument) for child_op in self._operands),
+                    ZERO.apply_to(argument),
+                )
+            elif self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
+                result = argument
+                for child_op in reversed(self._operands):
+                    result = child_op.apply_to(result)
+                return result
+
         raise NotImplementedError(
             "apply_to needs to be implemented in specialized subclasses"
         )
