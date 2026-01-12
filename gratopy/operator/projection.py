@@ -112,13 +112,37 @@ class Radon(Operator):
 
     def apply_to(
         self,
-        argument: npt.ArrayLike,
+        argument: npt.ArrayLike | clarray.Array,
         output: clarray.Array | None = None,
         queue: cl.CommandQueue | None = None,
         return_event: bool = False,
     ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
+        # Determine the queue to use for operations
+        if queue is None:
+            if isinstance(argument, clarray.Array) and argument.queue is not None:
+                queue = argument.queue
+            elif isinstance(output, clarray.Array) and output.queue is not None:
+                queue = output.queue
+            elif self.projection_settings is not None:
+                queue = self.projection_settings.queue
+            else:
+                raise ValueError(
+                    "No OpenCL queue available. Either pass an explicit queue, "
+                    "provide a clarray.Array as input, or provide an output array "
+                    "with an associated queue."
+                )
+
+        # Coerce numpy arrays (or array-like) to clarray.Array
         if not isinstance(argument, clarray.Array):
-            pass  # TODO: if input is e.g. numpy array, turn into pyopencl array using default queue
+            argument = np.asarray(argument)
+            if not argument.flags["C_CONTIGUOUS"] and not argument.flags["F_CONTIGUOUS"]:
+                argument = np.ascontiguousarray(argument)
+            argument = clarray.to_device(queue, argument)
+        else:
+            argument = argument.with_queue(queue)
+
+        assert isinstance(argument, clarray.Array)
+        assert isinstance(argument.queue, cl.CommandQueue)
 
         if output is None:
             if self.adjoint:
@@ -130,9 +154,6 @@ class Radon(Operator):
                 shape=output_shape,
                 dtype=argument.dtype,
             )  # TODO: adjust shape according to projection
-
-        assert isinstance(argument, clarray.Array)
-        assert isinstance(argument.queue, cl.CommandQueue)
         assert isinstance(output, clarray.Array)
 
         if self.projection_settings is None:
@@ -151,19 +172,22 @@ class Radon(Operator):
             )
 
         if not self.state["adjoint"]:
-            radon(
+            cl_event = radon(
                 img=argument,
                 sino=output,
                 projectionsetting=self.projection_settings,
             )
 
         else:
-            radon_ad(
+            cl_event = radon_ad(
                 sino=argument,
                 img=output,
                 projectionsetting=self.projection_settings,
             )
         output = self.scalar * output
+        
+        if return_event:
+            return output, [cl_event]
         return output
 
 
