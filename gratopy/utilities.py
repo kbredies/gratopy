@@ -11,6 +11,28 @@ from typing import TypeAlias
 
 Numeric: TypeAlias = float | int | np.int_ | np.float32 | np.double
 
+class ExtentPlaceholder(Enum):
+    """
+    Enum for placeholder values used in the construction of
+    operators, specifically for image and detector extents.
+    """
+
+    FULL = "full"
+    """From the perspective of the detector: smallest detector extent such
+    that each ray hitting the image domain also hits the detector.
+    From the perspective of the image domain: largest image extent such
+    that each ray hitting the image domain also hits the detector.
+    """
+
+    VALID = "valid"
+    """From the perspective of the detector: the largest extent such
+    that each ray hitting the detector also hits the image domain.
+    From the perspective of the image domain: the smallest extent such that
+    each ray hitting the detector also hits the image domain.
+    """
+
+
+
 
 class GeometryType(Enum):
     """
@@ -173,14 +195,14 @@ class Angles:
 @dataclass
 class Detectors:
     number: int
-    extent: float = 2.0
+    extent: float | ExtentPlaceholder = ExtentPlaceholder.FULL
     center: float = 0.0
     reversed: bool = False
 
     def __init__(
         self,
         number: int,
-        extent: float = 2.0,
+        extent: float | ExtentPlaceholder = ExtentPlaceholder.FULL,
         center: float = 0.0,
         reversed: bool | None = None,
     ):
@@ -197,13 +219,13 @@ class Detectors:
 @dataclass
 class ImageDomain:
     size: tuple[int, int]
-    extent: float = 2.0
+    extent: float | ExtentPlaceholder = 2.0
     center: tuple[float, float] = (0.0, 0.0)
 
     def __init__(
         self,
         size: int | tuple[int, int],
-        extent: float = 2.0,
+        extent: float | ExtentPlaceholder = 2.0,
         center: tuple[float, float] = (0.0, 0.0),
     ):
         if isinstance(size, int):

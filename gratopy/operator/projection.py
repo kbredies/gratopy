@@ -26,11 +26,37 @@ from copy import copy
 
 from gratopy.gratopy import ProjectionSettings, radon, radon_ad
 from gratopy.operator.base import Operator
-from gratopy.utilities import ImageDomain, Angles, Detectors, GeometryType
+from gratopy.utilities import (
+    ImageDomain,
+    Angles,
+    Detectors,
+    GeometryType,
+    ExtentPlaceholder,
+)
 
 
 class Radon(Operator):
     """A Radon transform operator."""
+
+    def substitute_placeholder(self) -> None:
+        """Substitute any placeholder values in the operator settings."""
+        if all(
+            [
+                isinstance(self.image_domain.extent, ExtentPlaceholder),
+                isinstance(self.detectors.extent, ExtentPlaceholder),
+            ]
+        ):
+            raise ValueError(
+                "At least one of image_domain.extent or detectors.extent must be specified."
+            )
+        elif self.detectors.extent == ExtentPlaceholder.FULL and not isinstance(
+            self.image_domain.extent, ExtentPlaceholder
+        ):
+            self.detectors.extent = self.image_domain.extent
+        elif self.image_domain.extent == ExtentPlaceholder.FULL and not isinstance(
+            self.detectors.extent, ExtentPlaceholder
+        ):
+            self.image_domain.extent = self.detectors.extent
 
     def __init__(
         self,
@@ -42,7 +68,7 @@ class Radon(Operator):
         super().__init__(name="Radon")
 
         if not isinstance(image_domain, ImageDomain):
-            image_domain = ImageDomain(size=image_domain)
+            image_domain = ImageDomain(size=image_domain, extent=2.0)
 
         if not isinstance(angles, Angles):
             angles = Angles.uniform(number=angles)
@@ -58,6 +84,7 @@ class Radon(Operator):
             "detectors": detectors,
             "adjoint": adjoint,
         }
+        self.substitute_placeholder()
         self.projection_settings = None
 
     @property
