@@ -153,7 +153,7 @@ class Radon(Operator):
                 queue=argument.queue,
                 shape=output_shape,
                 dtype=argument.dtype,
-            )  # TODO: adjust shape according to projection
+            )
         assert isinstance(output, clarray.Array)
 
         if self.projection_settings is None:
