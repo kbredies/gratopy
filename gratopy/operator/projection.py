@@ -87,6 +87,16 @@ class Radon(Operator):
         self.substitute_placeholder()
         self.projection_settings = None
 
+        image_shape = self.image_domain.size
+        sinogram_shape = (self.detectors.number, len(self.angles))
+
+        if self.adjoint:
+            self.input_shape = sinogram_shape
+            self.output_shape = image_shape
+        else:
+            self.input_shape = image_shape
+            self.output_shape = sinogram_shape
+
     @property
     def image_domain(self) -> ImageDomain:
         return self.state["image_domain"]
@@ -108,6 +118,10 @@ class Radon(Operator):
         operator_copy = copy(self)
         operator_copy.state = copy(self.state)
         operator_copy.state["adjoint"] = not self.state["adjoint"]
+        operator_copy.input_shape, operator_copy.output_shape = (
+            operator_copy.output_shape,
+            operator_copy.input_shape,
+        )
         return operator_copy
 
     def apply_to(

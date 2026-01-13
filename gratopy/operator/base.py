@@ -20,6 +20,49 @@ class OperatorArithmeticOperation(Enum):
     MULTIPLICATION = "prod"
 
 
+def _compute_sum_shapes(
+    operands: list[Operator],
+) -> tuple[tuple[int, ...] | None, tuple[int, ...] | None]:
+    input_shape = None
+    output_shape = None
+
+    for op in operands:
+        if op.input_shape is not None:
+            if input_shape is not None and input_shape != op.input_shape:
+                raise ValueError(
+                    f"Input shape mismatch in sum: expected {input_shape}, "
+                    f"but {op} has input shape {op.input_shape}"
+                )
+            input_shape = op.input_shape
+
+        if op.output_shape is not None:
+            if output_shape is not None and output_shape != op.output_shape:
+                raise ValueError(
+                    f"Output shape mismatch in sum: expected {output_shape}, "
+                    f"but {op} has output shape {op.output_shape}"
+                )
+            output_shape = op.output_shape
+
+    return input_shape, output_shape
+
+
+def _compute_product_shapes(
+    operands: list[Operator],
+) -> tuple[tuple[int, ...] | None, tuple[int, ...] | None]:
+    for i in range(len(operands) - 1):
+        left, right = operands[i], operands[i + 1]
+        if left.input_shape is not None and right.output_shape is not None:
+            if left.input_shape != right.output_shape:
+                raise ValueError(
+                    f"Shape mismatch in composition: {left} expects input "
+                    f"{left.input_shape}, but {right} produces {right.output_shape}"
+                )
+
+    input_shape = operands[-1].input_shape
+    output_shape = operands[0].output_shape
+    return input_shape, output_shape
+
+
 class Operator:
     """Base class for all operators."""
 
@@ -30,6 +73,8 @@ class Operator:
         state: dict[str, Any] | None = None,
         arithmetic_operation: OperatorArithmeticOperation | None = None,
         operands: list[Operator] | None = None,
+        input_shape: tuple[int, ...] | None = None,
+        output_shape: tuple[int, ...] | None = None,
     ):
         if name is None:
             name = self.__class__.__name__
@@ -46,6 +91,9 @@ class Operator:
 
         self._scalar = 1
         self.scalar = scalar
+
+        self.input_shape = input_shape
+        self.output_shape = output_shape
 
     def _scalar_repr_(self) -> str:
         scalar_repr = ""
@@ -98,6 +146,8 @@ class Operator:
                 self.state == other.state,
                 self._arithmetic_operation == other._arithmetic_operation,
                 self._operands == other._operands,
+                self.input_shape == other.input_shape,
+                self.output_shape == other.output_shape,
             ]
         )
 
@@ -148,7 +198,7 @@ class Operator:
             return self
 
         operands = []
-        for operator in [copy(self), copy(other)]:
+        for operator in [deepcopy(self), deepcopy(other)]:
             if (
                 operator.is_composite()
                 and operator._arithmetic_operation == OperatorArithmeticOperation.ADDITION
@@ -159,11 +209,15 @@ class Operator:
             else:
                 operands.append(operator)
 
+        input_shape, output_shape = _compute_sum_shapes(operands)
+
         return Operator(
             name=None,
             scalar=1,
             arithmetic_operation=OperatorArithmeticOperation.ADDITION,
             operands=operands,
+            input_shape=input_shape,
+            output_shape=output_shape,
         )
 
     def __neg__(self) -> Operator:
@@ -198,22 +252,7 @@ class Operator:
                 return self.__rmul__(other)  # type: ignore
 
             # attempt to apply the operator to the input
-            if not self.is_composite():
-                return self.apply_to(other)
-
-            if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
-                return self.scalar * sum(
-                    (child_op * other for child_op in self._operands), ZERO
-                )
-
-            if self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
-                result = other
-                for child_op in reversed(self._operands):
-                    result = child_op * result
-
-                return self.apply_to(other)
-
-            raise TypeError(f"Cannot multiply {type(other)} with {type(self)}")
+            return self.apply_to(other)
 
         if isinstance(other, _ZeroOperator):
             return other
@@ -223,7 +262,7 @@ class Operator:
 
         operands = []
         scalar = 1
-        for operator in [copy(self), copy(other)]:
+        for operator in [deepcopy(self), deepcopy(other)]:
             if (
                 operator.is_composite()
                 and operator._arithmetic_operation
@@ -235,11 +274,15 @@ class Operator:
                 operator.scalar = 1
                 operands.append(operator)
 
+        input_shape, output_shape = _compute_product_shapes(operands)
+
         return Operator(
             name=None,
             scalar=scalar,
             arithmetic_operation=OperatorArithmeticOperation.MULTIPLICATION,
             operands=operands,
+            input_shape=input_shape,
+            output_shape=output_shape,
         )
 
 
