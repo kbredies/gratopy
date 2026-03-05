@@ -13,6 +13,9 @@ build:
     # nodejs: "20"
     # rust: "1.70"
     # golang: "1.20"
+  apt_packages:
+    - pocl-opencl-icd
+    - ocl-icd-libopencl1
   jobs:
     post_install:
       - pip install --group dev .
