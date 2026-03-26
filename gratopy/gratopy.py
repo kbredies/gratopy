@@ -38,12 +38,13 @@ import scipy
 import scipy.sparse
 
 from gratopy.utilities import GeometryType
+from gratopy._version import __version__
 
 
 AngularRangeSection: TypeAlias = tuple[int | list[float] | np.ndarray, float, float]
 
 # Version number
-VERSION = "0.1.0"
+VERSION = __version__
 
 # Source files for opencl kernels
 CL_FILES1 = ["radon.cl", "fanbeam.cl"]

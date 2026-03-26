@@ -1,6 +1,6 @@
 [project]
 name = "gratopy"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Gratopy - Graz accelerated tomographic projections for Python"
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -58,6 +58,9 @@ Repository = "https://github.com/kbredies/gratopy"
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "gratopy/_version.py"
 
 [tool.ruff]
 line-length = 90
