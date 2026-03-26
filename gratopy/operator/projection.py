@@ -1,18 +1,31 @@
 """Gratopy projection operators.
 
-This module contains concrete implementations of projection operators,
-most notably :class:`.Radon` and :class:`.Fanbeam`.
+This module contains concrete operator implementations for gratopy's
+experimental operator interface, most notably :class:`.Radon`.
+
+The focus is currently on a compositional, operator-style interface for Radon
+transforms and their adjoints. Fanbeam support is not yet implemented at the
+same level.
 
 Examples
 --------
 
+>>> import numpy as np
+>>> import pyopencl as cl
 >>> import gratopy
+>>> ctx = cl.create_some_context(interactive=False)
+>>> queue = cl.CommandQueue(ctx)
 >>> Nx = 300
->>> phantom = gratopy.easy_phantom(N=Nx)
+>>> img = np.zeros((Nx, Nx), dtype=np.float32)
 >>> R = gratopy.operator.Radon(image_domain=Nx, angles=180)
->>> sinogram = R.apply_to(phantom, queue=queue)
+>>> sinogram = R.apply_to(img, queue=queue)
 >>> backprojection = R.T.apply_to(sinogram)
 
+The same forward and adjoint applications can also be written via operator
+syntax:
+
+>>> sinogram = R * img
+>>> backprojection = R.T * sinogram
 """
 
 from __future__ import annotations
@@ -34,7 +47,90 @@ from gratopy.utilities import Angles, Detectors, ExtentPlaceholder, ImageDomain
 
 
 class Radon(_OpenCLOperator):
-    """A Radon transform operator."""
+    """Parallel-beam Radon transform operator.
+
+    This class provides the main entry point to gratopy's experimental
+    operator-based projection interface. A :class:`Radon` object represents
+    either the forward projection operator or, when created through
+    :attr:`T`, its adjoint.
+
+    **Parameters**
+
+    ``image_domain``:
+        Description of the image grid and its physical extent. This can be
+        given as:
+
+        - an ``int`` for a square image domain of that size,
+        - a ``(Nx, Ny)`` tuple for a rectangular grid,
+        - or an explicit :class:`gratopy.utilities.ImageDomain` instance.
+
+        Plain integer and tuple inputs are converted to
+        :class:`~gratopy.utilities.ImageDomain` with a default extent of
+        ``2.0``.
+    ``angles``:
+        Angular sampling of the operator. This can be given either as an
+        integer or as an explicit :class:`gratopy.utilities.Angles` object.
+
+        If an integer is given, uniformly weighted angles are created via
+        :meth:`gratopy.utilities.Angles.uniform`.
+    ``detectors``:
+        Detector configuration. This can be given as:
+
+        - ``None`` to use the default detector count
+          ``ceil(hypot(Nx, Ny))``,
+        - an integer specifying the number of detector pixels,
+        - or an explicit :class:`gratopy.utilities.Detectors` object.
+
+        Plain integer inputs are converted to
+        :class:`~gratopy.utilities.Detectors` with default extent handling.
+    ``adjoint``:
+        If ``False`` (the default), construct the forward Radon transform.
+        If ``True``, construct the adjoint operator directly. In practice, the
+        adjoint is typically accessed via :attr:`T`.
+    ``kernel_spec``:
+        Optional :class:`gratopy.operator.opencl.OpenCLKernelSpec` describing
+        which OpenCL kernel bundle to use. When omitted, the operator uses the
+        Radon kernels shipped with gratopy.
+
+    **Notes**
+
+    The operator accepts both :class:`pyopencl.array.Array` inputs and NumPy
+    arrays. When applying the operator to a NumPy array, a queue must be
+    available so that the data can be transferred to the device.
+
+    The operator supports 2D as well as slicewise 3D data. For example,
+    a forward operator with image shape ``(Nx, Ny)`` maps:
+
+    - ``(Nx, Ny)`` to ``(Ns, Na)``,
+    - ``(Nx, Ny, Nz)`` to ``(Ns, Na, Nz)``.
+
+    Correspondingly, the adjoint maps:
+
+    - ``(Ns, Na)`` to ``(Nx, Ny)``,
+    - ``(Ns, Na, Nz)`` to ``(Nx, Ny, Nz)``.
+
+    The placeholder mechanism for extents in the experimental operator API is
+    not yet fully implemented. In particular, ``ExtentPlaceholder.FULL``
+    currently only supports limited inherited behavior, while
+    ``ExtentPlaceholder.VALID`` should be considered unsupported for now.
+
+    **Examples**
+
+    >>> import numpy as np
+    >>> import pyopencl as cl
+    >>> import gratopy
+    >>> ctx = cl.create_some_context(interactive=False)
+    >>> queue = cl.CommandQueue(ctx)
+    >>> img = np.zeros((128, 128), dtype=np.float32)
+    >>> R = gratopy.operator.Radon(image_domain=128, angles=180)
+    >>> sino = R.apply_to(img, queue=queue)
+    >>> backproj = R.T.apply_to(sino)
+
+    Operator algebra is also supported:
+
+    >>> G = R.T * R
+    >>> gram_img = G.apply_to(img, queue=queue)
+    """
 
     def __init__(
         self,
@@ -181,34 +277,14 @@ class Radon(_OpenCLOperator):
         self._device_struct[cache_key] = device_struct
         return device_struct
 
-    def _expected_output_shape(self, argument_shape: tuple[int, ...]) -> tuple[int, ...]:
-        z_dimension = ()
-        if len(argument_shape) > 2:
-            z_dimension = (argument_shape[2],)
-
-        if self.adjoint:
-            return self.image_domain.size + z_dimension
-        return (self.detectors.number, len(self.angles)) + z_dimension
-
-    def _validate_argument(self, argument: clarray.Array) -> None:
-        assert argument.shape[0:2] == self.input_shape, (
-            f"Input shape mismatch: expected {self.input_shape}, got {argument.shape}"
-        )
-
-    def _validate_output(
+    def _kernel_arguments(
         self,
         output: clarray.Array,
         argument: clarray.Array,
-    ) -> clarray.Array:
-        output = output.with_queue(argument.queue)
-        expected_shape = self._expected_output_shape(argument.shape)
-        assert output.dtype == argument.dtype, (
-            f"Output dtype mismatch: expected {argument.dtype}, got {output.dtype}"
-        )
-        assert output.shape == expected_shape, (
-            f"Output shape mismatch: expected {expected_shape}, got {output.shape}"
-        )
-        return output
+        queue: cl.CommandQueue,
+    ) -> tuple[Any, ...]:
+        device_struct = self._ensure_device_struct(queue, argument.dtype)
+        return device_struct["ofs"], device_struct["geometry"]
 
     def apply_to(
         self,
@@ -219,59 +295,12 @@ class Radon(_OpenCLOperator):
     ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
         queue = self._infer_queue(argument=argument, output=output, queue=queue)
         self.projection_settings = SimpleNamespace(queue=queue)
-        argument = self._coerce_argument(argument, queue)
-        self._validate_argument(argument)
-
-        if output is None:
-            output = self._allocate_output(
-                queue=queue,
-                shape=self._expected_output_shape(argument.shape),
-                dtype=argument.dtype,
-                order=self._default_order(argument),
-                allocator=argument.allocator,
-            )
-        output = self._validate_output(output, argument)
-
-        device_struct = self._ensure_device_struct(queue, argument.dtype)
-        output_order = self._default_order(output)
-        input_order = self._default_order(argument)
-        kernel = self._get_projection_kernel(
-            queue.context,
-            dtype=argument.dtype,
-            output_order=output_order,
-            input_order=input_order,
-            adjoint=self.adjoint,
+        return super().apply_to(
+            argument,
+            output=output,
+            queue=queue,
+            return_event=return_event,
         )
-
-        if self.adjoint:
-            cl_event = self._invoke_kernel(
-                kernel,
-                queue,
-                output.shape,
-                output.data,
-                argument.data,
-                device_struct["ofs"],
-                device_struct["geometry"],
-                wait_for=output.events + argument.events,
-            )
-        else:
-            cl_event = self._invoke_kernel(
-                kernel,
-                queue,
-                output.shape,
-                output.data,
-                argument.data,
-                device_struct["ofs"],
-                device_struct["geometry"],
-                wait_for=output.events + argument.events,
-            )
-
-        output.add_event(cl_event)
-        output = self.scalar * output
-
-        if return_event:
-            return output, [cl_event]
-        return output
 
 
 class Fanbeam(Operator):
