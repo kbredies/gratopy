@@ -12,9 +12,15 @@ from typing import TypeAlias
 Numeric: TypeAlias = float | int | np.int_ | np.float32 | np.double
 
 class ExtentPlaceholder(Enum):
-    """
-    Enum for placeholder values used in the construction of
-    operators, specifically for image and detector extents.
+    """Placeholder values for image and detector extents.
+
+    These placeholders are primarily intended for the experimental operator
+    API, where image and detector extents can be specified independently.
+    They express geometric intent rather than an immediate numerical value.
+
+    The placeholder mechanism in the experimental operator API is still
+    evolving. In particular, support is currently incomplete and should be
+    considered experimental.
     """
 
     FULL = "full"
@@ -44,11 +50,32 @@ class GeometryType(Enum):
 
 
 class Angles:
-    """
-    Utility class storing angles and their weights.
+    """Angular sampling together with associated weights.
 
-    :param angles: Angles in radians.
-    :param weights: Weights for the given angles.
+    An :class:`Angles` object stores the projection angles in radians and the
+    corresponding angle weights used, for instance, in the adjoint operator.
+    It serves as the main explicit representation of angular geometry in the
+    experimental operator API.
+
+    **Parameters**
+
+    ``angles``:
+        One-dimensional array-like object containing angles in radians.
+    ``weights``:
+        One-dimensional array-like object containing the weights associated
+        with the given angles.
+
+    **Notes**
+
+    The static constructors on this class provide a few common ways of
+    constructing angular samplings:
+
+    - :meth:`sparse` for unweighted equispaced angles,
+    - :meth:`uniform` for equispaced angles with uniform weights,
+    - :meth:`uniform_interval` for one limited-angle interval,
+    - :meth:`intervals` for multiple limited-angle intervals,
+    - :meth:`from_list` for explicit angles with automatically inferred
+      *natural* weights.
     """
 
     def __init__(self, angles: npt.ArrayLike, weights: npt.ArrayLike):
@@ -194,6 +221,34 @@ class Angles:
 # TODO: write tests for reversed in particular
 @dataclass
 class Detectors:
+    """Detector discretization and physical placement.
+
+    This class describes the detector line used by an operator:
+
+    - ``number`` is the number of detector pixels,
+    - ``extent`` is the physical detector width or an extent placeholder,
+    - ``center`` shifts the detector along its detector axis,
+    - ``reversed`` flips the detector orientation.
+
+    **Parameters**
+
+    ``number``:
+        Number of detector pixels. Negative values are accepted as a shorthand
+        for ``reversed=True`` with ``abs(number)`` detector pixels.
+    ``extent``:
+        Physical detector width or an :class:`ExtentPlaceholder`.
+    ``center``:
+        Physical shift of the detector center along the detector axis.
+    ``reversed``:
+        Whether the detector orientation is reversed. If omitted, the sign of
+        ``number`` is used to infer the orientation.
+
+    **Notes**
+
+    In the current operator API, placeholder-based extent handling is still
+    experimental and not yet fully implemented.
+    """
+
     number: int
     extent: float | ExtentPlaceholder = ExtentPlaceholder.FULL
     center: float = 0.0
@@ -218,6 +273,29 @@ class Detectors:
 
 @dataclass
 class ImageDomain:
+    """Image grid and physical image extent.
+
+    This class bundles the discrete image shape together with the physical
+    extent and center shift used by an operator.
+
+    **Parameters**
+
+    ``size``:
+        Image grid size. An integer is interpreted as a square domain of shape
+        ``(N, N)``; a tuple specifies ``(Nx, Ny)`` directly.
+    ``extent``:
+        Physical extent of the image domain or an :class:`ExtentPlaceholder`.
+        In gratopy's conventions, this corresponds to the longer side length of
+        the rectangular image domain.
+    ``center``:
+        Physical shift of the image center relative to the rotation center.
+
+    **Notes**
+
+    In the experimental operator API, placeholders for extents are still not
+    fully implemented and should be considered unstable.
+    """
+
     size: tuple[int, int]
     extent: float | ExtentPlaceholder = 2.0
     center: tuple[float, float] = (0.0, 0.0)
