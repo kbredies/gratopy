@@ -7,6 +7,7 @@ license = { file = "LICENSE" }
 authors = [
     {name = "Kristian Bredies", email = "kristian.bredies@uni-graz.at"},
     {name = "Richard Huber"},
+    {name = "Benjamin Hackl", email="benjamin.hackl@uni-graz.at"},
 ]
 classifiers = [
     "Environment :: Console",
