@@ -8,7 +8,7 @@ import numpy.typing as npt
 from enum import Enum
 from typing import Any
 from numbers import Number
-from copy import copy, deepcopy
+from copy import deepcopy
 
 from gratopy.utilities import Numeric
 
@@ -167,18 +167,18 @@ class Operator:
         else:
             self._scalar = value
 
-    def apply_to(self, argument: npt.ArrayLike):
+    def apply_to(self, argument: npt.ArrayLike, **kwargs):
         """Application of this operator to some given argument."""
         if self.is_composite():
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
                 return sum(
-                    (child_op.apply_to(argument) for child_op in self._operands),
-                    ZERO.apply_to(argument),
+                    (child_op.apply_to(argument, **kwargs) for child_op in self._operands),
+                    ZERO.apply_to(argument, **kwargs),
                 )
             elif self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
                 result = argument
                 for child_op in reversed(self._operands):
-                    result = child_op.apply_to(result)
+                    result = child_op.apply_to(result, **kwargs)
                 return result
 
         raise NotImplementedError(
@@ -296,7 +296,7 @@ class _IdentityOperator(Operator):
             return other
         return super().__mul__(other)
 
-    def apply_to(self, argument: npt.ArrayLike) -> npt.ArrayLike:
+    def apply_to(self, argument: npt.ArrayLike, **kwargs) -> npt.ArrayLike:
         """The identity operator does not change the input."""
         return self.scalar * argument
 
@@ -312,7 +312,7 @@ class _ZeroOperator(Operator):
     def scalar(self, value: Numeric):
         pass
 
-    def apply_to(self, argument: npt.ArrayLike) -> npt.ArrayLike:
+    def apply_to(self, argument: npt.ArrayLike, **kwargs) -> npt.ArrayLike:
         """Applying the zero operator returns a zero-multiplied version of the input."""
         try:
             return 0 * argument  # type: ignore

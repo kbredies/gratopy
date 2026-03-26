@@ -154,3 +154,19 @@ def test_radon_numpy_coercion_no_queue_error():
 
     with pytest.raises(ValueError, match="No OpenCL queue available"):
         R.apply_to(img_np)
+
+
+def test_composite_operator_forwards_queue():
+    """Test that composite operators forward queue kwargs to child operators."""
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    Nx = 16
+    R = Radon(image_domain=Nx, angles=10)
+    gram = R.T * R
+
+    img_np = np.zeros((Nx, Nx), dtype=np.float32)
+    result = gram.apply_to(img_np, queue=queue)
+
+    assert isinstance(result, clarray.Array)
+    assert result.shape == (Nx, Nx)
