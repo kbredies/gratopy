@@ -25,6 +25,32 @@ import pyopencl.array as clarray
 from gratopy.operator.base import Operator
 
 
+def _expand_gratopy_template(
+    source: str,
+    *,
+    dtypes: list[str],
+    two_orders: bool,
+) -> str:
+    """Expand gratopy-style OpenCL kernel templates."""
+    rendered = []
+    for dtype in dtypes:
+        for order1 in ["f", "c"]:
+            if two_orders:
+                for order2 in ["f", "c"]:
+                    rendered.append(
+                        source.replace("\\my_variable_type", dtype)
+                        .replace("\\order1", order1)
+                        .replace("\\order2", order2)
+                    )
+            else:
+                rendered.append(
+                    source.replace("\\my_variable_type", dtype).replace(
+                        "\\order1", order1
+                    )
+                )
+    return "".join(rendered)
+
+
 @dataclass(frozen=True)
 class OpenCLKernelSpec:
     """Description of an OpenCL kernel bundle.
@@ -146,8 +172,8 @@ class _OpenCLOperator(Operator):
             "associated queue."
         )
 
+    @staticmethod
     def _coerce_argument(
-        self,
         argument: npt.ArrayLike | clarray.Array,
         queue: cl.CommandQueue,
     ) -> clarray.Array:
@@ -160,12 +186,13 @@ class _OpenCLOperator(Operator):
             array = np.ascontiguousarray(array)
         return clarray.to_device(queue, array)
 
-    def _default_order(self, reference: clarray.Array) -> str:
+    @staticmethod
+    def _default_order(reference: clarray.Array) -> str:
         """Return the preferred output order based on a reference array."""
         return "C" if reference.flags.c_contiguous else "F"
 
+    @staticmethod
     def _allocate_output(
-        self,
         queue: cl.CommandQueue,
         shape: tuple[int, ...],
         dtype: npt.DTypeLike,
@@ -181,42 +208,10 @@ class _OpenCLOperator(Operator):
             allocator=allocator,
         )
 
-    def _supports_double_precision(self, context: cl.Context) -> bool:
+    @staticmethod
+    def _supports_double_precision(context: cl.Context) -> bool:
         """Return whether any device in the context supports double precision."""
         return any(device.double_fp_config for device in context.devices)
-
-    def _render_template(self, source: str, two_orders: bool = True) -> str:
-        """Expand gratopy-style kernel templates.
-
-        The current gratopy kernels use placeholders of the form:
-
-        - ``\\my_variable_type``
-        - ``\\order1``
-        - ``\\order2``
-
-        This helper expands the same scheme for operator-local kernel specs.
-        """
-        dtypes = ["float"]
-        if self._supports_double_precision(self._last_queue.context):
-            dtypes.append("double")
-
-        rendered = []
-        for dtype in dtypes:
-            for order1 in ["f", "c"]:
-                if two_orders:
-                    for order2 in ["f", "c"]:
-                        rendered.append(
-                            source.replace("\\my_variable_type", dtype)
-                            .replace("\\order1", order1)
-                            .replace("\\order2", order2)
-                        )
-                else:
-                    rendered.append(
-                        source.replace("\\my_variable_type", dtype).replace(
-                            "\\order1", order1
-                        )
-                    )
-        return "".join(rendered)
 
     def _build_code(self, context: cl.Context, two_orders: bool = True) -> str:
         """Build OpenCL source code from the configured kernel spec."""
@@ -224,24 +219,10 @@ class _OpenCLOperator(Operator):
         if self._supports_double_precision(context):
             dtypes.append("double")
 
-        rendered = []
-        for source in self.kernel_spec.read_sources():
-            for dtype in dtypes:
-                for order1 in ["f", "c"]:
-                    if two_orders:
-                        for order2 in ["f", "c"]:
-                            rendered.append(
-                                source.replace("\\my_variable_type", dtype)
-                                .replace("\\order1", order1)
-                                .replace("\\order2", order2)
-                            )
-                    else:
-                        rendered.append(
-                            source.replace("\\my_variable_type", dtype).replace(
-                                "\\order1", order1
-                            )
-                        )
-        return "".join(rendered)
+        return "".join(
+            _expand_gratopy_template(source, dtypes=dtypes, two_orders=two_orders)
+            for source in self.kernel_spec.read_sources()
+        )
 
     def _get_program(
         self,
@@ -249,7 +230,7 @@ class _OpenCLOperator(Operator):
         two_orders: bool = True,
     ) -> dict[str, cl.Kernel]:
         """Compile kernels for the given context if necessary and return them."""
-        cache_key = (context, f"{self.kernel_spec.signature}:two_orders={two_orders}")
+        cache_key = (context, self.kernel_spec.signature, two_orders)
         if cache_key in self._PROGRAM_CACHE:
             return self._PROGRAM_CACHE[cache_key]
 
@@ -294,8 +275,8 @@ class _OpenCLOperator(Operator):
         )
         return kernels[kernel_name]
 
+    @staticmethod
     def _invoke_kernel(
-        self,
         kernel: cl.Kernel,
         queue: cl.CommandQueue,
         global_shape: tuple[int, ...],
