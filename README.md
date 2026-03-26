@@ -57,7 +57,7 @@ used platform and GPU, suitable drivers must be installed. We refer to
 The full list of requirements can be found in [`pyproject.toml`](/pyproject.toml).
 
 ## Getting started
-We refer to the extensive [documentation](https://gratopy.readthedocs.io/), in particular to the [getting started](https://gratopy.readthedocs.io/en/latest/getting_started.html) guide, as well as to the test files for the [Radon transform](https://gratopy.readthedocs.io/en/latest/_modules/test_radon.html) and [fanbeam transform](https://gratopy.readthedocs.io/en/latest/_modules/test_fanbeam.html). The following [rudimentary example](https://gratopy.readthedocs.io/en/latest/getting_started.html#first-example-radon-transform) is also included in the documentation.
+We refer to the extensive [documentation](https://gratopy.readthedocs.io/), in particular to the [getting started](https://gratopy.readthedocs.io/en/latest/getting_started.html) guide, the new [operator syntax](https://gratopy.readthedocs.io/en/latest/operator_api.html) page, as well as to the test files for the [Radon transform](https://gratopy.readthedocs.io/en/latest/_modules/test_radon.html) and [fanbeam transform](https://gratopy.readthedocs.io/en/latest/_modules/test_fanbeam.html). The following [rudimentary example](https://gratopy.readthedocs.io/en/latest/getting_started.html#first-example-radon-transform) is also included in the documentation.
 
 ```python
 
@@ -106,12 +106,31 @@ plt.imshow(backproj.get(), cmap="gray")
 plt.show()
 ```
 
+### Experimental operator syntax
+Gratopy also provides an **experimental** operator-based API for Radon transforms via `gratopy.operator.Radon`. This interface supports operator algebra such as adjoints and compositions, for example `R.T * R`, and can also be paired with custom OpenCL kernels for experimentation. As this interface is still experimental, backward-incompatible changes may still occur without a full deprecation cycle.
+
+```python
+import numpy as np
+import pyopencl as cl
+import gratopy
+
+ctx = cl.create_some_context(interactive=False)
+queue = cl.CommandQueue(ctx)
+
+img = np.zeros((128, 128), dtype=np.float32)
+R = gratopy.operator.Radon(image_domain=128, angles=180)
+
+sino = R.apply_to(img, queue=queue)
+backproj = R.T.apply_to(sino)
+```
+
 ## Authors
 
 * **Kristian Bredies**, University of Graz, kristian.bredies@uni-graz.at
 * **Richard Huber**, University of Graz, richard.huber@uni-graz.at
+* **Benjamin Hackl**, University of Graz, benjamin.hackl@uni-graz.at
 
-All authors are affiliated with the [Institute of Mathematics and Scientific Computing](https://mathematik.uni-graz.at/en) at the [University of Graz](https://www.uni-graz.at/en).
+All authors are affiliated with the [Department of Mathematics and Scientific Computing](https://mathematik.uni-graz.at/en) at the [University of Graz](https://www.uni-graz.at/en).
 
 ## Publications
 If you find this tool useful, please cite the following associated publication.

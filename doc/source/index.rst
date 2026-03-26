@@ -49,8 +49,9 @@ The gratopy_ (**Gr**\az **a**\ccelerated **to**\mographic projections for **Py**
 
    installation
    getting_started
-   test_examples
+   operator_api
    functions
+   test_examples
    acknowledgements
 
 
