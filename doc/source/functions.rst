@@ -1,7 +1,9 @@
-Function reference
-==================
+Reference manual
+================
 
 .. module:: gratopy
+
+For the experimental operator-based interface, see :doc:`operator_api`.
 
 
 Definition of geometry
@@ -57,3 +59,53 @@ The following contains the documentation for a set of internal functions which c
 .. autofunction:: gratopy.fanbeam_struct
 
 .. autofunction:: gratopy.create_code
+
+Operator package
+----------------
+
+The operator package provides an experimental operator-oriented interface to a
+subset of gratopy's functionality.
+
+.. automodule:: gratopy.operator
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Operator algebra
+----------------
+
+.. automodule:: gratopy.operator.base
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+Projection operators
+--------------------
+
+.. automodule:: gratopy.operator.projection
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+OpenCL-backed operator helpers
+------------------------------
+
+.. automodule:: gratopy.operator.opencl
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. autoclass:: gratopy.operator.opencl._OpenCLOperator
+   :members: apply_to, _default_kernel_spec, _expected_output_shape, _validate_argument, _validate_output, _kernel_arguments, _get_kernel, _global_shape, _infer_queue, _coerce_argument, _allocate_output
+   :undoc-members:
+   :show-inheritance:
+
+Utility geometry classes
+------------------------
+
+The experimental operator API uses a small collection of helper classes for
+image domains, detector geometry, angular sampling, and extent placeholders.
+
+.. automodule:: gratopy.utilities
+   :members: ExtentPlaceholder, Angles, Detectors, ImageDomain
+   :undoc-members:

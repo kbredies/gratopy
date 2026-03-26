@@ -1,12 +1,13 @@
 [project]
 name = "gratopy"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Gratopy - Graz accelerated tomographic projections for Python"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
     {name = "Kristian Bredies", email = "kristian.bredies@uni-graz.at"},
     {name = "Richard Huber"},
+    {name = "Benjamin Hackl", email="benjamin.hackl@uni-graz.at"},
 ]
 classifiers = [
     "Environment :: Console",
@@ -58,6 +59,9 @@ Repository = "https://github.com/kbredies/gratopy"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "gratopy/_version.py"
+
 [tool.ruff]
 line-length = 90
 
@@ -67,3 +71,4 @@ select = ["C", "E4", "E7", "E9", "F"]
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["E402", "F401"]
 "gratopy.py" = ["C901"]
+"base.py" = ["C901"]

@@ -18,6 +18,7 @@
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
+from ._version import __version__
 from .gratopy import RADON, PARALLEL, FAN, FANBEAM, VERSION
 from .gratopy import (
     forwardprojection,
@@ -29,7 +30,9 @@ from .gratopy import (
     normest,
     weight_sinogram,
 )
-from .phantom import ct_shepp_logan as phantom
+from .phantom import ct_shepp_logan as phantom, easy_phantom
+
+import gratopy.operator
 
 
 # internal functions
