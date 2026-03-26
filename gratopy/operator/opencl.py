@@ -105,7 +105,9 @@ class OpenCLKernelSpec:
     build_options: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        normalized_paths = tuple(str(Path(path).expanduser().resolve()) for path in self.paths)
+        normalized_paths = tuple(
+            str(Path(path).expanduser().resolve()) for path in self.paths
+        )
         object.__setattr__(self, "paths", normalized_paths)
         object.__setattr__(self, "build_options", tuple(self.build_options))
 
@@ -291,7 +293,9 @@ class _OpenCLOperator(Operator):
         precision = "float" if np.dtype(dtype) == np.dtype("float32") else "double"
         base_name = self.kernel_spec.base_name
         if adjoint:
-            return f"{base_name}_ad_{precision}_{output_order.lower()}{input_order.lower()}"
+            return (
+                f"{base_name}_ad_{precision}_{output_order.lower()}{input_order.lower()}"
+            )
         return f"{base_name}_{precision}_{output_order.lower()}{input_order.lower()}"
 
     def _get_projection_kernel(

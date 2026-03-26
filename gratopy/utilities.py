@@ -11,6 +11,7 @@ from typing import TypeAlias
 
 Numeric: TypeAlias = float | int | np.int_ | np.float32 | np.double
 
+
 class ExtentPlaceholder(Enum):
     """Placeholder values for image and detector extents.
 
@@ -36,8 +37,6 @@ class ExtentPlaceholder(Enum):
     From the perspective of the image domain: the smallest extent such that
     each ray hitting the detector also hits the image domain.
     """
-
-
 
 
 class GeometryType(Enum):

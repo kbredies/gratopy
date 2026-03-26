@@ -172,7 +172,10 @@ class Operator:
         if self.is_composite():
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
                 return sum(
-                    (child_op.apply_to(argument, **kwargs) for child_op in self._operands),
+                    (
+                        child_op.apply_to(argument, **kwargs)
+                        for child_op in self._operands
+                    ),
                     ZERO.apply_to(argument, **kwargs),
                 )
             elif self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:

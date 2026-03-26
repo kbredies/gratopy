@@ -62,7 +62,9 @@ def test_custom_kernel_spec_end_to_end():
                 requirements=input_order,
             )
             device_input = clarray.to_device(queue, host_input)
-            device_output = clarray.zeros(queue, shape, dtype=np.float32, order=output_order)
+            device_output = clarray.zeros(
+                queue, shape, dtype=np.float32, order=output_order
+            )
 
             result = operator.apply_to(device_input, output=device_output)
             np.testing.assert_allclose(result.get(), expected)
