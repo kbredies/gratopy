@@ -5,6 +5,7 @@ import pyopencl.array as clarray
 
 from gratopy.operator.base import IDENTITY, ZERO, Operator
 from gratopy.operator import Radon
+from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
 
 
 def test_identity_repr():
@@ -170,3 +171,21 @@ def test_composite_operator_forwards_queue():
 
     assert isinstance(result, clarray.Array)
     assert result.shape == (Nx, Nx)
+
+
+def test_radon_placeholder_rejected_for_detector_extent():
+    with pytest.raises(NotImplementedError, match="Extent placeholders"):
+        Radon(
+            image_domain=ImageDomain(size=16, extent=2.0),
+            angles=10,
+            detectors=Detectors(number=20, extent=ExtentPlaceholder.FULL),
+        )
+
+
+def test_radon_placeholder_rejected_for_image_extent():
+    with pytest.raises(NotImplementedError, match="Extent placeholders"):
+        Radon(
+            image_domain=ImageDomain(size=16, extent=ExtentPlaceholder.FULL),
+            angles=10,
+            detectors=Detectors(number=20, extent=2.0),
+        )

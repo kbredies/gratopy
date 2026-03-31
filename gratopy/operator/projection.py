@@ -109,10 +109,9 @@ class Radon(_OpenCLOperator):
     - ``(Ns, Na)`` to ``(Nx, Ny)``,
     - ``(Ns, Na, Nz)`` to ``(Nx, Ny, Nz)``.
 
-    The placeholder mechanism for extents in the experimental operator API is
-    not yet fully implemented. In particular, ``ExtentPlaceholder.FULL``
-    currently only supports limited inherited behavior, while
-    ``ExtentPlaceholder.VALID`` should be considered unsupported for now.
+    Extent placeholders in the experimental operator API are not yet
+    implemented. Passing :class:`gratopy.utilities.ExtentPlaceholder` values to
+    this class currently raises :class:`NotImplementedError`.
 
     **Examples**
 
@@ -149,7 +148,10 @@ class Radon(_OpenCLOperator):
         if not isinstance(detectors, Detectors):
             if detectors is None:
                 detectors = int(np.ceil(np.hypot(*image_domain.size)))
-            detectors = Detectors(number=detectors)
+            detector_extent = image_domain.extent
+            if isinstance(detector_extent, ExtentPlaceholder):
+                detector_extent = ExtentPlaceholder.FULL
+            detectors = Detectors(number=detectors, extent=detector_extent)
 
         state = {
             "image_domain": image_domain,
@@ -206,24 +208,15 @@ class Radon(_OpenCLOperator):
         return operator_copy
 
     def substitute_placeholder(self) -> None:
-        """Substitute any placeholder values in the operator settings."""
-        if all(
-            [
-                isinstance(self.image_domain.extent, ExtentPlaceholder),
-                isinstance(self.detectors.extent, ExtentPlaceholder),
-            ]
-        ):
-            raise ValueError(
-                "At least one of image_domain.extent or detectors.extent must be specified."
-            )
-        elif self.detectors.extent == ExtentPlaceholder.FULL and not isinstance(
-            self.image_domain.extent, ExtentPlaceholder
-        ):
-            self.detectors.extent = self.image_domain.extent
-        elif self.image_domain.extent == ExtentPlaceholder.FULL and not isinstance(
+        """Reject extent placeholders until full support is implemented."""
+        if isinstance(self.image_domain.extent, ExtentPlaceholder) or isinstance(
             self.detectors.extent, ExtentPlaceholder
         ):
-            self.image_domain.extent = self.detectors.extent
+            raise NotImplementedError(
+                "Extent placeholders are not yet implemented in the experimental "
+                "operator API. Please pass explicit numeric extents for both the "
+                "image domain and the detector."
+            )
 
     def _ensure_host_struct(self, queue: cl.CommandQueue) -> None:
         if self._host_struct is not None:

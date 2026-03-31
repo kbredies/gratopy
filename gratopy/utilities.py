@@ -20,8 +20,8 @@ class ExtentPlaceholder(Enum):
     They express geometric intent rather than an immediate numerical value.
 
     The placeholder mechanism in the experimental operator API is still
-    evolving. In particular, support is currently incomplete and should be
-    considered experimental.
+    evolving. At the moment, placeholders should be considered unsupported in
+    the operator API and may raise :class:`NotImplementedError`.
     """
 
     FULL = "full"
@@ -244,8 +244,8 @@ class Detectors:
 
     **Notes**
 
-    In the current operator API, placeholder-based extent handling is still
-    experimental and not yet fully implemented.
+    In the current operator API, placeholder-based extent handling is not yet
+    implemented and may raise :class:`NotImplementedError`.
     """
 
     number: int
@@ -291,8 +291,8 @@ class ImageDomain:
 
     **Notes**
 
-    In the experimental operator API, placeholders for extents are still not
-    fully implemented and should be considered unstable.
+    In the experimental operator API, placeholders for extents are not yet
+    implemented and may raise :class:`NotImplementedError`.
     """
 
     size: tuple[int, int]

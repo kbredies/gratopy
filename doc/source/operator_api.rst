@@ -16,6 +16,10 @@ adjoint operators, and experimental kernels.
    introduced without a full deprecation cycle while the interface and internal
    abstractions are still settling.
 
+   In particular, extent placeholders such as
+   :class:`gratopy.utilities.ExtentPlaceholder` are not yet implemented in the
+   operator API and currently raise :class:`NotImplementedError`.
+
 Current scope
 -------------
 
@@ -73,7 +77,7 @@ extent, detector geometry, shifts, and angular sampling explicitly.
     import numpy as np
     import pyopencl as cl
     import gratopy
-    from gratopy.utilities import Angles, Detectors, ExtentPlaceholder, ImageDomain
+    from gratopy.utilities import Angles, Detectors, ImageDomain
 
     ctx = cl.create_some_context(interactive=False)
     queue = cl.CommandQueue(ctx)
@@ -94,7 +98,7 @@ extent, detector geometry, shifts, and angular sampling explicitly.
 
     detectors = Detectors(
         number=220,
-        extent=ExtentPlaceholder.FULL,
+        extent=3.0,
         center=0.15,
         reversed=False,
     )
@@ -116,7 +120,7 @@ operator:
     R = gratopy.operator.Radon(
         image_domain=ImageDomain(size=(192, 128), extent=3.0, center=(0.1, -0.2)),
         angles=Angles.uniform_interval(0.0, np.pi / 2, 120),
-        detectors=Detectors(number=220, extent=ExtentPlaceholder.FULL, center=0.15),
+        detectors=Detectors(number=220, extent=3.0, center=0.15),
     )
 
 This explicit style is particularly useful when experimenting with geometry in
@@ -238,7 +242,8 @@ Limitations and status
 The operator API is still evolving. In particular:
 
 - the focus is currently on :class:`gratopy.operator.projection.Radon`,
-- some geometry placeholder behavior is not yet fully polished,
+- extent placeholders are not yet implemented and currently raise
+  :class:`NotImplementedError`,
 - higher-level solver interfaces are still centered around the legacy API.
 
 For the full and mature feature set of gratopy, the legacy API documented in
