@@ -15,15 +15,17 @@ import sys
 
 sys.path.insert(0, os.path.abspath("../.."))
 
+from gratopy._version import __version__
+
 
 # -- Project information -----------------------------------------------------
 
 project = "gratopy"
-copyright = "2021, Kristian Bredies, Richard Huber"
-author = "Kristian Bredies, Richard Huber"
+copyright = "2021, Kristian Bredies, Richard Huber, Benjamin Hackl"
+author = "Kristian Bredies, Richard Huber, Benjamin Hackl"
 
 # The full version, including alpha/beta/rc tags
-release = "0.1.0"
+release = __version__
 
 
 # -- General configuration ---------------------------------------------------
