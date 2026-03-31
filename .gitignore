@@ -16,3 +16,4 @@ doc/build
 
 
 .DS_Store
+agent/*.md
