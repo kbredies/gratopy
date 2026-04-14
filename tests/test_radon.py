@@ -20,17 +20,19 @@ if plot_parameter.lower() not in ["0", "false"]:
 else:
     PLOT = False
 
-CL_DOUBLE_SUPPORTED = any(
-    device.double_fp_config
-    for platform in cl.get_platforms()
-    for device in platform.get_devices()
-)
 
 # Dummy Context
 ctx = None
 queue = None
+INTERACTIVE = False
 
-
+# Ensures that no double precision calculations are required 
+# if the used device does not support CL double precision
+ctx_default = cl.create_some_context(interactive=INTERACTIVE)
+CL_DOUBLE_SUPPORTED = all(
+    device.double_fp_config
+    for device in ctx_default.devices
+)
 def test_projection():
     """
     Basic projection test. Simply computes forward and backprojection
@@ -42,7 +44,7 @@ def test_projection():
     print("Projection test")
 
     # create PyopenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create test image
@@ -170,7 +172,7 @@ def test_types_contiguity(dtype):
     print("Types and contiguity test")
 
     # create PyopenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create test image
@@ -278,7 +280,7 @@ def test_weighting():
     print("Weighting test")
 
     # create PyopenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # types of data
@@ -346,7 +348,7 @@ def test_adjointness():
     print("Adjointness test")
 
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # types of data_type
@@ -434,7 +436,7 @@ def test_limited_angles():
     """
 
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create test image
@@ -627,7 +629,7 @@ def test_nonquadratic():
     operator for non-quadratic images."""
 
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create phantom but cut of one side
@@ -720,7 +722,7 @@ def test_create_sparse_matrix(dtype):
     backprojection via matrix multiplication.
     """
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # Set types of data
@@ -803,7 +805,7 @@ def test_midpoint_shift():
     """
 
     # create PyOpenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create phantom for test
@@ -892,7 +894,7 @@ def test_angle_input_variants():
     to set the **angle_weights** manually.
     """
     # create PyopenCL context
-    ctx = cl.create_some_context(interactive=False)
+    ctx = cl.create_some_context(interactive=INTERACTIVE)
     queue = cl.CommandQueue(ctx)
 
     # create test image

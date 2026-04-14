@@ -24,11 +24,6 @@ if plot_parameter.lower() not in ["0", "false"]:
 else:
     PLOT = False
 
-CL_DOUBLE_SUPPORTED = any(
-    device.double_fp_config
-    for platform in cl.get_platforms()
-    for device in platform.get_devices()
-)
 
 # Names of relevant test-data
 TESTWALNUT = Path(__file__).parent / "walnut.png"
@@ -38,6 +33,14 @@ TESTWALNUTSINOGRAM = Path(__file__).parent / "walnut_sinogram.png"
 ctx = None
 queue = None
 INTERACTIVE = False
+
+# Ensures that no double precision calculations are required 
+# if the used device does not support CL double precision
+ctx_default = cl.create_some_context(interactive=INTERACTIVE)
+CL_DOUBLE_SUPPORTED = all(
+    device.double_fp_config
+    for device in ctx_default.devices
+)
 
 
 def test_projection():
@@ -1394,7 +1397,7 @@ def test_nonquadratic():
 
     # create phantom and cut one side out
     N = 1200
-    img_gpu = create_phantoms(queue, N, dtype=np.float32)
+    img_gpu = create_phantoms(queue, N, dtype=np.dtype("float32"))
     N1 = img_gpu.shape[0]
     N2 = int(img_gpu.shape[0] * 2 / 3.0)
     img_gpu = cl.array.to_device(queue, img_gpu.get()[:, 0:N2, :].copy())
