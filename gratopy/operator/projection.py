@@ -43,7 +43,16 @@ from typing import Any
 from gratopy.gratopy import radon_struct
 from gratopy.operator.base import Operator
 from gratopy.operator.opencl import OpenCLKernelSpec, _OpenCLOperator
-from gratopy.utilities import Angles, Detectors, ExtentPlaceholder, ImageDomain
+from gratopy.utilities import (
+    Angles,
+    Detectors,
+    ExtentPlaceholder,
+    ImageDomain,
+    full_detector_given_image_halfcircle,
+    full_image_given_detector_halfcircle,
+    valid_detector_given_image_halfcircle,
+    valid_image_given_detector_halfcircle,
+)
 
 
 class Radon(_OpenCLOperator):
@@ -143,7 +152,7 @@ class Radon(_OpenCLOperator):
             image_domain = ImageDomain(size=image_domain, extent=2.0)
 
         if not isinstance(angles, Angles):
-            angles = Angles.uniform(number=angles)
+            angles = Angles.uniform(number=angles,half_circle=True)
 
         if not isinstance(detectors, Detectors):
             if detectors is None:
@@ -208,15 +217,89 @@ class Radon(_OpenCLOperator):
         return operator_copy
 
     def substitute_placeholder(self) -> None:
-        """Reject extent placeholders until full support is implemented."""
-        if isinstance(self.image_domain.extent, ExtentPlaceholder) or isinstance(
+        """Resolve extent placeholders to concrete numeric values."""
+        if isinstance(self.image_domain.extent, ExtentPlaceholder) and isinstance(
             self.detectors.extent, ExtentPlaceholder
         ):
             raise NotImplementedError(
-                "Extent placeholders are not yet implemented in the experimental "
-                "operator API. Please pass explicit numeric extents for both the "
-                "image domain and the detector."
+                "Both the ImageDomain and Detectors use an ExtentPlaceholder. "
+                "Please set at least one of the two extents to a specific "
+                "value; the remaining placeholder will be resolved "
+                "automatically."
             )
+
+        if isinstance(self.image_domain.extent, ExtentPlaceholder):
+            Mx, My = self.image_domain.center
+            Md = self.detectors.center
+            Nx, Ny = self.image_domain.size
+            c = Nx / Ny
+            Dd = float(self.detectors.extent)
+            M = (Md, Mx, My)
+
+            if self.image_domain.extent == ExtentPlaceholder.FULL:
+                result = full_image_given_detector_halfcircle(M, Dd, c)
+            else:
+                result = valid_image_given_detector_halfcircle(M, Dd, c)
+
+            if result is None:
+                if self.image_domain.extent == ExtentPlaceholder.FULL:
+                    meaning = (
+                        "FULL means the largest image extent such that every "
+                        "ray through the image also hits the detector"
+                    )
+                else:
+                    meaning = (
+                        "VALID means the smallest image extent such that "
+                        "every ray hitting the detector also passes through "
+                        "the image"
+                    )
+                raise ValueError(
+                    f"Cannot resolve ExtentPlaceholder.{self.image_domain.extent.name} "
+                    f"for the image domain ({meaning}): no such image extent "
+                    f"exists with the given detector width Dd={Dd}, detector "
+                    f"center Md={Md}, and image center ({Mx}, {My}). "
+                    f"Consider increasing the detector width or adjusting the "
+                    f"center offsets."
+                )
+            Dx, Dy = result
+            self.image_domain.extent = max(Dx, Dy)
+
+        if isinstance(self.detectors.extent, ExtentPlaceholder):
+            Mx, My = self.image_domain.center
+            Md = self.detectors.center
+            Nx, Ny = self.image_domain.size
+            extent = float(self.image_domain.extent)
+            Dx = extent * Nx / max(Nx, Ny)
+            Dy = extent * Ny / max(Nx, Ny)
+            M = (Md, Mx, My)
+            D = (Dx, Dy)
+
+            if self.detectors.extent == ExtentPlaceholder.FULL:
+                result = full_detector_given_image_halfcircle(M, D)
+            else:
+                result = valid_detector_given_image_halfcircle(M, D)
+
+            if result is None:
+                if self.detectors.extent == ExtentPlaceholder.FULL:
+                    meaning = (
+                        "FULL means the smallest detector width such that "
+                        "every ray through the image also hits the detector"
+                    )
+                else:
+                    meaning = (
+                        "VALID means the largest detector width such that "
+                        "every ray hitting the detector also passes through "
+                        "the image"
+                    )
+                raise ValueError(
+                    f"Cannot resolve ExtentPlaceholder.{self.detectors.extent.name} "
+                    f"for the detector ({meaning}): no such detector width "
+                    f"exists with image dimensions ({Dx}, {Dy}), detector "
+                    f"center Md={Md}, and image center ({Mx}, {My}). "
+                    f"Consider increasing the image extent or adjusting the "
+                    f"center offsets."
+                )
+            self.detectors.extent = result
 
     def _ensure_host_struct(self, queue: cl.CommandQueue) -> None:
         if self._host_struct is not None:
