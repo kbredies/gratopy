@@ -318,8 +318,14 @@ class ImageDomain:
 
 
 def _solve_quadratic(a: float, b: float, d: float) -> tuple[float, float]:
-    """Solve ax^2 + bx + d = 0 and return (x1, x2) with x1 <= x2."""
+    """Solve ax^2 + bx + d = 0 and return (x1, x2) with x1 <= x2.
+
+    Returns (nan, nan) when no real roots exist; callers handle this via
+    the downstream NaN comparisons (always False).
+    """
     discriminant = b**2 - 4 * a * d
+    if discriminant < 0:
+        return (float("nan"), float("nan"))
     sqrt_disc = np.sqrt(discriminant)
     x1 = (-b - sqrt_disc) / (2 * a)
     x2 = (-b + sqrt_disc) / (2 * a)
@@ -393,6 +399,14 @@ def full_image_given_detector_halfcircle(
     """
     (Md, Mx, My) = M
 
+    # Half-circle point-image feasibility: s_center(phi) over phi in [0, pi]
+    # ranges over [-|My|, r] for Mx>=0 and [-r, |My|] for Mx<0, where
+    # r = sqrt(Mx^2 + My^2). Both endpoints must lie inside [Md-Dd/2, Md+Dd/2].
+    r = np.sqrt(Mx**2 + My**2)
+    s = 1.0 if Mx >= 0 else -1.0
+    if r > s * Md + Dd / 2 or abs(My) > Dd / 2 - s * Md:
+        return None
+
     a1 = (1 + c**2) / (4 * c**2)
     b1 = abs(My) / c + Mx
     d1 = -(Md + Dd / 2) ** 2 + Mx**2 + My**2
@@ -404,17 +418,14 @@ def full_image_given_detector_halfcircle(
     (y1, y2) = _solve_quadratic(a2, b2, d2)
 
     # Case A: Dx >= 2|Mx| — both sqrt formulas in (1)-(2) apply.
+    Dx = None
     if (y2 <= x2) and (x1 <= y2):
         Dx = y2
     elif (x2 <= y2) and (y1 <= x2):
         Dx = x2
-    else:
-        return None
 
-    Dy = Dx / c
-
-    if Dx >= 2 * abs(Mx):
-        return (Dx, Dy)
+    if Dx is not None and Dx >= 2 * abs(Mx):
+        return (Dx, Dx / c)
 
     # Case B: Mx < 0, Dx < 2|Mx| — Max constraint becomes linear.
     if Mx < 0:
@@ -434,6 +445,9 @@ def full_image_given_detector_halfcircle(
             Dx = z
         else:
             Dx = None
+    else:
+        # Mx == 0: rectangle always straddles x=0, Case A is the only path.
+        return None
 
     if Dx is None or Dx < 0:
         return None
