@@ -77,13 +77,19 @@ class Angles:
       *natural* weights.
     """
 
-    def __init__(self, angles: npt.ArrayLike, weights: npt.ArrayLike):
+    def __init__(
+        self,
+        angles: npt.ArrayLike,
+        weights: npt.ArrayLike,
+        half_circle: bool = False,
+    ):
         angles = np.asarray(angles)
         weights = np.asarray(weights)
         if len(angles) != len(weights):
             raise ValueError("Angles and weights must have the same length.")
         self.angles = angles
         self.weights = weights
+        self.half_circle = half_circle
 
     def __repr__(self):
         return f"Angles({self.angles}, weights={self.weights})"
@@ -104,7 +110,7 @@ class Angles:
         max_angle = np.pi if half_circle else 2 * np.pi
         angles = np.linspace(0, max_angle, number, endpoint=False)
         weights = np.ones_like(angles)
-        return Angles(angles=angles, weights=weights)
+        return Angles(angles=angles, weights=weights, half_circle=half_circle)
 
     @staticmethod
     def uniform(number: int, half_circle: bool = False) -> Angles:
@@ -122,31 +128,41 @@ class Angles:
         return angles
 
     @staticmethod
-    def uniform_interval(start: float, end: float, number: int) -> Angles:
-        """
+    def uniform_interval(
+        start: float,
+        end: float,
+        number: int,
+        half_circle: bool = False,
+    ) -> Angles:
+        r"""
         Generate uniformly distributed and weighted angles in a specified interval.
 
         :param start: Start of the interval.
         :param end: End of the interval.
         :param number: Number of angles.
+        :param half_circle: If False (the default), angles are in :math:`[0, 2\pi)`.
         :return: Angles object with uniform angles and weights.
         """
         delta = abs(end - start) / (2 * number)
 
         angles = np.linspace(start + delta, end - delta, number)
         weights = 2 * delta * np.ones_like(angles)
-        return Angles(angles=angles, weights=weights)
+        return Angles(angles=angles, weights=weights, half_circle=half_circle)
 
     @staticmethod
     def intervals(
-        number_list: list[int], start_list: list[float], end_list: list[float]
+        number_list: list[int],
+        start_list: list[float],
+        end_list: list[float],
+        half_circle: bool = False,
     ) -> Angles:
-        """
+        r"""
         Create angles uniformly distributed across multiple intervals.
 
         :param number_list: List of numbers of angles for each interval.
         :param start_list: List of start points for each interval.
         :param end_list: List of end points for each interval.
+        :param half_circle: If False (the default), angles are in :math:`[0, 2\pi)`.
         :return: Angles object with angles and weights across all intervals.
         """
         if not len(number_list) == len(start_list) == len(end_list):
@@ -160,7 +176,9 @@ class Angles:
             angles.extend(interval_angles.angles)
             weights.extend(interval_angles.weights)
 
-        return Angles(angles=np.array(angles), weights=np.array(weights))
+        return Angles(
+            angles=np.array(angles), weights=np.array(weights), half_circle=half_circle
+        )
 
     @staticmethod
     def from_list(
@@ -214,7 +232,7 @@ class Angles:
             i += count
 
         angle_weights[angles_index] = angle_weights
-        return Angles(angles=angles, weights=angle_weights)
+        return Angles(angles=angles, weights=angle_weights, half_circle=half_circle)
 
 
 # TODO: write tests for reversed in particular
