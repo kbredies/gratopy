@@ -49,7 +49,7 @@ class GeometryType(Enum):
 
 
 class Angles:
-    """Angular sampling together with associated weights.
+    r"""Angular sampling together with associated weights.
 
     An :class:`Angles` object stores the projection angles in radians and the
     corresponding angle weights used, for instance, in the adjoint operator.
@@ -63,6 +63,13 @@ class Angles:
     ``weights``:
         One-dimensional array-like object containing the weights associated
         with the given angles.
+    ``half_circle``:
+        Whether the angular sampling should be interpreted with half-circle
+        (:math:`\pi`) periodicity instead of full-circle (:math:`2\pi`)
+        periodicity. For constructors that generate a complete equispaced
+        sampling, this also determines whether angles are generated in
+        :math:`[0, \pi)` or :math:`[0, 2\pi)`. For limited-angle or explicit
+        samplings, it is stored as metadata for downstream code.
 
     **Notes**
 
@@ -140,7 +147,9 @@ class Angles:
         :param start: Start of the interval.
         :param end: End of the interval.
         :param number: Number of angles.
-        :param half_circle: If False (the default), angles are in :math:`[0, 2\pi)`.
+        :param half_circle: Angular periodicity metadata. If True, the sampling
+            is marked as using :math:`\pi` periodicity; otherwise, it is marked
+            as using :math:`2\pi` periodicity.
         :return: Angles object with uniform angles and weights.
         """
         delta = abs(end - start) / (2 * number)
@@ -162,7 +171,9 @@ class Angles:
         :param number_list: List of numbers of angles for each interval.
         :param start_list: List of start points for each interval.
         :param end_list: List of end points for each interval.
-        :param half_circle: If False (the default), angles are in :math:`[0, 2\pi)`.
+        :param half_circle: Angular periodicity metadata. If True, the sampling
+            is marked as using :math:`\pi` periodicity; otherwise, it is marked
+            as using :math:`2\pi` periodicity.
         :return: Angles object with angles and weights across all intervals.
         """
         if not len(number_list) == len(start_list) == len(end_list):
@@ -172,7 +183,9 @@ class Angles:
         weights = []
 
         for n, start, end in zip(number_list, start_list, end_list):
-            interval_angles = Angles.uniform_interval(start, end, n)
+            interval_angles = Angles.uniform_interval(
+                start, end, n, half_circle=half_circle
+            )
             angles.extend(interval_angles.angles)
             weights.extend(interval_angles.weights)
 
