@@ -5,7 +5,7 @@ import pyopencl.array as clarray
 
 from gratopy.operator.base import IDENTITY, ZERO, Operator
 from gratopy.operator import Radon
-from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
+from gratopy.utilities import Angles, Detectors, ExtentPlaceholder, ImageDomain
 
 
 def test_identity_repr():
@@ -89,6 +89,26 @@ def test_operator_arithmetic_references():
 
     assert 5 * (A + B + A) == 5 * A + 5 * B + 5 * A
     assert 5 * (A * B * B * A) == 5 * A * B * B * A
+
+
+def test_radon_integer_angles_use_half_circle_default():
+    R = Radon(image_domain=16, angles=10)
+
+    assert R.angles.half_circle is True
+    np.testing.assert_allclose(R.angles.angles, np.linspace(0, np.pi, 10, endpoint=False))
+    np.testing.assert_allclose(R.angles.weights, np.full(10, np.pi / 10))
+
+
+def test_radon_respects_explicit_angles_object():
+    angles = Angles.uniform(10)
+    R = Radon(image_domain=16, angles=angles)
+
+    assert R.angles is angles
+    assert R.angles.half_circle is False
+    np.testing.assert_allclose(
+        R.angles.angles, np.linspace(0, 2 * np.pi, 10, endpoint=False)
+    )
+    np.testing.assert_allclose(R.angles.weights, np.full(10, 2 * np.pi / 10))
 
 
 def test_radon_numpy_coercion():

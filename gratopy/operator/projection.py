@@ -81,7 +81,8 @@ class Radon(_OpenCLOperator):
         integer or as an explicit :class:`gratopy.utilities.Angles` object.
 
         If an integer is given, uniformly weighted angles are created via
-        :meth:`gratopy.utilities.Angles.uniform`.
+        :meth:`gratopy.utilities.Angles.uniform` with the ``half_circle``
+        parameter set to ``True``.
     ``detectors``:
         Detector configuration. This can be given as:
 
@@ -152,7 +153,7 @@ class Radon(_OpenCLOperator):
             image_domain = ImageDomain(size=image_domain, extent=2.0)
 
         if not isinstance(angles, Angles):
-            angles = Angles.uniform(number=angles,half_circle=True)
+            angles = Angles.uniform(number=angles, half_circle=True)
 
         if not isinstance(detectors, Detectors):
             if detectors is None:
