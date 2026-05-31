@@ -193,6 +193,63 @@ def test_composite_operator_forwards_queue():
     assert result.shape == (Nx, Nx)
 
 
+def test_radon_uses_preallocated_output():
+    """Test that a single Radon application reuses an explicit output."""
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    Nx = 16
+    R = Radon(image_domain=Nx, angles=10)
+
+    img = clarray.zeros(queue, (Nx, Nx), dtype=np.float32)
+    output = clarray.empty(queue, R.output_shape, dtype=np.float32)
+    output.fill(np.float32(42))
+
+    result = R.apply_to(img, output=output)
+
+    assert result.data == output.data
+    np.testing.assert_array_equal(output.get(), 0.0)
+
+
+def test_composite_operator_uses_output_for_final_result():
+    """Test that composed operators reuse an output for the final result."""
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    Nx = 16
+    R = Radon(image_domain=Nx, angles=10)
+    gram = R.T * R
+
+    img = clarray.zeros(queue, (Nx, Nx), dtype=np.float32)
+    output = clarray.empty(queue, (Nx, Nx), dtype=np.float32)
+    output.fill(np.float32(42))
+
+    result = gram.apply_to(img, output=output)
+
+    assert result.data == output.data
+    np.testing.assert_array_equal(output.get(), 0.0)
+
+
+def test_operator_sum_accumulates_into_output():
+    """Test that sums reuse output and accumulate subsequent summands into it."""
+    ctx = cl.create_some_context(interactive=False)
+    queue = cl.CommandQueue(ctx)
+
+    Nx = 16
+    R = Radon(image_domain=Nx, angles=10)
+    operator_sum = R + R
+
+    img = clarray.to_device(queue, np.ones((Nx, Nx), dtype=np.float32))
+    expected = operator_sum.apply_to(img).get()
+
+    output = clarray.empty(queue, R.output_shape, dtype=np.float32)
+    output.fill(np.float32(42))
+    result = operator_sum.apply_to(img, output=output)
+
+    assert result.data == output.data
+    np.testing.assert_allclose(output.get(), expected, rtol=1e-5, atol=1e-5)
+
+
 def test_radon_placeholder_rejected_for_detector_extent():
     with pytest.raises(NotImplementedError, match="Extent placeholders"):
         Radon(

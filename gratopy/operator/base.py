@@ -167,21 +167,36 @@ class Operator:
         else:
             self._scalar = value
 
-    def apply_to(self, argument: npt.ArrayLike, **kwargs):
-        """Application of this operator to some given argument."""
+    def apply_to(
+        self,
+        argument: npt.ArrayLike,
+        output: npt.ArrayLike | None = None,
+        **kwargs,
+    ):
+        """Application of this operator to some given argument.
+
+        For composite products, ``output`` is passed only to the final child
+        operator. Intermediate results are computed normally while the final
+        result can reuse the caller-provided array.
+        """
         if self.is_composite():
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
-                return sum(
-                    (
-                        child_op.apply_to(argument, **kwargs)
-                        for child_op in self._operands
-                    ),
-                    ZERO.apply_to(argument, **kwargs),
-                )
+                if output is None:
+                    result = self._operands[0].apply_to(argument, **kwargs)
+                    for child_op in self._operands[1:]:
+                        result += child_op.apply_to(argument, **kwargs)
+                    return result
+
+                result = self._operands[0].apply_to(argument, output=output, **kwargs)
+                for child_op in self._operands[1:]:
+                    result += child_op.apply_to(argument, **kwargs)
+                return result
             elif self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
                 result = argument
-                for child_op in reversed(self._operands):
-                    result = child_op.apply_to(result, **kwargs)
+                application_order = list(reversed(self._operands))
+                for index, child_op in enumerate(application_order):
+                    child_output = output if index == len(application_order) - 1 else None
+                    result = child_op.apply_to(result, output=child_output, **kwargs)
                 return result
 
         raise NotImplementedError(
