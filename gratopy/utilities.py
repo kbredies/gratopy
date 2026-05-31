@@ -20,8 +20,10 @@ class ExtentPlaceholder(Enum):
     They express geometric intent rather than an immediate numerical value.
 
     The placeholder mechanism in the experimental operator API is still
-    evolving. At the moment, placeholders should be considered unsupported in
-    the operator API and may raise :class:`NotImplementedError`.
+    evolving. The experimental Radon operator can resolve one placeholder
+    extent at a time: either the image extent from a fixed detector extent, or
+    the detector extent from a fixed image extent. Passing placeholders for
+    both extents at once is unsupported and raises :class:`NotImplementedError`.
     """
 
     FULL = "full"
@@ -275,8 +277,10 @@ class Detectors:
 
     **Notes**
 
-    In the current operator API, placeholder-based extent handling is not yet
-    implemented and may raise :class:`NotImplementedError`.
+    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
+    ``ExtentPlaceholder.VALID`` can be used here to resolve the detector extent
+    from a fixed image extent. Passing placeholders for both detector and image
+    extents at once is unsupported and raises :class:`NotImplementedError`.
     """
 
     number: int
@@ -322,8 +326,11 @@ class ImageDomain:
 
     **Notes**
 
-    In the experimental operator API, placeholders for extents are not yet
-    implemented and may raise :class:`NotImplementedError`.
+    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
+    ``ExtentPlaceholder.VALID`` can be used here to resolve the image extent
+    from a fixed detector extent. Passing placeholders for both image and
+    detector extents at once is unsupported and raises
+    :class:`NotImplementedError`.
     """
 
     size: tuple[int, int]
@@ -341,3 +348,233 @@ class ImageDomain:
         self.size = size
         self.extent = extent
         self.center = center
+
+
+# ---------------------------------------------------------------------------
+# Halfcircle geometry formulas (phi in [0, pi])
+# ---------------------------------------------------------------------------
+
+
+def _solve_quadratic(a: float, b: float, d: float) -> tuple[float, float]:
+    """Solve ax^2 + bx + d = 0 and return (x1, x2) with x1 <= x2.
+
+    Returns (nan, nan) when no real roots exist; callers handle this via
+    the downstream NaN comparisons (always False).
+    """
+    discriminant = b**2 - 4 * a * d
+    if discriminant < 0:
+        return (float("nan"), float("nan"))
+    sqrt_disc = np.sqrt(discriminant)
+    x1 = (-b - sqrt_disc) / (2 * a)
+    x2 = (-b + sqrt_disc) / (2 * a)
+    return (x1, x2)
+
+
+def _select_extent_from_linear_case(
+    lower_root: float, upper_root: float, linear_bound: float
+) -> float | None:
+    """Select the image extent in one of the linear half-circle cases."""
+    if upper_root <= linear_bound:
+        return upper_root
+    if lower_root <= linear_bound:
+        return linear_bound
+    return None
+
+
+def _point_image_fits_detector_halfcircle(
+    M: tuple[float, float, float], Dd: float
+) -> bool:
+    """Return whether a point image at ``(Mx, My)`` fits into the detector."""
+    (Md, Mx, My) = M
+    # Half-circle point-image feasibility: s_center(phi) over phi in [0, pi]
+    # ranges over [-|My|, r] for Mx>=0 and [-r, |My|] for Mx<0, where
+    # r = sqrt(Mx^2 + My^2). Both endpoints must lie inside [Md-Dd/2, Md+Dd/2].
+    r = np.sqrt(Mx**2 + My**2)
+    s = 1.0 if Mx >= 0 else -1.0
+    return r <= s * Md + Dd / 2 and abs(My) <= Dd / 2 - s * Md
+
+
+def _select_extent_from_case_a(
+    x1: float, x2: float, y1: float, y2: float
+) -> float | None:
+    """Select the image extent where both sqrt constraints apply."""
+    if (y2 <= x2) and (x1 <= y2):
+        return y2
+    if (x2 <= y2) and (y1 <= x2):
+        return x2
+    return None
+
+
+def full_detector_given_image_halfcircle(
+    M: tuple[float, float, float],
+    D: tuple[float, float],
+) -> float:
+    """Smallest detector width so every ray through the image hits the detector.
+
+    Half-circle variant (phi in [0, pi]).  See PDF Section 3.1, Eq. (5).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    D : (Dx, Dy)
+        Physical image dimensions.
+
+    Returns
+    -------
+    float
+        Required detector width Dd.
+    """
+    (Md, Mx, My) = M
+    (Dx, Dy) = D
+    # Coordinate rotation: the Max/Min formulas (1)-(2) were derived for
+    # f(phi) = a cos(phi) + b sin(phi), while the sinogram convention is
+    # s(phi) = x sin(phi) - y cos(phi).
+    (Mx, My) = (-My, Mx)
+    (Dx, Dy) = (Dy, Dx)
+
+    if My >= -Dy / 2:
+        MAX = np.sqrt((abs(Mx) + Dx / 2) ** 2 + (My + Dy / 2) ** 2)
+    else:
+        MAX = abs(Mx) + Dx / 2
+
+    if My <= Dy / 2:
+        MIN = -np.sqrt((abs(Mx) + Dx / 2) ** 2 + (My - Dy / 2) ** 2)
+    else:
+        MIN = -abs(Mx) - Dx / 2
+
+    Dd = 2 * max(Md - MIN, MAX - Md)
+    return Dd
+
+
+def full_image_given_detector_halfcircle(
+    M: tuple[float, float, float],
+    Dd: float,
+    c: float = 1.0,
+) -> tuple[float, float] | None:
+    """Largest image so every ray through it hits the detector.
+
+    Half-circle variant (phi in [0, pi]).  See PDF Section 3.2, Eqs. (6)-(12).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    Dd : float
+        Detector width.
+    c : float
+        Aspect ratio Dx / Dy.
+
+    Returns
+    -------
+    tuple[float, float] or None
+        Image dimensions (Dx, Dy), or None if no valid geometry exists.
+    """
+    (Md, Mx, My) = M
+
+    if not _point_image_fits_detector_halfcircle(M, Dd):
+        return None
+
+    a1 = (1 + c**2) / (4 * c**2)
+    b1 = abs(My) / c + Mx
+    d1 = -((Md + Dd / 2) ** 2) + Mx**2 + My**2
+    (x1, x2) = _solve_quadratic(a1, b1, d1)
+
+    a2 = (1 + c**2) / (4 * c**2)
+    b2 = abs(My) / c - Mx
+    d2 = -((Md - Dd / 2) ** 2) + Mx**2 + My**2
+    (y1, y2) = _solve_quadratic(a2, b2, d2)
+
+    # Case A: the image interval crosses the rotation center in x-direction
+    # (Dx >= 2|Mx|), so both extrema are given by the sqrt formulas (1)-(2).
+    Dx = _select_extent_from_case_a(x1, x2, y1, y2)
+
+    if Dx is not None and Dx >= 2 * abs(Mx):
+        return (Dx, Dx / c)
+
+    # Case B: the image lies to the negative x side (Mx < 0, Dx < 2|Mx|),
+    # so the upper detector constraint becomes linear.
+    if Mx < 0:
+        z = (Md + Dd / 2 - abs(My)) * 2 * c
+        Dx = _select_extent_from_linear_case(y1, y2, z)
+    # Case C: the image lies to the positive x side (Mx > 0, Dx < 2Mx),
+    # so the lower detector constraint becomes linear.
+    elif Mx > 0:
+        z = (Dd / 2 - Md - abs(My)) * 2 * c
+        Dx = _select_extent_from_linear_case(x1, x2, z)
+    else:
+        # Mx == 0: rectangle always straddles x=0, Case A is the only path.
+        return None
+
+    if Dx is None or Dx < 0:
+        return None
+
+    Dy = Dx / c
+    return (Dx, Dy)
+
+
+def valid_image_given_detector_halfcircle(
+    M: tuple[float, float, float],
+    Dd: float,
+    c: float = 1.0,
+) -> tuple[float, float]:
+    """Smallest image so every ray hitting the detector passes through it.
+
+    Half-circle variant (phi in [0, pi]).  See PDF Section 3.3, Eqs. (13)-(14).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    Dd : float
+        Detector width.
+    c : float
+        Aspect ratio Dx / Dy.
+
+    Returns
+    -------
+    tuple[float, float]
+        Image dimensions (Dx, Dy).
+    """
+    (Md, Mx, My) = M
+
+    Dx = 2 * max(Mx - Md + Dd / 2, -Mx + Md + Dd / 2)
+    Dy = 2 * max(abs(Md) + Dd / 2 - My, abs(Md) + Dd / 2 + My)
+
+    Dx = max(Dx, c * Dy)
+    Dy = Dx / c
+    return (Dx, Dy)
+
+
+def valid_detector_given_image_halfcircle(
+    M: tuple[float, float, float],
+    D: tuple[float, float],
+) -> float | None:
+    """Largest detector so every ray hitting it passes through the image.
+
+    Half-circle variant (phi in [0, pi]).  See PDF Section 3.4, Eq. (15).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    D : (Dx, Dy)
+        Physical image dimensions.
+
+    Returns
+    -------
+    float or None
+        Detector width Dd, or None if no valid geometry exists.
+    """
+    (Md, Mx, My) = M
+    (Dx, Dy) = D
+
+    Dd = 2 * min(
+        -Mx + Dx / 2 + Md,
+        Mx - Md + Dx / 2,
+        My - abs(Md) + Dy / 2,
+        -My - abs(Md) + Dy / 2,
+    )
+    if Dd <= 0:
+        return None
+    return Dd

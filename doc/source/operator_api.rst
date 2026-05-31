@@ -16,9 +16,11 @@ adjoint operators, and experimental kernels.
    introduced without a full deprecation cycle while the interface and internal
    abstractions are still settling.
 
-   In particular, extent placeholders such as
-   :class:`gratopy.utilities.ExtentPlaceholder` are not yet implemented in the
-   operator API and currently raise :class:`NotImplementedError`.
+   Extent placeholders such as
+   :class:`gratopy.utilities.ExtentPlaceholder` are supported experimentally
+   for Radon operators when exactly one of the image or detector extents is a
+   placeholder. Passing placeholders for both extents at once remains
+   unsupported and raises :class:`NotImplementedError`.
 
 Current scope
 -------------
@@ -126,6 +128,42 @@ operator:
 This explicit style is particularly useful when experimenting with geometry in
 Python code, because image domain, angles, and detector settings become
 first-class objects that can be reused and modified independently.
+
+Extent placeholders
+-------------------
+
+For Radon operators, one physical extent can be inferred from the other by
+using :class:`gratopy.utilities.ExtentPlaceholder`. This is useful when one
+wants either the smallest detector covering a fixed image domain, or the
+largest image domain covered by a fixed detector.
+
+For example, the detector extent can be inferred from a fixed image extent:
+
+.. code-block:: python
+
+    from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
+
+    R = gratopy.operator.Radon(
+        image_domain=ImageDomain(size=128, extent=2.0),
+        angles=180,
+        detectors=Detectors(number=200, extent=ExtentPlaceholder.FULL),
+    )
+
+Conversely, the image extent can be inferred from a fixed detector extent:
+
+.. code-block:: python
+
+    R = gratopy.operator.Radon(
+        image_domain=ImageDomain(size=128, extent=ExtentPlaceholder.FULL),
+        angles=180,
+        detectors=Detectors(number=200, extent=2.0),
+    )
+
+Only one side may use an extent placeholder at a time. Passing placeholders for
+both the image and detector extents is unsupported and raises
+:class:`NotImplementedError`. If the requested placeholder semantics are
+geometrically impossible for the supplied centers and fixed extent, construction
+raises :class:`ValueError`.
 
 Operator algebra
 ----------------
@@ -242,8 +280,8 @@ Limitations and status
 The operator API is still evolving. In particular:
 
 - the focus is currently on :class:`gratopy.operator.projection.Radon`,
-- extent placeholders are not yet implemented and currently raise
-  :class:`NotImplementedError`,
+- extent placeholders are currently supported experimentally for Radon
+  operators when exactly one of the image or detector extents is a placeholder,
 - higher-level solver interfaces are still centered around the legacy API.
 
 For the full and mature feature set of gratopy, the legacy API documented in
