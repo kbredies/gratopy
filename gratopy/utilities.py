@@ -440,12 +440,12 @@ def full_image_given_detector_halfcircle(
 
     a1 = (1 + c**2) / (4 * c**2)
     b1 = abs(My) / c + Mx
-    d1 = -(Md + Dd / 2) ** 2 + Mx**2 + My**2
+    d1 = -((Md + Dd / 2) ** 2) + Mx**2 + My**2
     (x1, x2) = _solve_quadratic(a1, b1, d1)
 
     a2 = (1 + c**2) / (4 * c**2)
     b2 = abs(My) / c - Mx
-    d2 = -(Md - Dd / 2) ** 2 + Mx**2 + My**2
+    d2 = -((Md - Dd / 2) ** 2) + Mx**2 + My**2
     (y1, y2) = _solve_quadratic(a2, b2, d2)
 
     # Case A: Dx >= 2|Mx| — both sqrt formulas in (1)-(2) apply.

@@ -34,13 +34,10 @@ ctx = None
 queue = None
 INTERACTIVE = False
 
-# Ensures that no double precision calculations are required 
+# Ensures that no double precision calculations are required
 # if the used device does not support CL double precision
 ctx_default = cl.create_some_context(interactive=INTERACTIVE)
-CL_DOUBLE_SUPPORTED = all(
-    device.double_fp_config
-    for device in ctx_default.devices
-)
+CL_DOUBLE_SUPPORTED = all(device.double_fp_config for device in ctx_default.devices)
 
 
 def test_projection():
