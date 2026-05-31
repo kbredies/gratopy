@@ -396,7 +396,11 @@ class _OpenCLOperator(Operator):
         queue: cl.CommandQueue | None = None,
         return_event: bool = False,
     ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
-        """Standard OpenCL-backed operator execution pipeline."""
+        """Standard OpenCL-backed operator execution pipeline.
+
+        Passing ``output`` lets callers provide a preallocated device array and
+        avoid allocating a new OpenCL array for the result.
+        """
         queue = self._infer_queue(argument=argument, output=output, queue=queue)
         argument = self._coerce_argument(argument, queue)
         self._validate_argument(argument)
@@ -422,7 +426,8 @@ class _OpenCLOperator(Operator):
             wait_for=output.events + argument.events,
         )
         output.add_event(event)
-        output = self.scalar * output
+        if self.scalar != 1:
+            output *= self.scalar
 
         if return_event:
             return output, [event]
