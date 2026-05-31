@@ -363,6 +363,41 @@ def _solve_quadratic(a: float, b: float, d: float) -> tuple[float, float]:
     return (x1, x2)
 
 
+def _select_extent_from_linear_case(
+    lower_root: float, upper_root: float, linear_bound: float
+) -> float | None:
+    """Select the image extent in one of the linear half-circle cases."""
+    if upper_root <= linear_bound:
+        return upper_root
+    if lower_root <= linear_bound:
+        return linear_bound
+    return None
+
+
+def _point_image_fits_detector_halfcircle(
+    M: tuple[float, float, float], Dd: float
+) -> bool:
+    """Return whether a point image at ``(Mx, My)`` fits into the detector."""
+    (Md, Mx, My) = M
+    # Half-circle point-image feasibility: s_center(phi) over phi in [0, pi]
+    # ranges over [-|My|, r] for Mx>=0 and [-r, |My|] for Mx<0, where
+    # r = sqrt(Mx^2 + My^2). Both endpoints must lie inside [Md-Dd/2, Md+Dd/2].
+    r = np.sqrt(Mx**2 + My**2)
+    s = 1.0 if Mx >= 0 else -1.0
+    return r <= s * Md + Dd / 2 and abs(My) <= Dd / 2 - s * Md
+
+
+def _select_extent_from_case_a(
+    x1: float, x2: float, y1: float, y2: float
+) -> float | None:
+    """Select the image extent where both sqrt constraints apply."""
+    if (y2 <= x2) and (x1 <= y2):
+        return y2
+    if (x2 <= y2) and (y1 <= x2):
+        return x2
+    return None
+
+
 def full_detector_given_image_halfcircle(
     M: tuple[float, float, float],
     D: tuple[float, float],
@@ -430,12 +465,7 @@ def full_image_given_detector_halfcircle(
     """
     (Md, Mx, My) = M
 
-    # Half-circle point-image feasibility: s_center(phi) over phi in [0, pi]
-    # ranges over [-|My|, r] for Mx>=0 and [-r, |My|] for Mx<0, where
-    # r = sqrt(Mx^2 + My^2). Both endpoints must lie inside [Md-Dd/2, Md+Dd/2].
-    r = np.sqrt(Mx**2 + My**2)
-    s = 1.0 if Mx >= 0 else -1.0
-    if r > s * Md + Dd / 2 or abs(My) > Dd / 2 - s * Md:
+    if not _point_image_fits_detector_halfcircle(M, Dd):
         return None
 
     a1 = (1 + c**2) / (4 * c**2)
@@ -448,34 +478,23 @@ def full_image_given_detector_halfcircle(
     d2 = -((Md - Dd / 2) ** 2) + Mx**2 + My**2
     (y1, y2) = _solve_quadratic(a2, b2, d2)
 
-    # Case A: Dx >= 2|Mx| — both sqrt formulas in (1)-(2) apply.
-    Dx = None
-    if (y2 <= x2) and (x1 <= y2):
-        Dx = y2
-    elif (x2 <= y2) and (y1 <= x2):
-        Dx = x2
+    # Case A: the image interval crosses the rotation center in x-direction
+    # (Dx >= 2|Mx|), so both extrema are given by the sqrt formulas (1)-(2).
+    Dx = _select_extent_from_case_a(x1, x2, y1, y2)
 
     if Dx is not None and Dx >= 2 * abs(Mx):
         return (Dx, Dx / c)
 
-    # Case B: Mx < 0, Dx < 2|Mx| — Max constraint becomes linear.
+    # Case B: the image lies to the negative x side (Mx < 0, Dx < 2|Mx|),
+    # so the upper detector constraint becomes linear.
     if Mx < 0:
         z = (Md + Dd / 2 - abs(My)) * 2 * c
-        if y2 <= z:
-            Dx = y2
-        elif y1 <= z:
-            Dx = z
-        else:
-            Dx = None
-    # Case C: Mx > 0, Dx < 2Mx — Min constraint becomes linear.
+        Dx = _select_extent_from_linear_case(y1, y2, z)
+    # Case C: the image lies to the positive x side (Mx > 0, Dx < 2Mx),
+    # so the lower detector constraint becomes linear.
     elif Mx > 0:
         z = (Dd / 2 - Md - abs(My)) * 2 * c
-        if x2 <= z:
-            Dx = x2
-        elif x1 <= z:
-            Dx = z
-        else:
-            Dx = None
+        Dx = _select_extent_from_linear_case(x1, x2, z)
     else:
         # Mx == 0: rectangle always straddles x=0, Case A is the only path.
         return None
