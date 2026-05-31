@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import numpy as np
-import numpy.typing as npt
 
 from enum import Enum
 from typing import Any
@@ -89,7 +88,7 @@ class Operator:
             operands = []
         self._operands = operands
 
-        self._scalar = 1
+        self._scalar: Numeric = 1
         self.scalar = scalar
 
         self.input_shape = input_shape
@@ -161,18 +160,18 @@ class Operator:
         if self.is_composite():
             if self._arithmetic_operation == OperatorArithmeticOperation.ADDITION:
                 for child_operator in self._operands:
-                    child_operator.scalar *= value
+                    child_operator.scalar = child_operator.scalar * value
             elif self._arithmetic_operation == OperatorArithmeticOperation.MULTIPLICATION:
-                self._operands[0].scalar *= value
+                self._operands[0].scalar = self._operands[0].scalar * value
         else:
             self._scalar = value
 
     def apply_to(
         self,
-        argument: npt.ArrayLike,
-        output: npt.ArrayLike | None = None,
-        **kwargs,
-    ):
+        argument: Any,
+        output: Any | None = None,
+        **kwargs: Any,
+    ) -> Any:
         """Application of this operator to some given argument.
 
         For composite products, ``output`` is passed only to the final child
@@ -240,34 +239,28 @@ class Operator:
 
     def __neg__(self) -> Operator:
         """Negate this operator."""
-        return (-1) * self
+        return self.__rmul__(-1)
 
     def __sub__(self, other: Operator) -> Operator:
         """Subtract another operator from this one."""
-        return self + (-1) * other
+        return self + (-other)
 
-    def __rmul__(self, other: Operator | Numeric) -> Operator:
-        """Right-multiply this operator by a scalar or another operator."""
-        if not isinstance(other, Operator):
-            if other == 0:
-                return ZERO
-            if other == 1:
-                return self
+    def __rmul__(self, other: Numeric) -> Operator:  # type: ignore[misc]
+        """Right-multiply this operator by a scalar."""
+        if other == 0:
+            return ZERO
+        if other == 1:
+            return self
 
-            operator_copy = deepcopy(self)
-            operator_copy.scalar = operator_copy.scalar * other
-            return operator_copy
+        operator_copy = deepcopy(self)
+        operator_copy.scalar = operator_copy.scalar * other
+        return operator_copy
 
-        elif isinstance(other, Operator):
-            return other.__mul__(self)
-
-        return NotImplemented
-
-    def __mul__(self, other: Operator | npt.ArrayLike | Numeric) -> Operator | Any:
+    def __mul__(self, other: Operator | Any) -> Operator | Any:
         """Multiply this operator by another operator, or apply it to appropriate input."""
         if not isinstance(other, Operator):
             if isinstance(other, Number):
-                return self.__rmul__(other)  # type: ignore
+                return self.__rmul__(other)  # type: ignore[arg-type, operator]
 
             # attempt to apply the operator to the input
             return self.apply_to(other)
@@ -279,7 +272,7 @@ class Operator:
             return self
 
         operands = []
-        scalar = 1
+        scalar: Numeric = 1
         for operator in [deepcopy(self), deepcopy(other)]:
             if (
                 operator.is_composite()
@@ -307,16 +300,20 @@ class Operator:
 class _IdentityOperator(Operator):
     """Base class for identity operator."""
 
-    def __mul__(self, other: Operator | npt.ArrayLike) -> Operator | Any:
+    def __mul__(self, other: Operator | Any) -> Operator | Any:
         """Multiplying the identity operator with another operator returns
         the other operator."""
         if isinstance(other, Operator):
             return other
         return super().__mul__(other)
 
-    def apply_to(self, argument: npt.ArrayLike, **kwargs) -> npt.ArrayLike:
+    def apply_to(self, argument: Any, output: Any | None = None, **kwargs: Any) -> Any:
         """The identity operator does not change the input."""
-        return self.scalar * argument
+        result = self.scalar * argument
+        if output is not None:
+            output[...] = result
+            return output
+        return result
 
 
 class _ZeroOperator(Operator):
@@ -326,12 +323,20 @@ class _ZeroOperator(Operator):
         """Adding zero operator to any operator returns the other operator."""
         return other
 
-    @Operator.scalar.setter
+    @property
+    def scalar(self) -> Numeric:
+        return self._scalar
+
+    @scalar.setter
     def scalar(self, value: Numeric):
         pass
 
-    def apply_to(self, argument: npt.ArrayLike, **kwargs) -> npt.ArrayLike:
+    def apply_to(self, argument: Any, output: Any | None = None, **kwargs: Any) -> Any:
         """Applying the zero operator returns a zero-multiplied version of the input."""
+        if output is not None:
+            output[...] = 0
+            return output
+
         try:
             return 0 * argument  # type: ignore
         except TypeError:
