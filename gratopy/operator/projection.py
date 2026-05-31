@@ -119,9 +119,13 @@ class Radon(_OpenCLOperator):
     - ``(Ns, Na)`` to ``(Nx, Ny)``,
     - ``(Ns, Na, Nz)`` to ``(Nx, Ny, Nz)``.
 
-    Extent placeholders in the experimental operator API are not yet
-    implemented. Passing :class:`gratopy.utilities.ExtentPlaceholder` values to
-    this class currently raises :class:`NotImplementedError`.
+    Extent placeholders are supported experimentally for Radon geometry when
+    exactly one extent is fixed numerically and the other is given as
+    :class:`gratopy.utilities.ExtentPlaceholder`. The operator can resolve an
+    image extent from a fixed detector extent, or a detector extent from a
+    fixed image extent. Passing placeholders for both extents at once remains
+    unsupported and raises :class:`NotImplementedError`; geometries for which
+    no valid placeholder resolution exists raise :class:`ValueError`.
 
     **Examples**
 

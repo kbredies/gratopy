@@ -20,8 +20,10 @@ class ExtentPlaceholder(Enum):
     They express geometric intent rather than an immediate numerical value.
 
     The placeholder mechanism in the experimental operator API is still
-    evolving. At the moment, placeholders should be considered unsupported in
-    the operator API and may raise :class:`NotImplementedError`.
+    evolving. The experimental Radon operator can resolve one placeholder
+    extent at a time: either the image extent from a fixed detector extent, or
+    the detector extent from a fixed image extent. Passing placeholders for
+    both extents at once is unsupported and raises :class:`NotImplementedError`.
     """
 
     FULL = "full"
@@ -275,8 +277,10 @@ class Detectors:
 
     **Notes**
 
-    In the current operator API, placeholder-based extent handling is not yet
-    implemented and may raise :class:`NotImplementedError`.
+    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
+    ``ExtentPlaceholder.VALID`` can be used here to resolve the detector extent
+    from a fixed image extent. Passing placeholders for both detector and image
+    extents at once is unsupported and raises :class:`NotImplementedError`.
     """
 
     number: int
@@ -322,8 +326,11 @@ class ImageDomain:
 
     **Notes**
 
-    In the experimental operator API, placeholders for extents are not yet
-    implemented and may raise :class:`NotImplementedError`.
+    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
+    ``ExtentPlaceholder.VALID`` can be used here to resolve the image extent
+    from a fixed detector extent. Passing placeholders for both image and
+    detector extents at once is unsupported and raises
+    :class:`NotImplementedError`.
     """
 
     size: tuple[int, int]
