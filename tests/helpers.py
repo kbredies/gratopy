@@ -114,6 +114,8 @@ def evaluate_control_numbers(
 def create_phantoms(queue, N, dtype: str | np.typing.DTypeLike = "double", order="F"):
     # Create a phantom image which is used in many of the tests that follow
 
+    dtype = np.dtype(dtype)
+
     # use gratopy phantom method to create Shepp-Logan phantom
     A = gratopy.phantom(queue, N, dtype=dtype)
     A *= dtype.type(255) / clarray.max(A).get()
