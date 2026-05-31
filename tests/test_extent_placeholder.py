@@ -19,14 +19,10 @@ regression guards. Comparison uses an absolute tolerance of 0.02.
 """
 
 import pytest
-import pyopencl as cl
 
 from gratopy.operator import Radon
 from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
 
-
-ctx = cl.create_some_context(interactive=False)
-queue = cl.CommandQueue(ctx)
 
 Nx = 400
 Ns = 100
