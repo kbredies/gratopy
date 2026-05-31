@@ -15,7 +15,7 @@ from __future__ import annotations
 import hashlib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -227,7 +227,7 @@ class _OpenCLOperator(Operator):
         return clarray.to_device(queue, array)
 
     @staticmethod
-    def _default_order(reference: clarray.Array) -> str:
+    def _default_order(reference: clarray.Array) -> Literal["C", "F"]:
         """Return the preferred output order based on a reference array."""
         return "C" if reference.flags.c_contiguous else "F"
 
@@ -236,7 +236,7 @@ class _OpenCLOperator(Operator):
         queue: cl.CommandQueue,
         shape: tuple[int, ...],
         dtype: npt.DTypeLike,
-        order: str = "F",
+        order: Literal["C", "F"] = "F",
         allocator: Any = None,
     ) -> clarray.Array:
         """Allocate an output array on the device."""
@@ -391,10 +391,11 @@ class _OpenCLOperator(Operator):
 
     def apply_to(
         self,
-        argument: npt.ArrayLike | clarray.Array,
-        output: clarray.Array | None = None,
+        argument: Any,
+        output: Any | None = None,
         queue: cl.CommandQueue | None = None,
         return_event: bool = False,
+        **kwargs: Any,
     ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
         """Standard OpenCL-backed operator execution pipeline.
 

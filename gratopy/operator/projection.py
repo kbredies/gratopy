@@ -316,8 +316,8 @@ class Radon(_OpenCLOperator):
             angles=self.angles.angles,
             angle_weights=self.angles.weights,
             n_detectors=self.detectors.number,
-            detector_width=float(self.detectors.extent),
-            image_width=float(self.image_domain.extent),
+            detector_width=float(self.detectors.extent),  # type: ignore[arg-type]
+            image_width=float(self.image_domain.extent),  # type: ignore[arg-type]
             midpoint_shift=self.image_domain.center,
             detector_shift=self.detectors.center,
         )
@@ -369,10 +369,11 @@ class Radon(_OpenCLOperator):
 
     def apply_to(
         self,
-        argument: npt.ArrayLike | clarray.Array,
-        output: clarray.Array | None = None,
+        argument: Any,
+        output: Any | None = None,
         queue: cl.CommandQueue | None = None,
         return_event: bool = False,
+        **kwargs: Any,
     ) -> clarray.Array | tuple[clarray.Array, list[cl.Event]]:
         queue = self._infer_queue(argument=argument, output=output, queue=queue)
         self.projection_settings = SimpleNamespace(queue=queue)
