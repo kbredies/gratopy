@@ -434,7 +434,7 @@ class _OpenCLOperator(Operator):
         )
         output.add_event(event)
         if self.scalar != 1:
-            output *= self.scalar
+            output *= output.dtype.type(self.scalar)
 
         if return_event:
             return output, [event]
