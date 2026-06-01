@@ -184,6 +184,12 @@ class _OpenCLOperator(Operator):
         """
         raise NotImplementedError("Concrete OpenCL operators must define a kernel spec")
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Return pickle/deepcopy state without live OpenCL queue handles."""
+        state = self.__dict__.copy()
+        state["_last_queue"] = None
+        return state
+
     def _infer_queue(
         self,
         argument: npt.ArrayLike | clarray.Array | None = None,
@@ -428,7 +434,7 @@ class _OpenCLOperator(Operator):
         )
         output.add_event(event)
         if self.scalar != 1:
-            output *= self.scalar
+            output *= output.dtype.type(self.scalar)
 
         if return_event:
             return output, [event]

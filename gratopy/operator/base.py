@@ -124,12 +124,17 @@ class Operator:
             return op_repr
         raise ValueError(f"Unknown arithmetic operation: {self._arithmetic_operation}")
 
+    def _repr_name_(self) -> str:
+        """Return the operator name used in string representations."""
+        return self.name
+
     def __repr__(self) -> str:
         if not self.is_composite():
             scalar_repr = self._scalar_repr_()
+            name = self._repr_name_()
             if scalar_repr:
-                return f"{scalar_repr}*{self.name}"
-            return self.name
+                return f"{scalar_repr}*{name}"
+            return name
         return self._composite_repr_()
 
     def __eq__(self, other: Any) -> bool:
