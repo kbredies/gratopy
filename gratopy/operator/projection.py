@@ -221,6 +221,9 @@ class Radon(_OpenCLOperator):
         )
         return operator_copy
 
+    def _repr_name_(self) -> str:
+        return "Radon.T" if self.adjoint else "Radon"
+
     def substitute_placeholder(self) -> None:
         """Resolve extent placeholders to concrete numeric values."""
         if isinstance(self.image_domain.extent, ExtentPlaceholder) and isinstance(
