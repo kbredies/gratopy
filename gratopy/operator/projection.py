@@ -194,6 +194,14 @@ class Radon(_OpenCLOperator):
         kernel_path = Path(__file__).resolve().parent.parent / "radon.cl"
         return OpenCLKernelSpec.from_path(kernel_path, base_name="radon")
 
+    def __getstate__(self) -> dict[str, Any]:
+        """Return pickle/deepcopy state without live OpenCL runtime objects."""
+        state = super().__getstate__()
+        state["projection_settings"] = None
+        state["_host_struct"] = None
+        state["_device_struct"] = {}
+        return state
+
     @property
     def image_domain(self) -> ImageDomain:
         return self.state["image_domain"]
