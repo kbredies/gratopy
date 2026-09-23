@@ -20,10 +20,12 @@ class ExtentPlaceholder(Enum):
     They express geometric intent rather than an immediate numerical value.
 
     The placeholder mechanism in the experimental operator API is still
-    evolving. The experimental Radon operator can resolve one placeholder
-    extent at a time: either the image extent from a fixed detector extent, or
-    the detector extent from a fixed image extent. Passing placeholders for
-    both extents at once is unsupported and raises :class:`NotImplementedError`.
+    evolving. The experimental Radon and Fanbeam operators can resolve one
+    placeholder extent at a time: either the image extent from a fixed detector
+    extent, or the detector extent from a fixed image extent. Passing
+    placeholders for both extents at once is unsupported and raises
+    :class:`NotImplementedError`. Fanbeam placeholders are always resolved for
+    a full-circle scan.
     """
 
     FULL = "full"
@@ -310,8 +312,8 @@ class Detectors:
     Instances are immutable. Construct a new detector value when changing its
     discretization or physical placement.
 
-    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
-    ``ExtentPlaceholder.VALID`` can be used here to resolve the detector extent
+    In the experimental Radon and Fanbeam operators, ``ExtentPlaceholder.FULL``
+    and ``ExtentPlaceholder.VALID`` can be used here to resolve the detector extent
     from a fixed image extent. Passing placeholders for both detector and image
     extents at once is unsupported and raises :class:`NotImplementedError`.
     """
@@ -358,8 +360,8 @@ class ImageDomain:
     Instances are immutable. Construct a new image-domain value when changing
     its grid, extent, or center.
 
-    In the experimental Radon operator, ``ExtentPlaceholder.FULL`` and
-    ``ExtentPlaceholder.VALID`` can be used here to resolve the image extent
+    In the experimental Radon and Fanbeam operators, ``ExtentPlaceholder.FULL``
+    and ``ExtentPlaceholder.VALID`` can be used here to resolve the image extent
     from a fixed detector extent. Passing placeholders for both image and
     detector extents at once is unsupported and raises
     :class:`NotImplementedError`.
@@ -762,6 +764,203 @@ def valid_detector_given_image_fullcircle(
         Dx / 2 - abs(Md) - abs(Mx),
         Dy / 2 - abs(Md) - abs(My),
     )
+    if Dd <= 0:
+        return None
+    return Dd
+
+
+# ---------------------------------------------------------------------------
+# Fan-beam variants (full circle, phi in [0, 2*pi]).
+#
+# The source lies at distance RE from the rotation center and the flat
+# detector at orthogonal distance R from the source.  A ray hitting the
+# detector at position t has the parallel-beam offset
+#     s = RE * t / sqrt(R^2 + t^2),     inversely  t = R * s / sqrt(RE^2 - s^2).
+# Both maps are odd and strictly increasing, so the full-circle parallel-beam
+# reasoning carries over by mapping the relevant offsets between s and t.
+# As in the parallel-beam full-circle case, the detector offset enters only
+# through abs(Md).
+# ---------------------------------------------------------------------------
+
+
+def _fanbeam_s_to_t(s: float, RE: float, R: float) -> float:
+    """Map a parallel-beam offset s to the fan-beam detector position t."""
+    return R * s / np.sqrt(RE**2 - s**2)
+
+
+def _fanbeam_t_to_s(t: float, RE: float, R: float) -> float:
+    """Map a fan-beam detector position t to the parallel-beam offset s."""
+    return RE * t / np.sqrt(R**2 + t**2)
+
+
+def full_detector_given_image_fanbeam(
+    M: tuple[float, float, float],
+    D: tuple[float, float],
+    RE: float,
+    R: float,
+) -> float | None:
+    """Smallest detector width so every ray through the image hits the detector.
+
+    Fan-beam variant (full circle).  With the squared corner radius
+    Z = (|Mx| + Dx/2)^2 + (|My| + Dy/2)^2 the result is
+    Dd = 2 * (sqrt(Z * R^2 / (RE^2 - Z)) + |Md|).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    D : (Dx, Dy)
+        Physical image dimensions.
+    RE : float
+        Distance from the source to the rotation center.
+    R : float
+        Orthogonal distance from the source to the detector line.
+
+    Returns
+    -------
+    float or None
+        Required detector width Dd, or None if the image reaches the
+        source circle (Z >= RE^2).
+    """
+    (Md, Mx, My) = M
+    (Dx, Dy) = D
+
+    Z = (abs(Mx) + Dx / 2) ** 2 + (abs(My) + Dy / 2) ** 2
+    if Z >= RE**2:
+        return None
+
+    Dd = 2 * (_fanbeam_s_to_t(np.sqrt(Z), RE, R) + abs(Md))
+    return Dd
+
+
+def full_image_given_detector_fanbeam(
+    M: tuple[float, float, float],
+    Dd: float,
+    RE: float,
+    R: float,
+    c: float = 1.0,
+) -> tuple[float, float] | None:
+    """Largest image so every ray through it hits the detector.
+
+    Fan-beam variant (full circle).  The detector covers the parallel-beam
+    offsets |s| <= Reff = s(Dd/2 - |Md|), so the constraint
+    sqrt((|Mx| + Dx/2)^2 + (|My| + Dy/(2c))^2) <= Reff reduces to a single
+    quadratic in Dx (with Dy = Dx / c).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    Dd : float
+        Detector width.
+    RE : float
+        Distance from the source to the rotation center.
+    R : float
+        Orthogonal distance from the source to the detector line.
+    c : float
+        Aspect ratio Dx / Dy.
+
+    Returns
+    -------
+    tuple[float, float] or None
+        Image dimensions (Dx, Dy), or None if no valid geometry exists.
+    """
+    (Md, Mx, My) = M
+
+    half_width = Dd / 2 - abs(Md)
+    if half_width <= 0:
+        return None
+    radius = _fanbeam_t_to_s(half_width, RE, R)
+
+    a = (1 + c**2) / (4 * c**2)
+    b = abs(Mx) + abs(My) / c
+    d = Mx**2 + My**2 - radius**2
+
+    (_, Dx) = _solve_quadratic(a, b, d)
+    if not np.isfinite(Dx) or Dx <= 0:
+        return None
+
+    Dy = Dx / c
+    return (Dx, Dy)
+
+
+def valid_image_given_detector_fanbeam(
+    M: tuple[float, float, float],
+    Dd: float,
+    RE: float,
+    R: float,
+    c: float = 1.0,
+) -> tuple[float, float]:
+    """Smallest image so every ray hitting the detector passes through it.
+
+    Fan-beam variant (full circle).  The rays hitting the detector have
+    parallel-beam offsets up to s_max = s(|Md| + Dd/2) in absolute value.
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    Dd : float
+        Detector width.
+    RE : float
+        Distance from the source to the rotation center.
+    R : float
+        Orthogonal distance from the source to the detector line.
+    c : float
+        Aspect ratio Dx / Dy.
+
+    Returns
+    -------
+    tuple[float, float]
+        Image dimensions (Dx, Dy).
+    """
+    (Md, Mx, My) = M
+
+    s_max = _fanbeam_t_to_s(abs(Md) + Dd / 2, RE, R)
+
+    Dx = 2 * (abs(Mx) + s_max)
+    Dy = 2 * (abs(My) + s_max)
+
+    Dx = max(Dx, c * Dy)
+    Dy = Dx / c
+    return (Dx, Dy)
+
+
+def valid_detector_given_image_fanbeam(
+    M: tuple[float, float, float],
+    D: tuple[float, float],
+    RE: float,
+    R: float,
+) -> float | None:
+    """Largest detector so every ray hitting it passes through the image.
+
+    Fan-beam variant (full circle).  With L = min(Dx/2 - |Mx|, Dy/2 - |My|)
+    the result is Dd = 2 * (L * R / sqrt(RE^2 - L^2) - |Md|).
+
+    Parameters
+    ----------
+    M : (Md, Mx, My)
+        Detector center offset and image center coordinates.
+    D : (Dx, Dy)
+        Physical image dimensions.
+    RE : float
+        Distance from the source to the rotation center.
+    R : float
+        Orthogonal distance from the source to the detector line.
+
+    Returns
+    -------
+    float or None
+        Detector width Dd, or None if no valid geometry exists.
+    """
+    (Md, Mx, My) = M
+    (Dx, Dy) = D
+
+    L = min(Dx / 2 - abs(Mx), Dy / 2 - abs(My))
+    if L <= 0 or L >= RE:
+        return None
+
+    Dd = 2 * (_fanbeam_s_to_t(L, RE, R) - abs(Md))
     if Dd <= 0:
         return None
     return Dd

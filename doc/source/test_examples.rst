@@ -56,3 +56,14 @@ Fanbeam transform
 .. autofunction:: tests.test_fanbeam.test_conjugate_gradients()
 .. autofunction:: tests.test_fanbeam.test_total_variation()
 .. autofunction:: tests.test_fanbeam.test_create_sparse_matrix()
+
+
+Geometry visualization
+----------------------
+
+.. module:: tests.test_show_geometry
+
+.. autofunction:: tests.test_show_geometry.test_show_geometry_single_operator()
+.. autofunction:: tests.test_show_geometry.test_show_geometry_extent_placeholders()
+.. autofunction:: tests.test_show_geometry.test_show_geometry_reversed_detector()
+.. autofunction:: tests.test_show_geometry.test_show_geometry_several_angles()
