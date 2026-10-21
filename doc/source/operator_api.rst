@@ -374,7 +374,8 @@ and stops the iteration by returning ``True``:
     x = landweber(R, sino, 100, operator_norm=norm, x0=x)   # continue
 
 As in :func:`gratopy.total_variation`, the total-variation reconstruction is
-constrained to be nonnegative.
+constrained to be nonnegative. See :doc:`reconstruction_examples` for worked
+examples.
 
 Class structure
 ---------------
