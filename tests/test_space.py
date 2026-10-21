@@ -185,3 +185,41 @@ def test_spaces_survive_copies_without_device_buffers(queue):
     copied = copy.deepcopy(R)
     assert copied.codomain == R.codomain
     assert copied.codomain._device_weights == {}
+
+
+def test_norm_estimate_is_a_monotone_lower_bound_in_weighted_spaces():
+    rng = np.random.default_rng(5)
+    matrix = rng.standard_normal((40, 30))
+    domain_weights = rng.uniform(0.01, 100.0, 30)
+    codomain_weights = rng.uniform(0.1, 10.0, 40)
+
+    class WeightedMatrix(Operator):
+        def apply_to(self, argument, output=None, **kwargs):
+            return matrix @ argument
+
+        def apply_adjoint_to(self, argument, output=None, **kwargs):
+            return (matrix.T @ (codomain_weights * argument)) / domain_weights
+
+    operator = WeightedMatrix(
+        input_shape=(30,),
+        output_shape=(40,),
+        domain=Space((30,), axis_weights=(0, domain_weights)),
+        codomain=Space((40,), axis_weights=(0, codomain_weights)),
+    )
+    exact = np.linalg.norm(
+        np.sqrt(codomain_weights)[:, None] * matrix / np.sqrt(domain_weights)[None, :],
+        ord=2,
+    )
+
+    estimates = [
+        operator.norm_estimate(
+            number_iterations=k, dtype=np.float64, rng=np.random.default_rng(0)
+        )
+        for k in range(1, 31)
+    ]
+    assert np.all(np.diff(estimates) >= -1e-12 * exact)
+    assert max(estimates) <= exact * (1 + 1e-12)
+    converged = operator.norm_estimate(
+        number_iterations=300, dtype=np.float64, rng=np.random.default_rng(0)
+    )
+    assert converged == pytest.approx(exact, rel=1e-8)

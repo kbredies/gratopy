@@ -221,7 +221,11 @@ class Operator:
         input_shape:
             Shape of the starting vector. Defaults to :attr:`input_shape`.
         algorithm:
-            ``"poweriteration"`` applies power iteration to ``self.T * self``.
+            ``"poweriteration"`` applies power iteration to ``self.T * self``,
+            normalizing in the norm of :attr:`domain` (Euclidean if
+            unspecified). The norm is taken with respect to the operator's
+            spaces; if :attr:`T` is the adjoint in these spaces, each iterate
+            is a lower bound of the norm (up to rounding).
             ``"naive"`` combines power-iteration estimates for expression leaves
             using the triangle inequality for sums and submultiplicativity for
             compositions. Since leaf norms are themselves estimates, the result
@@ -295,8 +299,11 @@ class Operator:
         if rng is None:
             rng = np.random.default_rng()
 
+        # .T is self-adjoint with respect to the domain's inner product, so
+        # normalizing in that norm makes every iterate a lower bound of the norm.
+        space = self.domain if self.domain is not None else Space(tuple(input_shape))
         x = np.asarray(rng.standard_normal(input_shape), dtype=dtype)
-        x_norm = self._vector_norm(x)
+        x_norm = space.norm(x)
         if x_norm == 0:
             return 0.0
         x = x / x_norm
@@ -314,7 +321,7 @@ class Operator:
                 if queue is not None
                 else adjoint.apply_to(y, **kwargs)
             )
-            z_norm = adjoint._vector_norm(z)
+            z_norm = space.norm(z)
             if z_norm == 0:
                 return 0.0
 
@@ -324,10 +331,6 @@ class Operator:
             x = z / z_norm
 
         return estimate
-
-    def _vector_norm(self, vector: Any) -> float:
-        """Compute a vector norm using this operator's array backend."""
-        return float(np.linalg.norm(vector))
 
     def apply_to(
         self,
@@ -436,9 +439,6 @@ class AdjointOperator(Operator):
     def _naive_norm_estimate(self, **kwargs: Any) -> float | None:
         return self.operand._naive_norm_estimate(**kwargs)
 
-    def _vector_norm(self, vector: Any) -> float:
-        return self.operand._vector_norm(vector)
-
     def apply_to(self, argument: Any, output: Any | None = None, **kwargs: Any) -> Any:
         return self.operand.apply_adjoint_to(argument, output=output, **kwargs)
 
@@ -507,9 +507,6 @@ class ScaledOperator(Operator):
         return abs(float(self.scalar)) * self.operand.norm_estimate(
             algorithm="naive", **kwargs
         )
-
-    def _vector_norm(self, vector: Any) -> float:
-        return self.operand._vector_norm(vector)
 
     def _apply_scaled(
         self,
@@ -586,9 +583,6 @@ class SumOperator(Operator):
             operand.norm_estimate(algorithm="naive", **kwargs)
             for operand in self.operands
         )
-
-    def _vector_norm(self, vector: Any) -> float:
-        return self.operands[0]._vector_norm(vector)
 
     def _apply_sum(
         self,
@@ -676,9 +670,6 @@ class CompositionOperator(Operator):
             operand.norm_estimate(algorithm="naive", **kwargs)
             for operand in self.operands
         )
-
-    def _vector_norm(self, vector: Any) -> float:
-        return self.operands[0]._vector_norm(vector)
 
     def _apply_composition(
         self,
