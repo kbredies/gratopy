@@ -43,6 +43,7 @@ from typing import TYPE_CHECKING, Any
 from gratopy.gratopy import fanbeam_struct, radon_struct
 from gratopy.operator._geometry import ProjectionGeometry, plot_projection_geometry
 from gratopy.operator.opencl import OpenCLKernelSpec, _OpenCLOperator
+from gratopy.operator.space import Space
 from gratopy.utilities import (
     Angles,
     Detectors,
@@ -87,6 +88,7 @@ class _ProjectionOperator(_OpenCLOperator):
         )
         self._host_struct: dict[str, Any] | None = None
         self._device_struct: dict[tuple[cl.Context, np.dtype], dict[str, Any]] = {}
+        self._spaces: tuple[Space, Space] | None = None
         self.input_shape = self.image_domain.size
         self.output_shape = (self.detectors.number, len(self.angles))
 
@@ -119,6 +121,35 @@ class _ProjectionOperator(_OpenCLOperator):
     def _ensure_host_struct(self, queue: cl.CommandQueue) -> None:
         """Populate the geometry-specific host structure."""
         raise NotImplementedError
+
+    def _default_domain(self) -> Space:
+        return self._projection_spaces()[0]
+
+    def _default_codomain(self) -> Space:
+        return self._projection_spaces()[1]
+
+    def _projection_spaces(self) -> tuple[Space, Space]:
+        """Return the image and sinogram spaces the adjoint refers to.
+
+        Images carry the pixel area :math:`\\delta_x^2`, sinograms the detector
+        pixel width :math:`\\delta_s` and the angle weights.
+        """
+        if self._spaces is None:
+            image_extent = self.image_domain.extent
+            detector_extent = self.detectors.extent
+            assert not isinstance(image_extent, ExtentPlaceholder)
+            assert not isinstance(detector_extent, ExtentPlaceholder)
+            delta_x = float(image_extent) / max(self.image_domain.size)
+            delta_s = float(detector_extent) / self.detectors.number
+            self._spaces = (
+                Space(self.image_domain.size, scale=delta_x**2),
+                Space(
+                    (self.detectors.number, len(self.angles)),
+                    scale=delta_s,
+                    axis_weights=(1, self.angles.weights),
+                ),
+            )
+        return self._spaces
 
     def _geometry_at(self, angles: npt.ArrayLike | None = None) -> ProjectionGeometry:
         """Return the physical geometry of the operator at the given angles.

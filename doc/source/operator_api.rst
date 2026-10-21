@@ -318,6 +318,28 @@ leaf norms are currently obtained from finite power iterations and are not
 themselves certified upper bounds. The resulting combined value is therefore a
 heuristic unless certified bounds are available for every leaf.
 
+Function spaces
+---------------
+
+Every operator has a :attr:`~gratopy.operator.base.Operator.domain` and a
+:attr:`~gratopy.operator.base.Operator.codomain`, given as
+:class:`gratopy.operator.space.Space` objects (or ``None`` if unspecified,
+which solvers treat as Euclidean). A space carries the weighted inner product
+in which :attr:`T` is the adjoint. For projection operators, images are
+weighted by the pixel area :math:`\delta_x^2` and sinograms by the detector
+pixel width :math:`\delta_s` and the angle weights:
+
+.. code-block:: python
+
+    residual = R.codomain.norm(R * x - sino)       # physically weighted norm
+    pairing = R.domain.inner(x, R.T * sino)        # equals R.codomain.inner(R * x, sino)
+
+Spaces propagate through operator algebra: the adjoint swaps domain and
+codomain, compositions take the domain of their last and the codomain of their
+first operand, and combining operators with different (specified) spaces
+raises a :class:`ValueError`. Custom operators can declare their spaces via
+``domain=`` and ``codomain=`` or by assigning the attributes.
+
 Class structure
 ---------------
 

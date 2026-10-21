@@ -10,6 +10,7 @@ from weakref import ReferenceType, ref
 import numpy as np
 import numpy.typing as npt
 
+from gratopy.operator.space import Space
 from gratopy.utilities import Numeric
 
 
@@ -55,6 +56,26 @@ def _compute_product_shapes(
     return input_shape, output_shape
 
 
+def _common_space(spaces: Sequence[Space | None], description: str) -> Space | None:
+    """Return the common specified space, raising if specified spaces differ."""
+    common = None
+    for space in spaces:
+        if space is None:
+            continue
+        if common is not None and space != common:
+            raise ValueError(f"{description} mismatch: {common} and {space}")
+        common = space
+    return common
+
+
+def _validate_product_spaces(operands: Sequence[Operator]) -> None:
+    for left, right in zip(operands, operands[1:]):
+        _common_space(
+            [left.domain, right.codomain],
+            f"Space mismatch in composition of {left} and {right}",
+        )
+
+
 def _scalar_repr(scalar: Numeric) -> str:
     scalar_repr = repr(scalar)
     if scalar < 0:
@@ -77,11 +98,17 @@ class Operator:
         state: dict[str, Any] | None = None,
         input_shape: tuple[int, ...] | None = None,
         output_shape: tuple[int, ...] | None = None,
+        domain: Space | None = None,
+        codomain: Space | None = None,
     ):
         self.name = self.__class__.__name__ if name is None else name
         self.state = {} if state is None else state
         self.input_shape = input_shape
         self.output_shape = output_shape
+        self._domain: Space | None = None
+        self._codomain: Space | None = None
+        self.domain = domain
+        self.codomain = codomain
         self._adjoint_ref: ReferenceType[AdjointOperator] | None = None
 
     def __getstate__(self) -> dict[str, Any]:
@@ -89,6 +116,56 @@ class Operator:
         state = self.__dict__.copy()
         state["_adjoint_ref"] = None
         return state
+
+    @property
+    def domain(self) -> Space | None:
+        """Space of the operator's inputs, or ``None`` if unspecified.
+
+        Solvers treat an unspecified space as Euclidean.
+        """
+        if self._domain is not None:
+            return self._domain
+        return self._default_domain()
+
+    @domain.setter
+    def domain(self, space: Space | None) -> None:
+        self._domain = self._checked_space(space, self.input_shape, "domain")
+
+    @property
+    def codomain(self) -> Space | None:
+        """Space of the operator's outputs, or ``None`` if unspecified."""
+        if self._codomain is not None:
+            return self._codomain
+        return self._default_codomain()
+
+    @codomain.setter
+    def codomain(self, space: Space | None) -> None:
+        self._codomain = self._checked_space(space, self.output_shape, "codomain")
+
+    @staticmethod
+    def _checked_space(
+        space: Space | None,
+        shape: tuple[int, ...] | None,
+        description: str,
+    ) -> Space | None:
+        if space is None:
+            return None
+        if not isinstance(space, Space):
+            raise TypeError(f"{description} must be a Space, got {type(space)}")
+        if shape is not None and space.shape != tuple(shape):
+            raise ValueError(
+                f"The {description} shape {space.shape} does not match the "
+                f"operator shape {tuple(shape)}"
+            )
+        return space
+
+    def _default_domain(self) -> Space | None:
+        """Return the domain implied by the operator's structure."""
+        return None
+
+    def _default_codomain(self) -> Space | None:
+        """Return the codomain implied by the operator's structure."""
+        return None
 
     def _repr_name_(self) -> str:
         """Return the operator name used in string representations."""
@@ -334,6 +411,12 @@ class AdjointOperator(Operator):
     def operand(self) -> Operator:
         return self._operand
 
+    def _default_domain(self) -> Space | None:
+        return self.operand.codomain
+
+    def _default_codomain(self) -> Space | None:
+        return self.operand.domain
+
     @property
     def T(self) -> Operator:
         """The adjoint of an adjoint is the underlying operator."""
@@ -384,6 +467,12 @@ class ScaledOperator(Operator):
     @property
     def operand(self) -> Operator:
         return self._operand
+
+    def _default_domain(self) -> Space | None:
+        return self.operand.domain
+
+    def _default_codomain(self) -> Space | None:
+        return self.operand.codomain
 
     @classmethod
     def create(cls, scalar: Numeric, operand: Operator) -> Operator:
@@ -455,12 +544,20 @@ class SumOperator(Operator):
 
     def __init__(self, operands: tuple[Operator, ...]):
         input_shape, output_shape = _compute_sum_shapes(operands)
+        _common_space([op.domain for op in operands], "Domain in sum")
+        _common_space([op.codomain for op in operands], "Codomain in sum")
         super().__init__(input_shape=input_shape, output_shape=output_shape)
         self._operands = operands
 
     @property
     def operands(self) -> tuple[Operator, ...]:
         return self._operands
+
+    def _default_domain(self) -> Space | None:
+        return _common_space([op.domain for op in self.operands], "Domain in sum")
+
+    def _default_codomain(self) -> Space | None:
+        return _common_space([op.codomain for op in self.operands], "Codomain in sum")
 
     @classmethod
     def create(cls, *operators: Operator) -> Operator:
@@ -530,12 +627,19 @@ class CompositionOperator(Operator):
 
     def __init__(self, operands: tuple[Operator, ...]):
         input_shape, output_shape = _compute_product_shapes(operands)
+        _validate_product_spaces(operands)
         super().__init__(input_shape=input_shape, output_shape=output_shape)
         self._operands = operands
 
     @property
     def operands(self) -> tuple[Operator, ...]:
         return self._operands
+
+    def _default_domain(self) -> Space | None:
+        return self.operands[-1].domain
+
+    def _default_codomain(self) -> Space | None:
+        return self.operands[0].codomain
 
     @classmethod
     def create(cls, *operators: Operator) -> Operator:
