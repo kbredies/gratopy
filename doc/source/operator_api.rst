@@ -340,6 +340,42 @@ first operand, and combining operators with different (specified) spaces
 raises a :class:`ValueError`. Custom operators can declare their spaces via
 ``domain=`` and ``codomain=`` or by assigning the attributes.
 
+Reconstruction
+--------------
+
+:mod:`gratopy.reconstruction` provides the reconstruction algorithms
+:func:`~gratopy.reconstruction.landweber`,
+:func:`~gratopy.reconstruction.conjugate_gradients`, and
+:func:`~gratopy.reconstruction.total_variation`. They take the operator first
+and work with any operator, including expressions and custom operators:
+
+.. code-block:: python
+
+    from gratopy.reconstruction import landweber, conjugate_gradients, total_variation
+
+    x_lw = landweber(R, sino, 200)
+    x_cg = conjugate_gradients(R, sino, 50, epsilon=1e-4)
+    x_tv = total_variation(R, sino, mu=20.0, number_iterations=2000)
+
+Inputs follow the operator conventions: the queue is taken from ``queue=``,
+the data, or ``x0``; dtype and memory order follow the data; trailing
+dimensions are treated as a stack of slices. The algorithms never print
+progress. Instead, ``callback(iteration, x)`` is called after every iteration
+and stops the iteration by returning ``True``:
+
+.. code-block:: python
+
+    def monitor(iteration, x):
+        if iteration % 10 == 0:               # each check synchronizes with the host
+            return R.codomain.norm(R * x - sino) < 1e-3 * R.codomain.norm(sino)
+
+    norm = R.norm_estimate(queue=queue)       # estimate once, reuse across calls
+    x = landweber(R, sino, 1000, operator_norm=norm, callback=monitor)
+    x = landweber(R, sino, 100, operator_norm=norm, x0=x)   # continue
+
+As in :func:`gratopy.total_variation`, the total-variation reconstruction is
+constrained to be nonnegative.
+
 Class structure
 ---------------
 

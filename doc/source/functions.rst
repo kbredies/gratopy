@@ -98,6 +98,12 @@ Function spaces
    :members:
    :show-inheritance:
 
+Reconstruction algorithms
+-------------------------
+
+.. automodule:: gratopy.reconstruction
+   :members:
+
 OpenCL-backed operator helpers
 ------------------------------
 
