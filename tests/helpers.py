@@ -132,3 +132,91 @@ def create_phantoms(queue, N, dtype: str | np.typing.DTypeLike = "double", order
         queue, np.require(np.stack([A.get(), B.get()], axis=-1), dtype, order)
     )
     return img
+
+
+# -- Fan-beam ray tracing (full circle), used to check extent placeholders ----
+
+
+def _fanbeam_frames(source_origin_dist, n_angles):
+    """Return source positions and unit vectors towards/along the detector."""
+    phi = np.linspace(0, 2 * np.pi, n_angles, endpoint=False)
+    towards_detector = -np.stack([np.cos(phi), np.sin(phi)])
+    source = -source_origin_dist * towards_detector
+    detector_axis = np.stack([-towards_detector[1], towards_detector[0]])
+    return source, towards_detector, detector_axis
+
+
+def fanbeam_detector_covers_image(
+    image_center,
+    image_dims,
+    detector_center,
+    detector_width,
+    source_origin_dist,
+    source_detector_dist,
+    n_angles=720,
+    n_points=41,
+):
+    """Return whether every ray through the image also hits the detector.
+
+    Rays from each source position through points on the image boundary are
+    traced to the flat detector; their positions must stay inside
+    ``[detector_center - detector_width/2, detector_center + detector_width/2]``.
+    """
+    (Mx, My) = image_center
+    (Dx, Dy) = image_dims
+    xs = np.linspace(Mx - Dx / 2, Mx + Dx / 2, n_points)
+    ys = np.linspace(My - Dy / 2, My + Dy / 2, n_points)
+    boundary = np.concatenate(
+        [
+            np.stack([xs, np.full_like(xs, ys[0])]),
+            np.stack([xs, np.full_like(xs, ys[-1])]),
+            np.stack([np.full_like(ys, xs[0]), ys]),
+            np.stack([np.full_like(ys, xs[-1]), ys]),
+        ],
+        axis=1,
+    )
+    source, towards_detector, detector_axis = _fanbeam_frames(
+        source_origin_dist, n_angles
+    )
+    relative = boundary[:, None, :] - source[:, :, None]
+    positions = (
+        source_detector_dist
+        * np.einsum("ka,kap->ap", detector_axis, relative)
+        / np.einsum("ka,kap->ap", towards_detector, relative)
+    )
+    return bool(
+        positions.min() >= detector_center - detector_width / 2
+        and positions.max() <= detector_center + detector_width / 2
+    )
+
+
+def fanbeam_image_meets_detector_rays(
+    image_center,
+    image_dims,
+    detector_center,
+    detector_width,
+    source_origin_dist,
+    source_detector_dist,
+    n_angles=720,
+    n_detectors=81,
+):
+    """Return whether every ray hitting the detector also passes the image."""
+    (Mx, My) = image_center
+    (Dx, Dy) = image_dims
+    source, towards_detector, detector_axis = _fanbeam_frames(
+        source_origin_dist, n_angles
+    )
+    t = np.linspace(
+        detector_center - detector_width / 2,
+        detector_center + detector_width / 2,
+        n_detectors,
+    )
+    direction = (
+        source_detector_dist * towards_detector[:, :, None]
+        + t[None, None, :] * detector_axis[:, :, None]
+    )
+    normal = np.stack([-direction[1], direction[0]]) / np.hypot(*direction)
+    offset = (normal * source[:, :, None]).sum(axis=0)
+    center_offset = normal[0] * Mx + normal[1] * My
+    half_width = Dx / 2 * np.abs(normal[0]) + Dy / 2 * np.abs(normal[1])
+    return bool(np.all(np.abs(offset - center_offset) <= half_width))

@@ -1,41 +1,31 @@
 Operator syntax
 ===============
 
-The operator API provides a more compositional interface to gratopy's
-projection operators. It is currently **experimental** and primarily focused on
-parallel-beam Radon transforms.
+The experimental operator API provides a compositional interface to gratopy's
+parallel-beam and fan-beam projections. It is designed for projection geometry,
+adjoints, operator arithmetic, reusable outputs, and custom OpenCL kernels.
 
-The legacy :class:`gratopy.ProjectionSettings` API remains the main documented
-interface for the full feature set of gratopy. The operator API complements it
-with a syntax that is often more convenient when working with operator algebra,
-adjoint operators, and experimental kernels.
+Available projection operators
+------------------------------
 
-.. warning::
+The following projection discretizations are available:
 
-   The operator API is **experimental**. Backward-incompatible changes may be
-   introduced without a full deprecation cycle while the interface and internal
-   abstractions are still settling.
+- :class:`gratopy.operator.projection.Radon` uses the pixel-driven
+  parallel-beam kernels.
+- :class:`gratopy.operator.projection.RayDrivenRadon` uses ray-driven
+  parallel-beam kernels.
+- :class:`gratopy.operator.projection.StripDrivenRadon` uses strip-driven
+  parallel-beam kernels.
+- :class:`gratopy.operator.projection.Fanbeam` uses the pixel-driven fan-beam
+  kernels.
+- :class:`gratopy.operator.projection.RayDrivenFanbeam` uses ray-driven
+  fan-beam kernels.
 
-   Extent placeholders such as
-   :class:`gratopy.utilities.ExtentPlaceholder` are supported experimentally
-   for Radon operators when exactly one of the image or detector extents is a
-   placeholder. Passing placeholders for both extents at once remains
-   unsupported and raises :class:`NotImplementedError`.
-
-Current scope
--------------
-
-The current operator API supports in particular:
-
-- the :class:`gratopy.operator.projection.Radon` operator,
-- adjoints via :attr:`T`,
-- operator composition and arithmetic,
-- custom OpenCL kernels via :class:`gratopy.operator.opencl.OpenCLKernelSpec`.
-
-At the moment, the operator API should be understood as **Radon-only** for
-execution. The exported ``Fanbeam`` class is currently a non-executable
-placeholder for the future operator port; use the legacy API for fanbeam
-projections.
+Every projection operator provides its adjoint through :attr:`T` and supports
+composition, addition, scaling, output reuse, norm estimation, and custom
+kernels through :class:`gratopy.operator.opencl.OpenCLKernelSpec`. Expressions
+share the immutable geometry and OpenCL runtime caches of their projection
+leaves.
 
 Quick example
 -------------
@@ -60,6 +50,29 @@ A Radon transform and its adjoint can be used as follows:
     sino = R.apply_to(img, queue=queue)
     backprojection = R.T.apply_to(sino)
 
+A fan-beam transform is defined by an explicit detector geometry, the
+source-to-detector distance, and the source-to-origin distance:
+
+.. code-block:: python
+
+    from gratopy.utilities import Detectors
+
+    F = gratopy.operator.Fanbeam(
+        image_domain=Nx,
+        angles=360,
+        detectors=Detectors(number=192, extent=3.0),
+        source_detector_distance=8.0,
+        source_origin_distance=4.0,
+    )
+    fan_sino = F.apply_to(img, queue=queue)
+    fan_backprojection = F.T.apply_to(fan_sino)
+
+``source_detector_distance`` measures the orthogonal distance from the source
+to the detector line. ``source_origin_distance`` measures the distance from the
+source to the rotation center. The source-to-detector distance is larger than
+the source-to-origin distance, and the source lies outside the image domain.
+Integer angle counts produce a full-circle sampling for fan-beam operators.
+
 The same operations can be written with operator syntax when the arrays
 already reside on the OpenCL device:
 
@@ -69,13 +82,11 @@ already reside on the OpenCL device:
     sino = R * device_img
     backprojection = R.T * sino
 
-Queue selection is deterministic and does not depend on earlier applications.
-An explicit ``queue=`` takes precedence; otherwise the queue is inferred from
-a device argument or device output. Consequently, every application to a
-NumPy array must either receive ``queue=`` explicitly or receive a
-caller-provided :class:`pyopencl.array.Array` output. The multiplication
-shorthand has no place to pass a queue and is therefore intended for device
-arrays.
+Queue selection follows a fixed precedence: an explicit ``queue=`` is used
+first, followed by the queue associated with a device argument and then the
+queue associated with a device output. Apply NumPy arrays with ``queue=`` or a
+caller-provided :class:`pyopencl.array.Array` output. Device arrays support the
+multiplication shorthand because they carry their queue.
 
 Output reuse and events
 -----------------------
@@ -90,9 +101,8 @@ iterative code can provide a compatible device output instead:
 
 Compositions forward ``output`` to their final operation, while sums write
 their first summand directly into it before accumulating the remaining terms.
-Composite intermediates may still be allocated internally. Reusing outputs is
-recommended in long iterative loops; retaining every newly returned output
-necessarily retains the corresponding device memory.
+Intermediate results use temporary device arrays. Reusing outputs is
+recommended in allocation-sensitive iterative loops.
 
 OpenCL execution is asynchronous. Passing ``return_event=True`` returns
 ``(result, events)`` with the result's current event list in addition to
@@ -156,19 +166,16 @@ operator:
         detectors=Detectors(number=220, extent=3.0, center=0.15),
     )
 
-This explicit style is particularly useful when experimenting with geometry in
-Python code, because image domain, angles, and detector settings become
-immutable first-class values that can be safely reused by multiple operators.
-To change a detector or image setting, construct a new value, for example with
-:func:`dataclasses.replace`. ``Angles`` makes private copies of its input arrays
-and exposes them read-only so subsequent changes to caller-owned arrays cannot
-invalidate an operator's cached geometry.
+Image domains, angles, and detector settings are immutable values that can be
+reused by multiple operators. Construct modified geometry with a new value, for
+example by using :func:`dataclasses.replace`. ``Angles`` stores private,
+read-only copies of its angle and weight arrays.
 
-Extent placeholders
--------------------
+Extent inference
+----------------
 
-For Radon operators, one physical extent can be inferred from the other by
-using :class:`gratopy.utilities.ExtentPlaceholder`. This is useful when one
+One physical extent can be inferred from the other by using
+:class:`gratopy.utilities.ExtentPlaceholder`. This is useful when one
 wants either the smallest detector covering a fixed image domain, or the
 largest image domain covered by a fixed detector.
 
@@ -194,20 +201,74 @@ Conversely, the image extent can be inferred from a fixed detector extent:
         detectors=Detectors(number=200, extent=2.0),
     )
 
-Only one side may use an extent placeholder at a time. Passing placeholders for
-both the image and detector extents is unsupported and raises
-:class:`NotImplementedError`. If the requested placeholder semantics are
-geometrically impossible for the supplied centers and fixed extent, construction
-raises :class:`ValueError`.
+Fan-beam operators support placeholders in the same way:
+
+.. code-block:: python
+
+    F = gratopy.operator.Fanbeam(
+        image_domain=ImageDomain(size=128, extent=2.0),
+        angles=360,
+        detectors=Detectors(number=192, extent=ExtentPlaceholder.FULL),
+        source_detector_distance=8.0,
+        source_origin_distance=4.0,
+    )
+
+Use one placeholder together with one numeric extent. ``FULL`` chooses the
+extent such that every ray through the image domain hits the detector, while
+``VALID`` chooses it such that every ray hitting the detector intersects the
+image domain. If no such extent exists for the configured image and detector
+centers, construction raises a :class:`ValueError`.
+
+Radon placeholders take the angular coverage into account, as given by the
+``half_circle`` flag of :class:`~gratopy.utilities.Angles`. Fan-beam
+placeholders are always resolved for a full-circle scan; for limited-angle
+fan-beam scans, choose numeric extents explicitly.
+
+Geometry visualization
+----------------------
+
+Projection operators can draw their physical geometry via
+:meth:`~gratopy.operator.projection._ProjectionOperator.show_geometry`. The
+drawing shows the image domain, the detector (with an arrow towards increasing
+pixel indices, a marker at pixel 0 and a tick at the detector center), sample
+rays and, for fan beams, the source and its trajectory. Rays missing the image
+domain are drawn dashed in red, which makes it easy to check the coverage
+resulting from an :class:`~gratopy.utilities.ExtentPlaceholder`. No OpenCL
+queue is required.
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
+
+    F = gratopy.operator.Fanbeam(
+        image_domain=ImageDomain(size=128, extent=ExtentPlaceholder.VALID),
+        angles=360,
+        detectors=Detectors(number=192, extent=3.0),
+        source_detector_distance=8.0,
+        source_origin_distance=4.0,
+    )
+    F.show_geometry()          # first angle of the operator, in a new figure
+    plt.show()
+
+Several angles are overlaid in one axes, and existing axes can be drawn into,
+e.g., to compare geometries side by side:
+
+.. code-block:: python
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5), layout="constrained")
+    R.show_geometry(np.pi / 4, ax=axes[0], legend=False)
+    F.show_geometry([0.0, np.pi / 2], ax=axes[1], legend=False)
+    plt.show()
 
 Adjoint convention
 ------------------
 
-The Radon adjoint uses the same weighted discretization as the legacy API.
-Angular quadrature weights from :class:`gratopy.utilities.Angles` are included
-in the backprojection kernel. Thus ``R.T`` denotes the adjoint with respect to
-gratopy's physical image and sinogram pairings; it is not generally the plain
-Euclidean transpose of the unweighted forward-projection matrix.
+Projection adjoints are defined with respect to gratopy's physical image and
+sinogram pairings. Angular quadrature weights from
+:class:`gratopy.utilities.Angles` are included in each backprojection kernel.
+Consequently, ``R.T`` and ``F.T`` can be used directly in variational methods
+and normal operators such as ``R.T * R`` with the configured quadrature.
 
 Operator algebra
 ----------------
@@ -260,12 +321,7 @@ heuristic unless certified bounds are available for every leaf.
 Class structure
 ---------------
 
-The operator implementation is intentionally layered in a small number of
-classes.
-
-As an **experimental** interface, the operator API may still change in
-backward-incompatible ways without a full deprecation cycle while the design is
-settling.
+The operator implementation is layered in a small number of classes.
 
 :class:`gratopy.operator.base.Operator`
     Provides the common operator interface and constructs dedicated adjoint,
@@ -277,9 +333,11 @@ settling.
     execution plumbing such as queue inference, array coercion, output
     allocation, program cacheing, and kernel lookup.
 
-:class:`gratopy.operator.projection.Radon`
-    Concrete Radon transform operator. It owns its operator state,
-    geometry-specific preparation, and binds these to the OpenCL kernels.
+:class:`gratopy.operator.projection.Radon` and :class:`gratopy.operator.projection.Fanbeam`
+    Concrete projection operators. They own immutable geometry state,
+    geometry-specific preparation, and bindings to the OpenCL kernels. The
+    ray- and strip-driven classes are dedicated subclasses selecting alternate
+    kernel bundles while preserving the same execution and cache lifecycle.
 
 This separation keeps the generic algebra in :mod:`gratopy.operator.base`
 backend-agnostic while concentrating OpenCL-specific behavior in a gratopy-
@@ -297,10 +355,8 @@ after its last operator lease disappears. Adjoint and composite expressions
 retain their concrete leaves and therefore participate in the same lifecycle.
 
 Kernel instances are local to each calling thread because OpenCL kernel
-arguments are mutable. Threads share the compiled program but not argument
-state. This protects kernel argument setup, but it does not yet constitute a
-guarantee that complete operators can be applied concurrently: other lazy
-runtime caches still require a dedicated thread-safety pass.
+arguments are mutable. Threads share compiled programs while maintaining
+independent kernel argument state.
 
 The registry can be invalidated explicitly when required:
 
@@ -382,17 +438,3 @@ static input/output shapes. The shared OpenCL implementation dispatches the
 forward and adjoint kernels through :meth:`apply_to` and
 :meth:`apply_adjoint_to`; :attr:`T` is an adjoint expression wrapper around the
 same concrete operator and therefore shares its runtime caches.
-
-Limitations and status
-----------------------
-
-The operator API is still evolving. In particular:
-
-- only :class:`gratopy.operator.projection.Radon` currently has an executable
-  operator implementation; ``Fanbeam`` remains a placeholder,
-- extent placeholders are currently supported experimentally for Radon
-  operators when exactly one of the image or detector extents is a placeholder,
-- higher-level solver interfaces are still centered around the legacy API.
-
-For the full and mature feature set of gratopy, the legacy API documented in
-:doc:`getting_started` and :doc:`functions` remains the main reference.

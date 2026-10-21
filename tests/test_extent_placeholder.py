@@ -1,4 +1,4 @@
-"""Tests for ExtentPlaceholder resolution in the Radon operator.
+"""Tests for ExtentPlaceholder resolution in the Radon and Fanbeam operators.
 
 These tests verify that ExtentPlaceholder.FULL and ExtentPlaceholder.VALID
 are correctly resolved to concrete float values when constructing a Radon
@@ -25,12 +25,18 @@ transforms, so they act as regression guards. Over the full circle the
 resolution depends only on |Mx|, |My|, |Md| (no sign / case distinction), so
 all four image-center sign variants share the same expected value.
 Comparison uses an absolute tolerance of 0.02.
+
+The Fanbeam operator is exercised on the same grid of centers and side
+ratios. Its placeholders are always resolved for the full circle, and the
+resolved extents are checked by ray tracing instead of reference tables.
 """
 
 import pytest
 
-from gratopy.operator import Radon
+from gratopy.operator import Fanbeam, Radon
 from gratopy.utilities import Angles, Detectors, ExtentPlaceholder, ImageDomain
+
+from .helpers import fanbeam_detector_covers_image, fanbeam_image_meets_detector_rays
 
 
 Nx = 400
@@ -965,3 +971,138 @@ def test_image_extent_placeholder_fullcircle(
             f"image_center={image_center}: "
             f"expected {expected}, got {radon.image_domain.extent}"
         )
+
+
+# -- Fan-beam (always resolved for the full circle) ---------------------------
+#
+# Instead of reference tables, every resolved Fanbeam geometry is checked by
+# ray tracing: the coverage condition must hold, and must break once the
+# resolved extent is changed by FANBEAM_SLACK. Where resolution fails, ray
+# tracing must confirm that no extent can satisfy the condition.
+
+FANBEAM_RE = 4.0
+FANBEAM_R = 8.0
+FANBEAM_SLACK = 1.05
+FANBEAM_POINT = 1e-6
+# The fixed extents are chosen so that the grid mixes resolvable and
+# infeasible cases in both directions (the parallel-beam values 2.0 would make
+# every FULL image case and, for Ny/Nx = 1.7, every off-center VALID detector
+# case infeasible, since the fan magnifies by R / RE = 2):
+# - image extent 2.5: VALID detector infeasible only for Ny/Nx = 1.7 and
+#   |detector_center| = 0.5 (8 cases),
+# - detector extent 3.0: FULL image infeasible only for
+#   |detector_center| = 0.5 (24 cases).
+FANBEAM_IMAGE_EXTENT = 2.5
+FANBEAM_DETECTOR_EXTENT = 3.0
+
+
+def _fanbeam_cases():
+    """Yield (placeholder, side_ratio, detector_center, image_center)."""
+    for placeholder in [ExtentPlaceholder.VALID, ExtentPlaceholder.FULL]:
+        for sr in SIDE_RATIOS:
+            for dc in DETECTOR_CENTERS:
+                for ic in IMAGE_CENTERS:
+                    yield placeholder, sr, dc, ic
+
+
+FANBEAM_CASES = list(_fanbeam_cases())
+FANBEAM_IDS = [f"{p.name}-sr{sr}-dc{dc}-ic{ic}" for p, sr, dc, ic in FANBEAM_CASES]
+
+
+def _fanbeam(image_extent, detector_extent, side_ratio, detector_center, image_center):
+    Ny = int(side_ratio * Nx)
+    return Fanbeam(
+        image_domain=ImageDomain(size=(Nx, Ny), center=image_center, extent=image_extent),
+        angles=FULL_ANGLES,
+        detectors=Detectors(number=Ns, center=detector_center, extent=detector_extent),
+        source_detector_distance=FANBEAM_R,
+        source_origin_distance=FANBEAM_RE,
+    )
+
+
+def _image_dims(extent, side_ratio):
+    Ny = int(side_ratio * Nx)
+    return (extent * Nx / max(Nx, Ny), extent * Ny / max(Nx, Ny))
+
+
+def _covers(image_center, image_dims, detector_center, detector_width):
+    return fanbeam_detector_covers_image(
+        image_center, image_dims, detector_center, detector_width, FANBEAM_RE, FANBEAM_R
+    )
+
+
+def _meets(image_center, image_dims, detector_center, detector_width):
+    return fanbeam_image_meets_detector_rays(
+        image_center, image_dims, detector_center, detector_width, FANBEAM_RE, FANBEAM_R
+    )
+
+
+@pytest.mark.parametrize(
+    "placeholder, side_ratio, detector_center, image_center",
+    FANBEAM_CASES,
+    ids=FANBEAM_IDS,
+)
+def test_detector_extent_placeholder_fanbeam(
+    placeholder, side_ratio, detector_center, image_center
+):
+    """Resolve a Fanbeam detector ExtentPlaceholder with image extent 2.5."""
+    D = _image_dims(FANBEAM_IMAGE_EXTENT, side_ratio)
+    if placeholder == ExtentPlaceholder.FULL:
+        fanbeam = _fanbeam(
+            FANBEAM_IMAGE_EXTENT, placeholder, side_ratio, detector_center, image_center
+        )
+        Dd = fanbeam.detectors.extent
+        assert _covers(image_center, D, detector_center, Dd)
+        assert not _covers(image_center, D, detector_center, Dd / FANBEAM_SLACK)
+        return
+
+    if not _meets(image_center, D, detector_center, FANBEAM_POINT):
+        # Not even the rays through the detector center always meet the image.
+        with pytest.raises(ValueError, match="VALID.*for the detector"):
+            _fanbeam(
+                FANBEAM_IMAGE_EXTENT,
+                placeholder,
+                side_ratio,
+                detector_center,
+                image_center,
+            )
+        return
+    fanbeam = _fanbeam(
+        FANBEAM_IMAGE_EXTENT, placeholder, side_ratio, detector_center, image_center
+    )
+    Dd = fanbeam.detectors.extent
+    assert _meets(image_center, D, detector_center, Dd)
+    assert not _meets(image_center, D, detector_center, Dd * FANBEAM_SLACK)
+
+
+@pytest.mark.parametrize(
+    "placeholder, side_ratio, detector_center, image_center",
+    FANBEAM_CASES,
+    ids=FANBEAM_IDS,
+)
+def test_image_extent_placeholder_fanbeam(
+    placeholder, side_ratio, detector_center, image_center
+):
+    """Resolve a Fanbeam image ExtentPlaceholder with detector extent 3.0."""
+    Dd = FANBEAM_DETECTOR_EXTENT
+    if placeholder == ExtentPlaceholder.VALID:
+        fanbeam = _fanbeam(placeholder, Dd, side_ratio, detector_center, image_center)
+        extent = fanbeam.image_domain.extent
+        D = _image_dims(extent, side_ratio)
+        smaller = _image_dims(extent / FANBEAM_SLACK, side_ratio)
+        assert _meets(image_center, D, detector_center, Dd)
+        assert not _meets(image_center, smaller, detector_center, Dd)
+        return
+
+    point = (FANBEAM_POINT, FANBEAM_POINT)
+    if not _covers(image_center, point, detector_center, Dd):
+        # Not even a point image at the image center fits the detector.
+        with pytest.raises(ValueError, match="FULL.*for the image domain"):
+            _fanbeam(placeholder, Dd, side_ratio, detector_center, image_center)
+        return
+    fanbeam = _fanbeam(placeholder, Dd, side_ratio, detector_center, image_center)
+    extent = fanbeam.image_domain.extent
+    D = _image_dims(extent, side_ratio)
+    larger = _image_dims(extent * FANBEAM_SLACK, side_ratio)
+    assert _covers(image_center, D, detector_center, Dd)
+    assert not _covers(image_center, larger, detector_center, Dd)

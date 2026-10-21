@@ -13,6 +13,7 @@ pulling OpenCL-specific concerns into :class:`gratopy.operator.base.Operator`.
 from __future__ import annotations
 
 import hashlib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from threading import RLock, local
@@ -86,10 +87,10 @@ class OpenCLKernelSpec:
     placeholders in the source files, most notably ``\\my_variable_type``,
     ``\\order1``, and ``\\order2``.
 
-    The :attr:`signature` property is content-based: it depends on the file
-    contents, their order, the base name, and the build options. This is used
-    as part of the OpenCL program cache key so that changing a kernel file on
-    disk automatically leads to recompilation when needed.
+    The :attr:`signature` property describes compiled program identity using
+    the source paths, source contents, their order, and build options. Operators
+    with the same compilation inputs share one compiled program, while
+    ``base_name`` selects a kernel family from that program.
 
     **Examples**
     Use the default shipped Radon kernels implicitly via
@@ -145,7 +146,6 @@ class OpenCLKernelSpec:
         """Read the configured sources and return them with their signature."""
         sources = self.read_sources()
         digest = hashlib.sha256()
-        digest.update(self.base_name.encode())
         for option in self.build_options:
             digest.update(b"\0")
             digest.update(option.encode())
@@ -334,6 +334,23 @@ class _OpenCLOperator(Operator):
             order=order,
             allocator=allocator,
         )
+
+    @staticmethod
+    def _upload_read_only_buffers(
+        queue: cl.CommandQueue,
+        host_arrays: Mapping[str, np.ndarray],
+    ) -> dict[str, cl.Buffer]:
+        """Upload named host arrays as immutable kernel argument buffers."""
+        device_buffers = {}
+        for name, host_array in host_arrays.items():
+            buffer = cl.Buffer(
+                queue.context,
+                cl.mem_flags.READ_ONLY,
+                host_array.nbytes,
+            )
+            cl.enqueue_copy(queue, buffer, host_array.data).wait()
+            device_buffers[name] = buffer
+        return device_buffers
 
     @staticmethod
     def _supports_double_precision(context: cl.Context) -> bool:

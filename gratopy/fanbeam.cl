@@ -566,3 +566,309 @@ __kernel void single_line_fanbeam_\my_variable_type_\order1\order2(
   sino[pos_sino_\order1(s, a, z, Ns, Na, Nz)] =
       acc * sdpd[s] / delta_xi * delta_x;
 }
+
+// Helper function for ray-driven fanbeam transforms
+real fanbeam_ray_weightfkt_\my_variable_type_\order1\order2(
+    real t, real kappa, real s_under, real s_upper, real difference) {
+  real rhs = (real)0.;
+  real epsilon = (real)0.0001;
+  if (fabs(difference) < epsilon * s_under &&
+      fabs(t) < s_upper * ((real)1. + epsilon)) {
+    rhs = (real)1.;
+    if (s_upper - fabs(t) < epsilon * s_upper) {
+      rhs = (real)0.5;
+    }
+  } else if (fabs(t) < s_under) {
+    rhs = (s_upper - s_under) / difference * kappa;
+  } else if (fabs(t) < s_upper) {
+    rhs = (s_upper - fabs(t)) / difference * kappa;
+  }
+  return rhs;
+}
+
+// Ray-driven Fanbeam transform
+// Computes the forward projection in fanbeam geometry for a given image.
+// the \my_variable_type_\order1\order2 suffix sets the kernel to the suitable
+// precision, contiguity of the sinogram, contiguity of image.
+// Input:
+//			sino: Pointer to array representing sinogram (to be
+//                            computed) with detector-dimension times angle-dimension
+//                            times z dimension
+// 			img:  Pointer to array representing image to be transformed of
+//                            dimensions Nx times Ny times Nz (img_shape=Nx times Ny)
+//			ofs:  Buffer containing geometric informations concerning
+//                            the projection directions (angular information),
+//                            The first two entries are (xd,yd) in direction along the
+//                            detector line with length delta_xi.
+//                            Third and fourth entries (qx,qy) from origin to source with
+//                            length RE.
+//                            Fifth and sixth entries (dx0,dy0) from origin to center of
+//                            detector line (orthogonal projection of origin onto
+//                            detector line).
+//     Geometry_information:  Contains various geometric quantities
+//                            relevant for the computation, more precisely
+//                            0. R/delta_x, 1. RE/delta_x, 2. delta_xi/delta_x,
+//                            3. x_mid (in image_pixels), 4. y_mid (in image_pixels),
+//                            5. xi_midpoint (in detector_pixels), 6. Nx, 7. Ny, 8. Nxi,
+//                            9. Nphi, 10. delta_x
+// Output:
+//			values inside sino are altered to represent the computed
+//                      fanbeam transform
+__kernel void fanbeam_ray_\my_variable_type_\order1\order2(
+    __global real *sino, __global real *img, __constant real8 *ofs,
+    __constant real *Geometryinformation) {
+  // Extract geometric information
+  size_t Ns = get_global_size(0);
+  size_t Na = get_global_size(1);
+  size_t Nz = get_global_size(2);
+  int Nx = Geometryinformation[6];
+  int Ny = Geometryinformation[7];
+
+  // Extract current position
+  size_t s = get_global_id(0);
+  size_t a = get_global_id(1);
+  size_t z = get_global_id(2);
+
+  // Midpoints of geometry
+  real2 midpoint = (real2)(Geometryinformation[3], Geometryinformation[4]);
+  real midpoint_det = Geometryinformation[5];
+
+  // Physical image pixel width
+  real delta_x = Geometryinformation[10];
+
+  // Geometric information associated with a.th angle
+  real8 o = ofs[a];
+  //(xd,yd) ... vector along the detector-line with length delta_xi (the rescaled one, i.e., delta_xi/delta_x).
+  real2 dl = (real2)(o.s0, o.s1);
+  //(qx,qy) ... vector from origin to source (with length RE/delta_x).
+  real2 q = (real2)(o.s2, o.s3);
+  //(dx0,dy0) ... vector from  origin orthogonally projected onto
+  //detector-line.(with length (R-RE) /delta_x)
+  real2 d0 = (real2)(o.s4, o.s5);
+
+  // compute direction vector from source to detector pixels center.
+  real2 dp = d0 + dl * (-midpoint_det + s) - q;
+
+  real norm = hypot(dp.x, dp.y);
+  dp /= norm;
+
+  real2 ortho = (real2)(-dp.y, dp.x);
+  real ss = dot(q, ortho) * delta_x;
+
+  // Dummy variable for switching from horizontal to vertical lines
+  int Nxx = Nx;
+  int Nyy = Ny;
+  int horizontal = 1;
+
+  // When line is horizontal rather than vertical, switch x and y dimensions
+  if (fabs(ortho.x) < fabs(ortho.y)) {
+    horizontal = 0;
+    ortho = (real2)(ortho.y, ortho.x);
+
+    Nxx = Ny;
+    Nyy = Nx;
+
+    midpoint = (real2)(midpoint.y, midpoint.x);
+  }
+
+  // shift image to correct z-dimension (as this will remain fixed),
+  // particularly relevant for "F" contiguity of image
+  __global real *img0 = img + pos_img_\order2(0, 0, z, Nx, Ny, Nz);
+
+  // stride representing one index_step in x dimension (dependent on
+  // horizontal/vertical)
+  size_t stride_x = horizontal == 1 ? pos_img_\order2(1, 0, 0, Nx, Ny, Nz)
+                                    : pos_img_\order2(0, 1, 0, Nx, Ny, Nz);
+
+  real s_under =
+      fabs(fabs(ortho.x) - fabs(ortho.y)) * (real)0.5 * delta_x;
+  real s_upper =
+      (fabs(ortho.x) + fabs(ortho.y)) * (real)0.5 * delta_x;
+  real difference = s_upper - s_under;
+
+  // accumulation variable
+  real acc = (real)0.;
+
+  // loop through the entire y dimension
+  for (int y = 0; y < Nyy; y++) {
+    int x_low, x_high;
+
+    // project (0,y) onto detector minus position of detector
+    real d = (y - midpoint.y) * delta_x * ortho.y - ss;
+
+    // compute bounds
+    x_low = (int)((-s_upper * (real)1.01 - d) / ortho.x / delta_x +
+                  midpoint.x);
+    x_high = (int)((s_upper * (real)1.01 - d) / ortho.x / delta_x +
+                   midpoint.x);
+
+    // case the direction is decreasing switch high and low
+    if (ortho.x < (real)0.) {
+      int trade = x_low;
+      x_low = x_high;
+      x_high = trade;
+    }
+
+
+    // make sure x inside image dimensions
+    x_low = max(x_low, 0);
+    x_high = min(x_high, Nxx - 1);
+
+    // shift position of image depending on horizontal/vertical
+    if (horizontal == 1)
+      img = img0 + pos_img_\order2(x_low, y, 0, Nx, Ny, Nz);
+    if (horizontal == 0)
+      img = img0 + pos_img_\order2(y, x_low, 0, Nx, Ny, Nz);
+
+    // integration in x dimension for fixed y
+    for (int x = x_low; x <= x_high; x++) {
+      // anterpolation weight via normal distance
+      real zz = (x - midpoint.x) * ortho.x * delta_x + d;
+      real weight = fanbeam_ray_weightfkt_\my_variable_type_\order1\order2(
+          zz, (real)1. / fabs(ortho.x), s_under, s_upper, difference);
+
+      if (weight > (real)0.) {
+        acc += weight * img[0];
+      }
+      // update image to next position
+      img += stride_x;
+    }
+  }
+  // assign value to sinogram
+  sino[pos_sino_\order1(s, a, z, Ns, Na, Nz)] =
+      acc * delta_x;
+}
+
+// ray-driven Fanbeam backprojection
+// Computes the backprojection projection in fanbeam geometry for a given image.
+// the \my_variable_type_\order1\order2 suffix sets the kernel to the suitable
+// precision, contiguity of the image, contiguity of sinogram.
+// Input:
+// 			img:  Pointer to array representing image (to be computed) of
+//                            dimensions Nx times Ny times Nz (img_shape=Nx times Ny)
+//			sino: Pointer to array representing sinogram (to be
+//                            transformed) with detector-dimension times angle-dimension
+//                            times z dimension
+//			ofs:  Buffer containing geometric informations concerning
+//                            the projection directions (angular information),
+//                            The first two entries are (xd,yd) in direction along the
+//                            detector line with length delta_xi.
+//                            Third and fourth entries (qx,qy) from origin to source with
+//                            length RE.
+//                            Fifth and sixth entries (dx0,dy0) from origin to center of
+//                            detector line (orthogonal projection of origin onto
+//                            detector line).
+//     Geometry_information:  Contains various geometric quantities
+//                            relevant for the computation, more precisely
+//                            0. R/delta_x, 1. RE/delta_x, 2. delta_xi/delta_x,
+//                            3. x_mid (in image_pixels), 4. y_mid (in image_pixels),
+//                            5. xi_midpoint (in detector_pixels), 6. Nx, 7. Ny, 8. Nxi,
+//                            9. Nphi, 10. delta_x
+// Output:
+//			values inside img are altered to represent the computed
+//                      fanbeam backprojection
+__kernel void fanbeam_ray_ad_\my_variable_type_\order1\order2(
+    __global real *img, __global real *sino, __constant real8 *ofs,
+    __constant real *Geometryinformation) {
+  // Extract geometric information
+  size_t Nx = get_global_size(0);
+  size_t Ny = get_global_size(1);
+  size_t Nz = get_global_size(2);
+  int Ns = Geometryinformation[8];
+  int Na = Geometryinformation[9];
+
+  // Extract current position
+  size_t xx = get_global_id(0);
+  size_t yy = get_global_id(1);
+  size_t z = get_global_id(2);
+
+  // Midpoints of geometry
+  real2 midpoint = (real2)(Geometryinformation[3], Geometryinformation[4]);
+  real midpoint_det = Geometryinformation[5];
+
+  // Relevant distances
+  real R = Geometryinformation[0];
+  real delta_xi = Geometryinformation[2];
+  real delta_x = Geometryinformation[10];
+
+  // Pixel center relative to the image midpoint
+  real2 P = (real2)(xx,yy) - midpoint;
+
+  // Accumulation variable
+  real acc = (real)0.;
+
+  // Shift sinogram to suitable z-position
+  sino += pos_sino_\order2(0, 0, z, Ns, Na, Nz);
+
+  // precompute scaling parameters
+  real R_sqr_inv = (real)1. / (R * R);
+  real delta_xi_sqr_inv = (real)1. / (delta_xi * delta_xi);
+
+  // for loop through all angles
+  for (int a = 0; a < Na; a++) {
+    // Geometric information associated with a.th angle
+    real8 o = ofs[a];
+    //(xd,yd) ... vector along the detector-line with length delta_xi.
+    real2 dl = (real2)(o.s0, o.s1);
+    //(qx,qy) ... vector from origin to source (with length RE).
+    real2 q = (real2)(o.s2, o.s3);
+    //(dx0,dy0) ... vector from  origin orthogonally projected onto
+    //detector-line.(with length R-RE)
+    real2 d0 = (real2)(o.s4, o.s5);
+
+    // Delta_Phi angular resolution
+    real Delta_Phi = o.s6;
+
+    real2 dd = (d0 - q) * R_sqr_inv;
+    real2 d = dl * delta_xi_sqr_inv;
+
+    // define the corners
+    real2 Pmm = P + (real2)(-(real)0.5, -(real)0.5);
+    real2 Pmp = P + (real2)(-(real)0.5, (real)0.5);
+    real2 Ppm = P + (real2)((real)0.5, -(real)0.5);
+    real2 Ppp = P + (real2)((real)0.5, (real)0.5);
+
+    //project corners onto the detector
+    real xi_mm = dot(d, Pmm - q) / dot(dd, Pmm - q) + midpoint_det;
+    real xi_mp = dot(d, Pmp - q) / dot(dd, Pmp - q) + midpoint_det;
+    real xi_pm = dot(d, Ppm - q) / dot(dd, Ppm - q) + midpoint_det;
+    real xi_pp = dot(d, Ppp - q) / dot(dd, Ppp - q) + midpoint_det;
+
+    real xi_low = min(min(xi_mm, xi_mp), min(xi_pm, xi_pp));
+    real xi_high = max(max(xi_mm, xi_mp), max(xi_pm, xi_pp));
+
+    int s_low = (int)floor(xi_low - (real)1.);
+    int s_high = (int)ceil(xi_high + (real)1.);
+
+    s_low = max(s_low, 0);
+    s_high = min(s_high, Ns - 1);
+
+    real acc_local = (real)0.;
+    for (int s = s_low; s <= s_high; s++) {
+      // Direction vector from source to the center of detector pixel s.
+      real2 dp = d0 + dl * ((real)s - midpoint_det) - q;
+      real norm = hypot(dp.x, dp.y);
+      dp = dp / norm;
+
+      real2 ortho = (real2)(-dp.y, dp.x);
+      real abs_ortho_x = fabs(ortho.x);
+      real abs_ortho_y = fabs(ortho.y);
+      real s_under = fabs(abs_ortho_x - abs_ortho_y) * (real)0.5 * delta_x;
+      real s_upper = (abs_ortho_x + abs_ortho_y) * (real)0.5 * delta_x;
+      real difference = s_upper - s_under;
+
+      real zz = dot(P - q, ortho) * delta_x;
+      real weight = fanbeam_ray_weightfkt_\my_variable_type_\order1\order2(
+          zz, (real)1. / max(abs_ortho_x, abs_ortho_y), s_under, s_upper,
+          difference);
+
+      acc_local += weight * sino[pos_sino_\order2(s, a, 0, Ns, Na, Nz)];
+    }
+
+    // Accumulate weighted sum (Delta_Phi accounts for angular resolution)
+    acc += Delta_Phi * acc_local;
+  }
+
+  //update img with computed value
+  img[pos_img_\order1(xx, yy, z, Nx, Ny, Nz)] = acc * delta_xi;
+}
