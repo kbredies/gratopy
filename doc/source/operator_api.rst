@@ -207,6 +207,43 @@ chooses geometry for which every measured ray intersects the corresponding
 image domain. Construction validates the resulting geometry against the
 configured image and detector centers.
 
+Geometry visualization
+----------------------
+
+Projection operators can draw their physical geometry via
+:meth:`~gratopy.operator.projection._ProjectionOperator.show_geometry`. The
+drawing shows the image domain, the detector (with an arrow towards increasing
+pixel indices, a marker at pixel 0 and a tick at the detector center), sample
+rays and, for fan beams, the source and its trajectory. Rays missing the image
+domain are drawn dashed in red, which makes it easy to check the coverage
+resulting from an :class:`~gratopy.utilities.ExtentPlaceholder`. No OpenCL
+queue is required.
+
+.. code-block:: python
+
+    import matplotlib.pyplot as plt
+    from gratopy.utilities import Detectors, ExtentPlaceholder, ImageDomain
+
+    F = gratopy.operator.Fanbeam(
+        image_domain=ImageDomain(size=128, extent=ExtentPlaceholder.VALID),
+        angles=360,
+        detectors=Detectors(number=192, extent=3.0),
+        source_detector_distance=8.0,
+        source_origin_distance=4.0,
+    )
+    F.show_geometry()          # first angle of the operator, in a new figure
+    plt.show()
+
+Several angles are overlaid in one axes, and existing axes can be drawn into,
+e.g., to compare geometries side by side:
+
+.. code-block:: python
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 5), layout="constrained")
+    R.show_geometry(np.pi / 4, ax=axes[0], legend=False)
+    F.show_geometry([0.0, np.pi / 2], ax=axes[1], legend=False)
+    plt.show()
+
 Adjoint convention
 ------------------
 

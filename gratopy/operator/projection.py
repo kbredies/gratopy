@@ -38,10 +38,10 @@ import pyopencl.array as clarray
 
 from dataclasses import replace
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from gratopy.gratopy import fanbeam_struct, radon_struct
-from gratopy.operator.geometry import ProjectionGeometry
+from gratopy.operator._geometry import ProjectionGeometry, plot_projection_geometry
 from gratopy.operator.opencl import OpenCLKernelSpec, _OpenCLOperator
 from gratopy.utilities import (
     Angles,
@@ -61,6 +61,9 @@ from gratopy.utilities import (
     valid_image_given_detector_fullcircle,
     valid_image_given_detector_halfcircle,
 )
+
+if TYPE_CHECKING:
+    import matplotlib.axes
 
 
 class _ProjectionOperator(_OpenCLOperator):
@@ -123,7 +126,7 @@ class _ProjectionOperator(_OpenCLOperator):
         :param angles: Angles in radians. Defaults to all angles of the
             operator's angular sampling.
         :return: The source, detector and image-domain positions, see
-            :class:`gratopy.operator.geometry.ProjectionGeometry`.
+            ``gratopy.operator._geometry.ProjectionGeometry``.
         """
         if angles is None:
             angles = self.angles.angles
@@ -149,13 +152,13 @@ class _ProjectionOperator(_OpenCLOperator):
     def show_geometry(
         self,
         angles: npt.ArrayLike | None = None,
-        ax: Any = None,
+        ax: matplotlib.axes.Axes | None = None,
         *,
         n_rays: int = 15,
         coverage: bool = True,
         trajectory: bool = True,
         legend: bool = True,
-    ) -> Any:
+    ) -> matplotlib.axes.Axes:
         """Draw the physical geometry of the operator.
 
         The drawing shows the image domain, the detector (with an arrow
@@ -178,8 +181,6 @@ class _ProjectionOperator(_OpenCLOperator):
             ``False`` when drawing a grid of geometries.
         :return: The :class:`matplotlib.axes.Axes` drawn into.
         """
-        from gratopy.operator.geometry import plot_projection_geometry
-
         if angles is None:
             angles = self.angles.angles[:1]
         geometry = self._geometry_at(angles)
@@ -189,7 +190,9 @@ class _ProjectionOperator(_OpenCLOperator):
             n_rays=n_rays,
             coverage=coverage,
             trajectory=(
-                self._geometry_at().sources if trajectory and geometry.is_fanbeam else None
+                self._geometry_at().sources
+                if trajectory and geometry.is_fanbeam
+                else None
             ),
             legend=legend,
             title=self._operator_name if ax is None else None,
@@ -198,7 +201,7 @@ class _ProjectionOperator(_OpenCLOperator):
     def _beam_geometry(
         self, angles: np.ndarray, image_dims: np.ndarray
     ) -> dict[str, Any]:
-        """Return the geometry-specific fields of :class:`ProjectionGeometry`.
+        """Return the geometry-specific fields of ``ProjectionGeometry``.
 
         Geometries override this to provide ``detector_origin``,
         ``detector_axis`` and either ``sources`` or ``beam_direction``.

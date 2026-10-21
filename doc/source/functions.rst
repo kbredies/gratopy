@@ -87,6 +87,10 @@ Projection operators
    :undoc-members:
    :show-inheritance:
 
+.. autoclass:: gratopy.operator.projection._ProjectionOperator
+   :members: show_geometry
+   :show-inheritance:
+
 OpenCL-backed operator helpers
 ------------------------------
 
