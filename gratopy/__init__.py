@@ -33,6 +33,7 @@ from .gratopy import (
 from .phantom import ct_shepp_logan as phantom, easy_phantom
 
 import gratopy.operator
+import gratopy.reconstruction
 
 
 # internal functions

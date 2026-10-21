@@ -50,6 +50,7 @@ The gratopy_ (**Gr**\az **a**\ccelerated **to**\mographic projections for **Py**
    installation
    getting_started
    operator_api
+   reconstruction_examples
    functions
    test_examples
    acknowledgements

@@ -500,13 +500,6 @@ class _OpenCLOperator(Operator):
             )
         return output
 
-    def _vector_norm(self, vector: Any) -> float:
-        """Compute the Euclidean norm of an OpenCL device array."""
-        if not isinstance(vector, clarray.Array):
-            return super()._vector_norm(vector)
-        squared_norm = clarray.vdot(vector, vector).get()
-        return float(np.sqrt(np.real(squared_norm)))
-
     def _kernel_arguments(
         self,
         output: clarray.Array,

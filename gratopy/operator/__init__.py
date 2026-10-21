@@ -15,3 +15,4 @@ from .base import (
     SumOperator,
 )
 from .opencl import OpenCLKernelSpec, invalidate_kernel_cache
+from .space import Space

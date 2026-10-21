@@ -318,6 +318,65 @@ leaf norms are currently obtained from finite power iterations and are not
 themselves certified upper bounds. The resulting combined value is therefore a
 heuristic unless certified bounds are available for every leaf.
 
+Function spaces
+---------------
+
+Every operator has a :attr:`~gratopy.operator.base.Operator.domain` and a
+:attr:`~gratopy.operator.base.Operator.codomain`, given as
+:class:`gratopy.operator.space.Space` objects (or ``None`` if unspecified,
+which solvers treat as Euclidean). A space carries the weighted inner product
+in which :attr:`T` is the adjoint. For projection operators, images are
+weighted by the pixel area :math:`\delta_x^2` and sinograms by the detector
+pixel width :math:`\delta_s` and the angle weights:
+
+.. code-block:: python
+
+    residual = R.codomain.norm(R * x - sino)       # physically weighted norm
+    pairing = R.domain.inner(x, R.T * sino)        # equals R.codomain.inner(R * x, sino)
+
+Spaces propagate through operator algebra: the adjoint swaps domain and
+codomain, compositions take the domain of their last and the codomain of their
+first operand, and combining operators with different (specified) spaces
+raises a :class:`ValueError`. Custom operators can declare their spaces via
+``domain=`` and ``codomain=`` or by assigning the attributes.
+
+Reconstruction
+--------------
+
+:mod:`gratopy.reconstruction` provides the reconstruction algorithms
+:func:`~gratopy.reconstruction.landweber`,
+:func:`~gratopy.reconstruction.conjugate_gradients`, and
+:func:`~gratopy.reconstruction.total_variation`. They take the operator first
+and work with any operator, including expressions and custom operators:
+
+.. code-block:: python
+
+    from gratopy.reconstruction import landweber, conjugate_gradients, total_variation
+
+    x_lw = landweber(R, sino, 200)
+    x_cg = conjugate_gradients(R, sino, 50, epsilon=1e-4)
+    x_tv = total_variation(R, sino, mu=20.0, number_iterations=2000)
+
+Inputs follow the operator conventions: the queue is taken from ``queue=``,
+the data, or ``x0``; dtype and memory order follow the data; trailing
+dimensions are treated as a stack of slices. The algorithms never print
+progress. Instead, ``callback(iteration, x)`` is called after every iteration
+and stops the iteration by returning ``True``:
+
+.. code-block:: python
+
+    def monitor(iteration, x):
+        if iteration % 10 == 0:               # each check synchronizes with the host
+            return R.codomain.norm(R * x - sino) < 1e-3 * R.codomain.norm(sino)
+
+    norm = R.norm_estimate(queue=queue)       # estimate once, reuse across calls
+    x = landweber(R, sino, 1000, operator_norm=norm, callback=monitor)
+    x = landweber(R, sino, 100, operator_norm=norm, x0=x)   # continue
+
+As in :func:`gratopy.total_variation`, the total-variation reconstruction is
+constrained to be nonnegative. See :doc:`reconstruction_examples` for worked
+examples.
+
 Class structure
 ---------------
 

@@ -91,6 +91,19 @@ Projection operators
    :members: show_geometry
    :show-inheritance:
 
+Function spaces
+---------------
+
+.. automodule:: gratopy.operator.space
+   :members:
+   :show-inheritance:
+
+Reconstruction algorithms
+-------------------------
+
+.. automodule:: gratopy.reconstruction
+   :members:
+
 OpenCL-backed operator helpers
 ------------------------------
 
