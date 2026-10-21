@@ -171,11 +171,11 @@ reused by multiple operators. Construct modified geometry with a new value, for
 example by using :func:`dataclasses.replace`. ``Angles`` stores private,
 read-only copies of its angle and weight arrays.
 
-Parallel-beam extent inference
-------------------------------
+Extent inference
+----------------
 
-For Radon operators, one physical extent can be inferred from the other by
-using :class:`gratopy.utilities.ExtentPlaceholder`. This is useful when one
+One physical extent can be inferred from the other by using
+:class:`gratopy.utilities.ExtentPlaceholder`. This is useful when one
 wants either the smallest detector covering a fixed image domain, or the
 largest image domain covered by a fixed detector.
 
@@ -201,11 +201,28 @@ Conversely, the image extent can be inferred from a fixed detector extent:
         detectors=Detectors(number=200, extent=2.0),
     )
 
-Use one placeholder together with one numeric extent. ``FULL`` chooses geometry
-that covers the full relevant image or detector footprint, while ``VALID``
-chooses geometry for which every measured ray intersects the corresponding
-image domain. Construction validates the resulting geometry against the
-configured image and detector centers.
+Fan-beam operators support placeholders in the same way:
+
+.. code-block:: python
+
+    F = gratopy.operator.Fanbeam(
+        image_domain=ImageDomain(size=128, extent=2.0),
+        angles=360,
+        detectors=Detectors(number=192, extent=ExtentPlaceholder.FULL),
+        source_detector_distance=8.0,
+        source_origin_distance=4.0,
+    )
+
+Use one placeholder together with one numeric extent. ``FULL`` chooses the
+extent such that every ray through the image domain hits the detector, while
+``VALID`` chooses it such that every ray hitting the detector intersects the
+image domain. If no such extent exists for the configured image and detector
+centers, construction raises a :class:`ValueError`.
+
+Radon placeholders take the angular coverage into account, as given by the
+``half_circle`` flag of :class:`~gratopy.utilities.Angles`. Fan-beam
+placeholders are always resolved for a full-circle scan; for limited-angle
+fan-beam scans, choose numeric extents explicitly.
 
 Geometry visualization
 ----------------------
